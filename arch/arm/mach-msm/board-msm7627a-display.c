@@ -1460,10 +1460,6 @@ void msm7x27a_set_display_params(char *prim_panel)
 			strnlen("mipi_video_nt35510_wvga",
 				PANEL_NAME_MAX_LEN)))
 			disable_splash = 1;
-
-	if (machine_is_qrd_skud_prime())
-		disable_splash = 1;
-
 	}
 }
 
@@ -1490,7 +1486,7 @@ void __init msm_fb_add_devices(void)
 		platform_add_devices(qrd3_fb_devices,
 						ARRAY_SIZE(qrd3_fb_devices));
 	} else if (machine_is_qrd_skud_prime()) {
-		mdp_pdata.cont_splash_enabled = 0x0;
+		mdp_pdata.cont_splash_enabled = 0x1;
 		platform_add_devices(skud_fb_devices,
 				ARRAY_SIZE(skud_fb_devices));
 	} else {
