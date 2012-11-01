@@ -1808,6 +1808,16 @@ static void msm_cpr_clk_enable(void)
 	}
 }
 
+static void msm_cpr_reset(void)
+{
+	/* Put CPR in reset */
+	if(cpu_is_msm8625q()) {
+		writel_relaxed(0x0, RBCPR_SW_RESET_N_8625Q);
+	} else {
+		writel_relaxed(0x0, RBCPR_SW_RESET_N);
+	}
+}
+
 static struct msm_cpr_config msm_cpr_pdata = {
 	.ref_clk_khz = 19200,
 	.delay_us = 25000,
@@ -1828,6 +1838,7 @@ static struct msm_cpr_config msm_cpr_pdata = {
 	.step_size = 12500,
 	.get_quot = msm_cpr_get_quot,
 	.clk_enable = msm_cpr_clk_enable,
+	.cpr_reset = msm_cpr_reset,
 };
 
 static struct platform_device msm8625_device_cpr = {
