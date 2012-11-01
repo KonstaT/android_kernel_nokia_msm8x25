@@ -940,6 +940,14 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 		"virt_start_ptr = %x\n", (uint32_t) virt_start_ptr);
 	memset(virt_start_ptr, 0x0, SZ_2K);
 
+	/* enable clk for cpr */
+	if (!pdata->clk_enable) {
+		pr_err("CPR: Invalid clk_enable hook\n");
+		return -EFAULT;
+	}
+
+	pdata->clk_enable();
+
 	/* Initialize platform_data */
 	cpr->config = pdata;
 
