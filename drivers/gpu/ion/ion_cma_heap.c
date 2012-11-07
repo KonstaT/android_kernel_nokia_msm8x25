@@ -165,6 +165,7 @@ static void ion_cma_unmap_kernel(struct ion_heap *heap,
 	return;
 }
 
+
 int ion_cma_map_iommu(struct ion_buffer *buffer,
 				struct ion_iommu_map *data,
 				unsigned int domain_num,
@@ -181,8 +182,11 @@ int ion_cma_map_iommu(struct ion_buffer *buffer,
 	struct sg_table *table = info->table;
 	int prot = IOMMU_WRITE | IOMMU_READ;
 
-	if (!msm_use_iommu())
-		return -EINVAL;
+	if (!msm_use_iommu()) {
+		data->iova_addr = info->handle;
+		data->mapped_size = iova_length;
+		return 0;
+	}
 
 	data->mapped_size = iova_length;
 	extra = iova_length - buffer->size;
