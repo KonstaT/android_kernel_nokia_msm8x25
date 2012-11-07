@@ -1739,45 +1739,25 @@ static uint32_t msm_c2_pmic_mv[] __initdata = {
 /**
  * This data will be based on CPR mode of operation
  */
-static struct msm_cpr_mode msm_cpr_mode_data[] = {
-	[NORMAL_MODE] = {
-			.ring_osc_data = {
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-			},
-			.ring_osc = 0,
-			.step_quot = ~0,
-			.tgt_volt_offset = 0,
-			.nom_Vmax = 1350000,
-			.nom_Vmin = 1250000,
-			.calibrated_uV = 1100000,
-	},
-	[TURBO_MODE] = {
-			.ring_osc_data = {
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-				{0, },
-			},
-			.ring_osc = 0,
-			.step_quot = ~0,
-			.tgt_volt_offset = 0,
-			.turbo_Vmax = 1350000,
-			.turbo_Vmin = 1150000,
-			.nom_Vmax = 1350000,
-			.nom_Vmin = 1150000,
-			.calibrated_uV = 1300000,
-	},
+static struct msm_cpr_mode msm_cpr_mode_data = {
+	.ring_osc_data = {
+			{0, },
+			{0, },
+			{0, },
+			{0, },
+			{0, },
+			{0, },
+			{0, },
+			{0, },
+		},
+	.ring_osc = 0,
+	.step_quot = ~0,
+	.tgt_volt_offset = 0,
+	.turbo_Vmax = 1350000,
+	.turbo_Vmin = 1150000,
+	.nom_Vmax = 1350000,
+	.nom_Vmin = 1150000,
+	.calibrated_uV = 1300000,
 };
 
 static uint32_t
@@ -1822,7 +1802,7 @@ static struct msm_cpr_config msm_cpr_pdata = {
 	.ref_clk_khz = 19200,
 	.delay_us = 25000,
 	.irq_line = 0,
-	.cpr_mode_data = msm_cpr_mode_data,
+	.cpr_mode_data = &msm_cpr_mode_data,
 	.tgt_count_div_N = 1,
 	.floor = 0,
 	.ceiling = 40,
@@ -1881,12 +1861,10 @@ static void __init msm_cpr_init(void)
 	else if (cpr_info->ring_osc == 0x1)
 		ring_osc = 0x3;
 
-	msm_cpr_mode_data[TURBO_MODE].ring_osc = ring_osc;
-	msm_cpr_mode_data[NORMAL_MODE].ring_osc = ring_osc;
+	msm_cpr_mode_data.ring_osc = ring_osc;
 
 	/* GCNT = 1000 nsec/52nsec (@TCX0=19.2Mhz) = 19.2 */
-	msm_cpr_mode_data[TURBO_MODE].ring_osc_data[ring_osc].gcnt = 19;
-	msm_cpr_mode_data[NORMAL_MODE].ring_osc_data[ring_osc].gcnt = 19;
+	msm_cpr_mode_data.ring_osc_data[ring_osc].gcnt = 19;
 
 	/**
 	 * The scaling factor and offset are as per chip characterization data
@@ -1915,35 +1893,34 @@ static void __init msm_cpr_init(void)
 	 * Bits 4:0 of pvs_fuse provide mapping to the safe boot up voltage.
 	 * Boot up mode is by default Turbo.
 	 */
-	msm_cpr_mode_data[TURBO_MODE].calibrated_uV =
+	msm_cpr_mode_data.calibrated_uV =
 				msm_c2_pmic_mv[cpr_info->pvs_fuse & 0x1F];
 
 	if ((cpr_info->floor_fuse & 0x3) == 0x0) {
-		msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 1000000;
-		msm_cpr_mode_data[TURBO_MODE].turbo_Vmin = 1100000;
+		msm_cpr_mode_data.nom_Vmin = 1000000;
+		msm_cpr_mode_data.turbo_Vmin = 1100000;
 	} else if ((cpr_info->floor_fuse & 0x3) == 0x1) {
-		msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 1050000;
-		msm_cpr_mode_data[TURBO_MODE].turbo_Vmin = 1100000;
+		msm_cpr_mode_data.nom_Vmin = 1050000;
+		msm_cpr_mode_data.turbo_Vmin = 1100000;
 	} else if ((cpr_info->floor_fuse & 0x3) == 0x2) {
-		msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 1100000;
-		msm_cpr_mode_data[TURBO_MODE].turbo_Vmin = 1100000;
+		msm_cpr_mode_data.nom_Vmin = 1100000;
+		msm_cpr_mode_data.turbo_Vmin = 1100000;
 	}
 
 	if (cpu_is_msm8625q())
-		msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 950000;
+		msm_cpr_mode_data.nom_Vmin = 950000;
 
 	pr_debug("%s: cpr: ring_osc: 0x%x\n", __func__,
-		msm_cpr_mode_data[TURBO_MODE].ring_osc);
+		msm_cpr_mode_data.ring_osc);
 	pr_info("%s: cpr: turbo_quot: 0x%x\n", __func__, cpr_info->turbo_quot);
 	pr_info("%s: cpr: pvs_fuse: 0x%x\n", __func__, cpr_info->pvs_fuse);
 	pr_info("%s: cpr: floor_fuse: 0x%x\n", __func__, cpr_info->floor_fuse);
 	pr_info("%s: cpr: nom_Vmin: %d, turbo_Vmin: %d\n", __func__,
-		msm_cpr_mode_data[TURBO_MODE].nom_Vmin,
-		msm_cpr_mode_data[TURBO_MODE].turbo_Vmin);
+		msm_cpr_mode_data.nom_Vmin,
+		msm_cpr_mode_data.turbo_Vmin);
 	pr_info("%s: cpr: nom_Vmax: %d, turbo_Vmax: %d\n", __func__,
-		msm_cpr_mode_data[TURBO_MODE].nom_Vmax,
-		msm_cpr_mode_data[TURBO_MODE].turbo_Vmax);
-
+		msm_cpr_mode_data.nom_Vmax,
+		msm_cpr_mode_data.turbo_Vmax);
 	kfree(cpr_info);
 
 	if ((msm8625_cpu_id() == MSM8625A) || cpu_is_msm8625q())

@@ -90,17 +90,6 @@
 /* Number of oscilator in each sensor */
 #define NUM_OSC 8
 
-#define CPR_MODE 2
-
-/**
- * enum cpr_mode - Modes in which cpr is used
- */
-enum cpr_mode {
-	NORMAL_MODE = 0,
-	TURBO_MODE,
-	SVS_MODE,
-};
-
 /**
  * enum cpr_action - Cpr actions to be taken
  */
