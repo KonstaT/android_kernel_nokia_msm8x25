@@ -55,6 +55,8 @@ static void gpio_wlan_config(void)
 					|| machine_is_msm7627a_qrd3()
 					|| machine_is_msm8625_qrd7())
 		gpio_wlan_sys_rest_en = 124;
+	else if (machine_is_qrd_skud_prime())
+		gpio_wlan_sys_rest_en = 38;
 }
 
 static unsigned int qrf6285_init_regs(void)
