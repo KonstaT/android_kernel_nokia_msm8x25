@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2013, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -972,11 +972,11 @@ static void __init msm7627a_reserve(void)
 {
 	reserve_info = &msm7627a_reserve_info;
 	msm_reserve();
-	memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
 }
 
 static void __init msm8625_reserve(void)
 {
+	memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
 	memblock_remove(MSM8625_CPU_PHYS, SZ_8);
 	memblock_remove(MSM8625_WARM_BOOT_PHYS, SZ_32);
 	msm7627a_reserve();
