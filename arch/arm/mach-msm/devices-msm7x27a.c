@@ -1899,6 +1899,9 @@ static void __init msm_cpr_init(void)
 
 	msm_cpr_clk_enable();
 
+	if (machine_is_qrd_skud_prime())
+		msm_cpr_pdata.step_size = 6250;
+
 	platform_device_register(&msm8625_vp_device);
 	platform_device_register(&msm8625_device_cpr);
 }
