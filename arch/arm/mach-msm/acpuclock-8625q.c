@@ -131,7 +131,7 @@ static struct clock_state drv_state = { 0 };
 
 static struct clkctl_acpu_speed acpu_freq_tbl_cmn[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 30720 },
-	{ 1, 245760, ACPU_PLL_1, 1, 0, 30720, 3, MAX_NOMINAL_VOLTAGE, 122880 },
+	{ 1, 245760, ACPU_PLL_1, 1, 0, 30720, 3, MAX_NOMINAL_VOLTAGE, 61440 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, MAX_NOMINAL_VOLTAGE, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 60000, 3, MAX_NOMINAL_VOLTAGE, 122880 },
 	{ 0, 600000, ACPU_PLL_2, 2, 1, 75000, 3, 0, 160000 },
@@ -316,7 +316,9 @@ static int acpuclk_8625q_set_rate(int cpu, unsigned long rate,
 		goto out;
 	}
 
-	cur_s->vdd = regulator_get_voltage(drv_state.vreg_cpu);
+	if (reason != SETRATE_PC)
+		cur_s->vdd = regulator_get_voltage(drv_state.vreg_cpu);
+
 	if (cur_s->vdd <= 0)
 		goto out;
 
@@ -434,8 +436,7 @@ static int acpuclk_8625q_set_rate(int cpu, unsigned long rate,
 		goto out;
 
 	/* Change the AXI bus frequency if we can. */
-	if (reason != SETRATE_PC &&
-		strt_s->axiclk_khz != tgt_s->axiclk_khz) {
+	if (strt_s->axiclk_khz != tgt_s->axiclk_khz) {
 		res = clk_set_rate(drv_state.ebi1_clk,
 				tgt_s->axiclk_khz * 1000);
 		pr_debug("AXI bus set freq %d\n",
