@@ -399,6 +399,7 @@ static void __init msm7x27a_init_cam(void)
 				||  machine_is_msm8625_evt()
 				|| machine_is_msm7627a_qrd3()
 				|| machine_is_msm8625_qrd7()
+				|| machine_is_msm8625q_evbd()
 				|| machine_is_qrd_skud_prime()) {
 		sensor_board_info_ov7692.cam_vreg =
 			ov7692_gpio_vreg;
@@ -417,6 +418,7 @@ static void __init msm7x27a_init_cam(void)
 	if (machine_is_msm8625_surf() || machine_is_msm8625_evb()
 			|| machine_is_msm8625_evt()
 			|| machine_is_msm8625_qrd7()
+			|| machine_is_msm8625q_evbd()
 			|| machine_is_qrd_skud_prime()) {
 		platform_device_register(&msm8625_device_csic0);
 		platform_device_register(&msm8625_device_csic1);
@@ -427,6 +429,7 @@ static void __init msm7x27a_init_cam(void)
 	if (machine_is_msm8625_evb()
 			|| machine_is_msm8625_evt()
 			|| machine_is_msm8625_qrd7()
+			|| machine_is_msm8625q_evbd()
 			|| machine_is_qrd_skud_prime())
 		*(int *) msm7x27a_device_clkctl.dev.platform_data = 1;
 	platform_device_register(&msm7x27a_device_clkctl);
@@ -1212,6 +1215,7 @@ void __init msm7627a_camera_init(void)
 			|| machine_is_msm8625_evt()
 			|| machine_is_msm7627a_qrd3()
 			|| machine_is_msm8625_qrd7()
+			|| machine_is_msm8625q_evbd()
 			|| machine_is_qrd_skud_prime()) {
 #ifndef CONFIG_MSM_CAMERA_V4L2
 		lcd_camera_power_init();
@@ -1229,6 +1233,7 @@ void __init msm7627a_camera_init(void)
 			|| machine_is_msm8625_evt()
 			|| machine_is_msm7627a_qrd3()
 			|| machine_is_msm8625_qrd7()
+			|| machine_is_msm8625q_evbd()
 			|| machine_is_qrd_skud_prime()) {
 		platform_add_devices(camera_devices_evb,
 				ARRAY_SIZE(camera_devices_evb));
@@ -1243,6 +1248,7 @@ void __init msm7627a_camera_init(void)
 					|| !machine_is_msm8625_evt()
 					|| !machine_is_msm7627a_qrd3()
 					|| !machine_is_msm8625_qrd7()
+					|| !machine_is_msm8625q_evbd()
 					|| !machine_is_qrd_skud_prime())
 		register_i2c_devices();
 #ifndef CONFIG_MSM_CAMERA_V4L2
@@ -1274,6 +1280,7 @@ void __init msm7627a_camera_init(void)
 			|| machine_is_msm8625_evt()
 			|| machine_is_msm7627a_qrd3()
 			|| machine_is_msm8625_qrd7()
+			|| machine_is_msm8625q_evbd()
 			|| machine_is_qrd_skud_prime()) {
 		pr_debug("machine_is_msm7627a_evb i2c_register_board_info\n");
 		i2c_register_board_info(MSM_GSBI0_QUP_I2C_BUS_ID,

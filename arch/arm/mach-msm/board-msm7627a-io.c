@@ -673,7 +673,7 @@ static void __init ft5x06_touchpad_setup(void)
 	int rc;
 	int irq_gpio;
 
-	if (machine_is_qrd_skud_prime()) {
+	if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()) {
 		irq_gpio = FT5X16_IRQ_GPIO;
 
 		ft5x06_platformdata.x_max = 540;
@@ -873,7 +873,8 @@ void __init qrd7627a_add_io_devices(void)
 					mxt_device_info,
 					ARRAY_SIZE(mxt_device_info));
 	} else if (machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()
-				|| machine_is_qrd_skud_prime()) {
+				|| machine_is_qrd_skud_prime()
+				|| machine_is_msm8625q_evbd()) {
 		ft5x06_touchpad_setup();
 	}
 
