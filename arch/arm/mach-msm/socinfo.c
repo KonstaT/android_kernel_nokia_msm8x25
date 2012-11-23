@@ -284,6 +284,11 @@ static enum msm_cpu cpu_of_id[] = {
 	/* Uninitialized IDs are not known to run Linux.
 	   MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
 	   considered as unknown CPU. */
+
+       /* 8625Q IDs */
+       [168] = MSM_CPU_8625Q,
+       [169] = MSM_CPU_8625Q,
+       [170] = MSM_CPU_8625Q,
 };
 
 static enum msm_cpu cur_cpu;
