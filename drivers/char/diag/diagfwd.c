@@ -139,6 +139,8 @@ int chk_config_get_id(void)
 			return MSM8974_TOOLS_ID;
 		case MSM_CPU_8625:
 			return MSM8625_TOOLS_ID;
+		case MSM_CPU_8625Q:
+			return MSM8625Q_TOOLS_ID;
 		default:
 			return 0;
 		}
