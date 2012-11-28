@@ -608,6 +608,7 @@ static struct platform_device hs_pdev = {
 #define FT5X06_RESET_GPIO	26
 
 #define FT5X16_IRQ_GPIO		122
+#define FT5X16_IRQ_GPIO_8625Q	115
 
 static ssize_t
 ft5x06_virtual_keys_register(struct kobject *kobj,
@@ -673,7 +674,7 @@ static void __init ft5x06_touchpad_setup(void)
 	int rc;
 	int irq_gpio;
 
-	if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()) {
+	if (machine_is_qrd_skud_prime()) {
 		irq_gpio = FT5X16_IRQ_GPIO;
 
 		ft5x06_platformdata.x_max = 540;
@@ -681,6 +682,16 @@ static void __init ft5x06_touchpad_setup(void)
 		ft5x06_platformdata.irq_gpio = FT5X16_IRQ_GPIO;
 
 		ft5x06_device_info[0].irq = MSM_GPIO_TO_INT(FT5X16_IRQ_GPIO);
+
+		ft5x06_virtual_keys_attr.show = &ft5x16_virtual_keys_register;
+	} else if(machine_is_msm8625q_evbd()) {
+		irq_gpio = FT5X16_IRQ_GPIO_8625Q;
+
+		ft5x06_platformdata.x_max = 540;
+		ft5x06_platformdata.y_max = 960;
+		ft5x06_platformdata.irq_gpio = FT5X16_IRQ_GPIO_8625Q;
+
+		ft5x06_device_info[0].irq = MSM_GPIO_TO_INT(FT5X16_IRQ_GPIO_8625Q);
 
 		ft5x06_virtual_keys_attr.show = &ft5x16_virtual_keys_register;
 	} else
