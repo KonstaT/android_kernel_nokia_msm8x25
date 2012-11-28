@@ -92,7 +92,6 @@ static int mipi_video_nt35510_wvga_pt_init(void)
 	pinfo.mipi.frame_rate = 60; /* FIXME */
 
 	pinfo.mipi.dsi_phy_db = &dsi_video_mode_phy_db;
-	pinfo.mipi.dlane_swap = 0x01;
 	/* append EOT at the end of data burst */
 	pinfo.mipi.tx_eot_append = 0x01;
 

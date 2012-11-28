@@ -88,6 +88,7 @@ static struct resource msm_fb_resources[] = {
 };
 
 static void set_mdp_clocks_for_wuxga(void);
+static struct mipi_dsi_platform_data mipi_dsi_pdata;
 
 static int msm_fb_detect_panel(const char *name)
 {
@@ -131,8 +132,10 @@ static int msm_fb_detect_panel(const char *name)
 
 		if (!strncmp(name, MIPI_CMD_RENESAS_FWVGA_PANEL_NAME,
 				strnlen(MIPI_CMD_RENESAS_FWVGA_PANEL_NAME,
-					PANEL_NAME_MAX_LEN)))
+					PANEL_NAME_MAX_LEN))) {
+			mipi_dsi_pdata.dlane_swap = 0x1;
 			return 0;
+		}
 
 		if (!strncmp(name, MIPI_VIDEO_TOSHIBA_WUXGA_PANEL_NAME,
 				strnlen(MIPI_VIDEO_TOSHIBA_WUXGA_PANEL_NAME,
@@ -487,6 +490,7 @@ static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.vsync_gpio = MDP_VSYNC_GPIO,
 	.dsi_power_save = mipi_dsi_panel_power,
 	.splash_is_enabled = mipi_dsi_splash_is_enabled,
+	.dlane_swap	   = 0x0,
 };
 
 #ifdef CONFIG_MSM_BUS_SCALING

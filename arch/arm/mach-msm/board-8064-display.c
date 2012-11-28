@@ -499,6 +499,7 @@ static int mipi_dsi_panel_power(int on)
 
 static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.dsi_power_save = mipi_dsi_panel_power,
+	.dlane_swap = 0x0,
 };
 
 static bool lvds_power_on;

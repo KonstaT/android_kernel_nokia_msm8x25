@@ -85,7 +85,6 @@ static int mipi_cmd_truly_qhd_pt_init(void)
 	pinfo.mipi.dsi_phy_db = &dsi_cmd_mode_phy_db;
 	pinfo.mipi.tx_eot_append = 0x01;
 	pinfo.mipi.rx_eot_ignore = 0x0;
-	pinfo.mipi.dlane_swap = 0x01;
 
 	ret = mipi_truly_tft540960_1_e_device_register(&pinfo, MIPI_DSI_PRIM,
 						MIPI_DSI_PANEL_WVGA_PT);

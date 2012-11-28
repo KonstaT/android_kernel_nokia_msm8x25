@@ -126,7 +126,6 @@ static int __init mipi_cmd_renesas_fwvga_pt_init(void)
 	pinfo.mipi.dsi_phy_db = &dsi_cmd_mode_phy_db;
 	pinfo.mipi.tx_eot_append = 0x01;
 	pinfo.mipi.rx_eot_ignore = 0;
-	pinfo.mipi.dlane_swap = 0x01;
 #else
 #if defined(RENESAS_FWVGA_TWO_LANE)
 	pinfo.mipi.data_lane1 = TRUE;

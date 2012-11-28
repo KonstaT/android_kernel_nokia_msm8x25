@@ -67,19 +67,25 @@ static struct resource msm_fb_resources[] = {
 	}
 };
 
+static struct mipi_dsi_platform_data mipi_dsi_pdata;
+
 static int msm_fb_detect_panel(const char *name)
 {
 	if (!strncmp(name, MIPI_CMD_NOVATEK_QHD_PANEL_NAME,
 			strnlen(MIPI_CMD_NOVATEK_QHD_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
+				PANEL_NAME_MAX_LEN))) {
+		mipi_dsi_pdata.dlane_swap = 0x1;
 		return 0;
+	}
 
 #if !defined(CONFIG_FB_MSM_LVDS_MIPI_PANEL_DETECT) && \
 	!defined(CONFIG_FB_MSM_MIPI_PANEL_DETECT)
 	if (!strncmp(name, MIPI_VIDEO_NOVATEK_QHD_PANEL_NAME,
 			strnlen(MIPI_VIDEO_NOVATEK_QHD_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
+				PANEL_NAME_MAX_LEN))) {
+		mipi_dsi_pdata.dlane_swap = 0x1;
 		return 0;
+	}
 
 	if (!strncmp(name, MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
 			strnlen(MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
@@ -93,8 +99,10 @@ static int msm_fb_detect_panel(const char *name)
 
 	if (!strncmp(name, MIPI_CMD_RENESAS_FWVGA_PANEL_NAME,
 			strnlen(MIPI_CMD_RENESAS_FWVGA_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
+				PANEL_NAME_MAX_LEN))) {
+		mipi_dsi_pdata.dlane_swap = 0x1;
 		return 0;
+	}
 #endif
 
 	if (!strncmp(name, HDMI_PANEL_NAME,
@@ -270,6 +278,7 @@ static int mipi_dsi_panel_power(int on)
 static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.vsync_gpio = MDP_VSYNC_GPIO,
 	.dsi_power_save = mipi_dsi_panel_power,
+	.dlane_swap = 0x0,
 };
 
 #ifdef CONFIG_MSM_BUS_SCALING
@@ -458,7 +467,6 @@ static struct mipi_dsi_panel_platform_data novatek_pdata = {
 	.fpga_3d_config_addr  = FPGA_3D_GPIO_CONFIG_ADDR,
 	.fpga_ctrl_mode = FPGA_SPI_INTF,
 	.phy_ctrl_settings = &dsi_novatek_cmd_mode_phy_db,
-	.dlane_swap = 0x1,
 	.enable_wled_bl_ctrl = 0x1,
 };
 
