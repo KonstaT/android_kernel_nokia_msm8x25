@@ -26,6 +26,7 @@
 #define REG_NCP6335D_PGOOD		0x12
 #define REG_NCP6335D_TIMING		0x13
 #define REG_NCP6335D_COMMAND		0x14
+#define REG_NCP6335D_LIMCONF		0x16
 
 /* constraints */
 #define NCP6335D_MIN_VOLTAGE_UV		600000
@@ -43,6 +44,8 @@
 #define NCP6335D_VOUT_SEL_MASK		0x7F
 #define NCP6335D_SLEW_MASK		0x18
 #define NCP6335D_SLEW_SHIFT		0x3
+#define NCP6335D_TSD_MASK		0x01
+#define NCP6335D_TSD_VAL		0x00
 
 struct ncp6335d_info {
 	struct regulator_dev *regulator;
@@ -280,6 +283,16 @@ static int __devinit ncp6335d_init(struct ncp6335d_info *dd,
 	if (rc)
 		dev_err(dd->dev, "Unable to set slew rate rc(%d)\n", rc);
 
+	if (pdata->rearm_disable) {
+
+		rc = regmap_update_bits(dd->regmap, REG_NCP6335D_LIMCONF,
+				NCP6335D_TSD_MASK, NCP6335D_TSD_VAL);
+		if (rc)
+			dev_err(dd->dev, "Unable to reset REARM bit rc(%d)\n",
+					rc);
+	}
+
+	dump_registers(dd, REG_NCP6335D_LIMCONF, __func__);
 	dump_registers(dd, REG_NCP6335D_PROGVSEL0, __func__);
 	dump_registers(dd, REG_NCP6335D_TIMING, __func__);
 	dump_registers(dd, REG_NCP6335D_PGOOD, __func__);
