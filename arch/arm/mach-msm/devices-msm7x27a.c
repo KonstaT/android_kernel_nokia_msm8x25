@@ -1917,7 +1917,10 @@ static void __init msm_cpr_init(void)
 		msm_cpr_mode_data[TURBO_MODE].turbo_Vmin = 1100000;
 	}
 
-	pr_info("%s: cpr: ring_osc: 0x%x\n", __func__,
+	if (cpu_is_msm8625q())
+		msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 950000;
+
+	pr_debug("%s: cpr: ring_osc: 0x%x\n", __func__,
 		msm_cpr_mode_data[TURBO_MODE].ring_osc);
 	pr_info("%s: cpr: turbo_quot: 0x%x\n", __func__, cpr_info->turbo_quot);
 	pr_info("%s: cpr: pvs_fuse: 0x%x\n", __func__, cpr_info->pvs_fuse);
