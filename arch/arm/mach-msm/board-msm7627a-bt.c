@@ -103,12 +103,12 @@ static void gpio_bt_config(void)
 	if (machine_is_msm7627a_qrd1())
 		gpio_bt_sys_rest_en = 114;
 	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
-				|| machine_is_msm8625_evt()
-				|| machine_is_qrd_skud_prime())
+				|| machine_is_msm8625_evt())
 		gpio_bt_sys_rest_en = 16;
 	if (machine_is_msm8625_qrd7())
 		gpio_bt_sys_rest_en = 88;
-	if (machine_is_qrd_skud_prime())
+	if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+				|| machine_is_msm8625q_skud())
 		gpio_bt_sys_rest_en = 35;
 	if (machine_is_msm7627a_qrd3()) {
 		if (socinfo == 0x70002)
