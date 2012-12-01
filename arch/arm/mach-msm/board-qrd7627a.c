@@ -605,14 +605,14 @@ static struct regulator_consumer_supply vreg_consumers_EXT_1P8V[] = {
 
 /* GPIO regulator constraints */
 static struct gpio_regulator_platform_data msm_gpio_regulator_pdata[] = {
-	GPIO_VREG_INIT(EXT_2P85V, "ext_2p85v", "ext_2p85v_en", 35, 0),
-	GPIO_VREG_INIT(EXT_1P8V, "ext_1p8v", "ext_1p8v_en", 40, 0),
+	GPIO_VREG_INIT(EXT_2P85V, "ext_2p85v", "ext_2p85v_en", 129, 0),
+	GPIO_VREG_INIT(EXT_1P8V, "ext_1p8v", "ext_1p8v_en", 130, 0),
 };
 
 /* GPIO regulator */
 static struct platform_device qrd_vreg_gpio_ext_2p85v __devinitdata = {
 	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= 35,
+	.id	= 129,
 	.dev	= {
 		.platform_data =
 			&msm_gpio_regulator_pdata[GPIO_VREG_ID_EXT_2P85V],
@@ -621,7 +621,7 @@ static struct platform_device qrd_vreg_gpio_ext_2p85v __devinitdata = {
 
 static struct platform_device qrd_vreg_gpio_ext_1p8v __devinitdata = {
 	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= 40,
+	.id	= 130,
 	.dev	= {
 		.platform_data =
 			&msm_gpio_regulator_pdata[GPIO_VREG_ID_EXT_1P8V],
