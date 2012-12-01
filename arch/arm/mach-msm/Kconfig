@@ -588,6 +588,18 @@ config MACH_QRD_SKUD_PRIME
 	  factor devices, with new touch, display panel and other hardware
 	  configurations.
 
+config MACH_MSM8625Q_EVBD
+	depends on ARCH_MSM8625
+	depends on !MSM_STACKED_MEMORY
+	default y
+	bool "MSM8625Q EVBD"
+	help
+	  Support for the Qualcomm MSM8625Q EVBD Reference Design.
+	  Add support for a EVBD reference design based on MSM8x25Q
+	  chipset. This device is much closer to a phone than regular form
+	  factor devices, with new touch, display panel and other hardware
+	  configurations.
+
 config MACH_MSM7X30_SURF
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY

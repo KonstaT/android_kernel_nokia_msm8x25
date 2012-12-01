@@ -1687,6 +1687,8 @@ static int __init msm8625_cpu_id(void)
 	case 0x774:
 	case 0x781:
 	case 0x8D1:
+	case 0x8E0:
+	case 0x8E1:
 		cpu = MSM8625A;
 		break;
 	case 0x775:
@@ -1927,7 +1929,7 @@ static void __init msm_cpr_init(void)
 
 	msm_cpr_clk_enable();
 
-	if (machine_is_qrd_skud_prime())
+	if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd())
 		msm_cpr_pdata.step_size = 6250;
 
 	platform_device_register(&msm8625_vp_device);
@@ -2064,7 +2066,8 @@ int __init msm7x2x_misc_init(void)
 	if (cpu_is_msm7x27aa() || cpu_is_msm7x25ab())
 		platform_device_register(&msm7x27aa_device_acpuclk);
 	else if (cpu_is_msm8625() || cpu_is_msm8625q()) {
-		if (machine_is_qrd_skud_prime()) {
+		if (machine_is_qrd_skud_prime() ||
+					machine_is_msm8625q_evbd()) {
 			msm_acpuclock_init();
 			platform_device_register(&msm8625q_device_acpuclk);
 		} else if (msm8625_cpu_id() == MSM8625)
