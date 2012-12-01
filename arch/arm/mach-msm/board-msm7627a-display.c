@@ -1487,7 +1487,7 @@ void __init msm_fb_add_devices(void)
 		platform_add_devices(qrd3_fb_devices,
 						ARRAY_SIZE(qrd3_fb_devices));
 	} else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()) {
-		mdp_pdata.cont_splash_enabled = 0x1;
+		mdp_pdata.cont_splash_enabled = 0x0;
 		platform_add_devices(skud_fb_devices,
 				ARRAY_SIZE(skud_fb_devices));
 	} else {
