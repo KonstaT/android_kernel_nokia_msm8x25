@@ -513,7 +513,8 @@ static int msm_fb_detect_panel(const char *name)
 			machine_is_msm8625_evt()) {
 		if (!strncmp(name, "mipi_cmd_nt35510_wvga", 21))
 			ret = 0;
-	} else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()) {
+	} else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+				|| machine_is_msm8625q_skud()) {
 		if (!strncmp(name, "mipi_video_hx8389b_qhd", 22))
 			ret = 0;
 	}
@@ -790,6 +791,7 @@ void __init msm_msm7627a_allocate_memory_regions(void)
 	else if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
 						|| machine_is_msm8625_evt()
 						|| machine_is_msm8625q_evbd()
+						|| machine_is_msm8625q_skud()
 						|| machine_is_qrd_skud_prime())
 		fb_size = MSM8x25_MSM_FB_SIZE;
 	else
@@ -1034,7 +1036,8 @@ static int msm_fb_dsi_client_reset(void)
 	else if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
 						|| machine_is_msm8625_evt())
 		rc = msm_fb_dsi_client_qrd3_reset();
-	else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd())
+	else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+				|| machine_is_msm8625q_skud())
 		rc = msm_fb_dsi_client_skud_reset();
 	else
 		rc = msm_fb_dsi_client_msm_reset();
@@ -1408,7 +1411,8 @@ static int mipi_dsi_panel_power(int on)
 	else if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
 						|| machine_is_msm8625_evt())
 		rc = mipi_dsi_panel_qrd3_power(on);
-	else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd())
+	else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+						|| machine_is_msm8625q_skud())
 		rc = mipi_dsi_panel_skud_power(on);
 	else
 		rc = mipi_dsi_panel_msm_power(on);
@@ -1486,7 +1490,8 @@ void __init msm_fb_add_devices(void)
 		mdp_pdata.cont_splash_enabled = 0x0;
 		platform_add_devices(qrd3_fb_devices,
 						ARRAY_SIZE(qrd3_fb_devices));
-	} else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()) {
+	} else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+							|| machine_is_msm8625q_skud()) {
 		mdp_pdata.cont_splash_enabled = 0x0;
 		platform_add_devices(skud_fb_devices,
 				ARRAY_SIZE(skud_fb_devices));
