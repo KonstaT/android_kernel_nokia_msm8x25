@@ -1093,8 +1093,8 @@ static void __init register_i2c_devices(void)
 }
 
 #ifndef CONFIG_MSM_CAMERA_V4L2
-#define LCD_CAMERA_LDO_2V8 35 /* SKU1&SKU3 2.8V LDO */
-#define SKU3_LCD_CAMERA_LDO_1V8 40 /* SKU3 1.8V LDO */
+#define LCD_CAMERA_LDO_2V8 129 /* SKU1&SKU3 2.8V LDO */
+#define SKU3_LCD_CAMERA_LDO_1V8 130 /* SKU3 1.8V LDO */
 #define SKU7_LCD_CAMERA_LDO_1V8 58 /* SKU7 1.8V LDO */
 
 static int lcd_camera_ldo_1v8 = SKU3_LCD_CAMERA_LDO_1V8;
