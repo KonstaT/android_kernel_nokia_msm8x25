@@ -614,7 +614,7 @@ a2xx_getchipid(struct kgsl_device *device)
 	else if (cpu_is_msm8960() &&
 			SOCINFO_VERSION_MAJOR(soc_platform_version) == 3)
 		patchid = 6;
-	else if (cpu_is_msm8625() && minorid == 0)
+	else if ((cpu_is_msm8625() || cpu_is_msm8625q()) && minorid == 0)
 		minorid = 1;
 
 	chipid |= (minorid << 8) | patchid;
