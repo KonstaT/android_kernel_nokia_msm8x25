@@ -56,6 +56,7 @@
 
 /* Reset Address of RBCPR (Active Low)*/
 #define RBCPR_SW_RESET_N       (MSM_CSR_BASE + 0x64)
+#define RBCPR_SW_RESET_N_8625Q	(MSM_CSR_BASE + 0x28)
 
 static struct resource gsbi0_qup_i2c_resources[] = {
 	{
@@ -1800,7 +1801,11 @@ static void msm_cpr_clk_enable(void)
 	writel_relaxed(reg_val, A11S_TEST_BUS_SEL_ADDR);
 
 	/* Get CPR out of reset */
-	writel_relaxed(0x1, RBCPR_SW_RESET_N);
+	if(cpu_is_msm8625q()) {
+		writel_relaxed(0x1, RBCPR_SW_RESET_N_8625Q);
+	} else {
+		writel_relaxed(0x1, RBCPR_SW_RESET_N);
+	}
 }
 
 static struct msm_cpr_config msm_cpr_pdata = {
