@@ -608,7 +608,8 @@ static struct platform_device hs_pdev = {
 #define FT5X06_RESET_GPIO	26
 
 #define FT5X16_IRQ_GPIO		122
-#define FT5X16_IRQ_GPIO_8625Q	115
+#define FT5X16_IRQ_GPIO_EVBD	115
+#define FT5X16_IRQ_GPIO_SKUD	121
 
 static ssize_t
 ft5x06_virtual_keys_register(struct kobject *kobj,
@@ -627,10 +628,10 @@ static ssize_t ft5x16_virtual_keys_register(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
 	return snprintf(buf, 200, \
-	__stringify(EV_KEY) ":" __stringify(KEY_HOME) ":68:984:135:50" \
-	":" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":203:984:135:50" \
-	":" __stringify(EV_KEY) ":" __stringify(KEY_BACK) ":338:984:135:50" \
-	":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":473:984:135:50" \
+	__stringify(EV_KEY) ":" __stringify(KEY_HOME) ":68:992:135:64" \
+	":" __stringify(EV_KEY) ":" __stringify(KEY_MENU) ":203:992:135:64" \
+	":" __stringify(EV_KEY) ":" __stringify(KEY_BACK) ":338:992:135:64" \
+	":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":473:992:135:64" \
 	"\n");
 }
 
@@ -685,13 +686,23 @@ static void __init ft5x06_touchpad_setup(void)
 
 		ft5x06_virtual_keys_attr.show = &ft5x16_virtual_keys_register;
 	} else if(machine_is_msm8625q_evbd()) {
-		irq_gpio = FT5X16_IRQ_GPIO_8625Q;
+		irq_gpio = FT5X16_IRQ_GPIO_EVBD;
 
 		ft5x06_platformdata.x_max = 540;
 		ft5x06_platformdata.y_max = 960;
-		ft5x06_platformdata.irq_gpio = FT5X16_IRQ_GPIO_8625Q;
+		ft5x06_platformdata.irq_gpio = FT5X16_IRQ_GPIO_EVBD;
 
-		ft5x06_device_info[0].irq = MSM_GPIO_TO_INT(FT5X16_IRQ_GPIO_8625Q);
+		ft5x06_device_info[0].irq = MSM_GPIO_TO_INT(FT5X16_IRQ_GPIO_EVBD);
+
+		ft5x06_virtual_keys_attr.show = &ft5x16_virtual_keys_register;
+	} else if(machine_is_msm8625q_skud()) {
+		irq_gpio = FT5X16_IRQ_GPIO_SKUD;
+
+		ft5x06_platformdata.x_max = 540;
+		ft5x06_platformdata.y_max = 960;
+		ft5x06_platformdata.irq_gpio = FT5X16_IRQ_GPIO_SKUD;
+
+		ft5x06_device_info[0].irq = MSM_GPIO_TO_INT(FT5X16_IRQ_GPIO_SKUD);
 
 		ft5x06_virtual_keys_attr.show = &ft5x16_virtual_keys_register;
 	} else
@@ -885,6 +896,7 @@ void __init qrd7627a_add_io_devices(void)
 					ARRAY_SIZE(mxt_device_info));
 	} else if (machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()
 				|| machine_is_qrd_skud_prime()
+				|| machine_is_msm8625q_skud()
 				|| machine_is_msm8625q_evbd()) {
 		ft5x06_touchpad_setup();
 	}
