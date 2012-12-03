@@ -42,13 +42,16 @@ config OV5640
 	default n
 	---help---
 	Omni 5M YUV Sensor
-
 config OV5647
 	bool "Sensor ov5647 (BAYER 5M)"
 	depends on MSM_CAMERA
 	---help---
 	  OV 5M Bayer Sensor with AutoFocus
-
+config OV5648
+	bool "Sensor ov5648 (BAYER 5M)"
+	depends on MSM_CAMERA
+	---help---
+	  OV 5M Bayer Sensor with AutoFocus
 config AD5046_ACT
 	bool "Lens actuator ad5046"
 	depends on MSM_CAMERA && OV5647
@@ -295,3 +298,9 @@ config OV7692
 	depends on MSM_CAMERA
 	---help---
 	  Omni Vision VGA YUV Sensor
+config OV7695
+	bool "Sensor OV7695 (VGA YUV)"
+	depends on MSM_CAMERA && MSM_CAMERA_V4L2
+	default y
+	---help---
+	  Omni Vision VGA YUV Sensor for QRD Devices

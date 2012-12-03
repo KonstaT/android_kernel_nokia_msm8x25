@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -67,9 +67,11 @@ int32_t msm_actuator_i2c_write(struct msm_actuator_ctrl_t *a_ctrl,
 	struct msm_actuator_reg_params_t *write_arr = a_ctrl->reg_tbl;
 	uint32_t hw_dword = hw_params;
 	uint16_t i2c_byte1 = 0, i2c_byte2 = 0;
-	uint16_t value = 0;
+	uint32_t value = 0;
 	uint32_t size = a_ctrl->reg_tbl_size, i = 0;
 	int32_t rc = 0;
+	unsigned char buf[4];
+	int length = 0;
 	CDBG("%s: IN\n", __func__);
 	for (i = 0; i < size; i++) {
 		if (write_arr[i].reg_write_type == MSM_ACTUATOR_WRITE_DAC) {
@@ -103,7 +105,27 @@ int32_t msm_actuator_i2c_write(struct msm_actuator_ctrl_t *a_ctrl,
 				i2c_byte1 = (value & 0xFF00) >> 8;
 				i2c_byte2 = value & 0xFF;
 			}
-		} else {
+		}
+		else if (write_arr[i].reg_write_type == MSM_ACTUATOR_WRITE_DAC_AD5823) {
+			value = (next_lens_position <<
+				write_arr[i].data_shift) |
+				((hw_dword & write_arr[i].hw_mask) <<
+				write_arr[i].hw_shift);
+
+			buf[0] = write_arr[i].reg_addr;
+			buf[1] = (value & 0xff00)>>8;//MSB
+			buf[2] = value & 0xff;//LSB
+			length = 3;
+			CDBG("%s: position is 0x%x, MSB0x%x, LSB:0x%x\r\n", __func__, value, buf[1], buf[2]);
+			rc = msm_camera_i2c_txdata(&a_ctrl->i2c_client, buf, length);
+			if (rc < 0) {
+				pr_err("%s: i2c write error:%d\n",
+					__func__, rc);
+				return rc;
+			}
+			break;
+		}
+		else {
 			i2c_byte1 = write_arr[i].reg_addr;
 			i2c_byte2 = (hw_dword & write_arr[i].hw_mask) >>
 				write_arr[i].hw_shift;
