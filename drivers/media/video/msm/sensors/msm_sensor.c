@@ -691,7 +691,7 @@ int32_t msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		return rc;
 	}
 
-	CDBG("msm_sensor id: %d\n", chipid);
+	CDBG("msm_sensor id: 0x%x\n", chipid);
 	if (chipid != s_ctrl->sensor_id_info->sensor_id) {
 		pr_err("msm_sensor_match_id chip id doesnot match\n");
 		return -ENODEV;
