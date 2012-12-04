@@ -1047,7 +1047,6 @@ static int msm_pm_power_collapse
 						continue;
 					per_cpu(power_collapsed, cpu) = 1;
 				}
-				power_collapsed = 1;
 				/*
 				 * override DBGNOPOWERDN and program the GDFS
 				 * count val
@@ -1063,7 +1062,6 @@ static int msm_pm_power_collapse
 						continue;
 					per_cpu(power_collapsed, cpu) = 1;
 				}
-				power_collapsed = 1;
 				/*
 				 * override DBGNOPOWERDN and program the GDFS
 				 * count val
