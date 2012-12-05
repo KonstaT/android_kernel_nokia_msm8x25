@@ -599,7 +599,7 @@ static struct i2c_board_info i2c_camera_devices[] = {
 		.platform_data = &msm_camera_sensor_ov7692_data,
 	},
 	{
-		I2C_BOARD_INFO("ov5647", 0x34 << 1),
+		I2C_BOARD_INFO("ov5647", 0x36 << 1),
 		.platform_data = &msm_camera_sensor_ov5647_data,
 	},
 	{
