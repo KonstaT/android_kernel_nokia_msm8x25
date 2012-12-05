@@ -283,18 +283,28 @@ static void android_work(struct work_struct *data)
 	}
 }
 
-static void android_enable(struct android_dev *dev)
+static int android_enable(struct android_dev *dev)
 {
 	struct usb_composite_dev *cdev = dev->cdev;
+	int err = 0;
 
 	if (WARN_ON(!dev->disable_depth))
-		return;
+		return err;
 
 	if (--dev->disable_depth == 0) {
-		usb_add_config(cdev, &android_config_driver,
+		err = usb_add_config(cdev, &android_config_driver,
 					android_bind_config);
+		if (err < 0) {
+			pr_err("%s: usb_add_config failed : err: %d\n",
+						__func__, err);
+			dev->disable_depth++;
+			usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
+			unbind_config(cdev, &android_config_driver);
+			return err;
+		}
 		usb_gadget_connect(cdev->gadget);
 	}
+	return err;
 }
 
 static void android_disable(struct android_dev *dev)
@@ -1448,6 +1458,7 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 	struct usb_composite_dev *cdev = dev->cdev;
 	struct android_usb_function *f;
 	int enabled = 0;
+	int err = 0;
 
 	if (!cdev)
 		return -ENODEV;
@@ -1470,7 +1481,20 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 			if (f->enable)
 				f->enable(f);
 		}
-		android_enable(dev);
+		err = android_enable(dev);
+		if (err < 0) {
+			pr_err("%s: android_enable failed\n", __func__);
+			list_for_each_entry(f, &dev->enabled_functions,
+						 enabled_list) {
+				if (f->disable)
+					f->disable(f);
+			}
+			dev->connected = 0;
+			schedule_work(&dev->work);
+			dev->enabled = false;
+			mutex_unlock(&dev->mutex);
+			return size;
+		}
 		dev->enabled = true;
 	} else if (!enabled && dev->enabled) {
 		android_disable(dev);
