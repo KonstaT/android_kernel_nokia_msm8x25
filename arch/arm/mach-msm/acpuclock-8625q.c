@@ -27,6 +27,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/smp.h>
 #include <linux/platform_device.h>
+#include <linux/debugfs.h>
 
 #include <mach/socinfo.h>
 #include <mach/board.h>
@@ -784,11 +785,53 @@ static void __devinit print_acpu_freq_tbl(void)
 	}
 }
 
+
+static int acpu_debug_voltage_get(void *data, u64 *val)
+{
+	int voltage;
+
+	if (drv_state.vreg_cpu == NULL) {
+		pr_err("acpuclk: Invalid regulator handle ");
+		return -EINVAL;
+	}
+
+	voltage = regulator_get_voltage(drv_state.vreg_cpu);
+	if (voltage <= 0) {
+		pr_err("acpuclk: Get voltage failed\n");
+		*val = 0;
+		return -EINVAL;
+	}
+	*val = voltage;
+
+	return 0;
+}
+
+static int acpu_debug_voltage_set(void *data, u64 val)
+{
+	int rc;
+
+	if (drv_state.vreg_cpu == NULL) {
+		pr_err("acpuclk: Invalid regulator handle ");
+		return -EINVAL;
+	}
+
+	rc = regulator_set_voltage(drv_state.vreg_cpu, val, val);
+	if (rc)
+		pr_err("acpuclk: Set voltage %llu failed\n", val);
+
+	return rc;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(acpu_debug_voltage_fops, acpu_debug_voltage_get,
+			acpu_debug_voltage_set, "%llu\n");
+
 static int __devinit acpuclk_8625q_probe(struct platform_device *pdev)
 {
 	const struct acpuclk_pdata_8625q *pdata = pdev->dev.platform_data;
 	unsigned int pvs_voltage = pdata->pvs_voltage_uv;
 	bool target_sel = pdata->flag;
+	struct dentry *dir;
+	struct dentry *file;
 
 	drv_state.max_speed_delta_khz = pdata->acpu_clk_data->
 						max_speed_delta_khz;
@@ -808,6 +851,22 @@ static int __devinit acpuclk_8625q_probe(struct platform_device *pdev)
 	acpuclk_register(&acpuclk_8625q_data);
 
 	cpufreq_table_init();
+
+	dir = debugfs_create_dir("acpu_regulator", NULL);
+	/*Ignoring debugfs failures as it doesn't impact acpu clock driver.*/
+	if (dir == NULL || IS_ERR(dir))
+		pr_err("acpuclk: debugfs_create_dir failed: rc=%ld\n",
+			PTR_ERR(dir));
+	else {
+		file = debugfs_create_file("voltage", S_IRUGO | S_IWUSR, dir,
+			NULL, &acpu_debug_voltage_fops);
+
+		if (file == NULL  || IS_ERR(file)) {
+			pr_err("acpuclk: debugfs_create_file failed: rc=%ld\n",
+				PTR_ERR(file));
+			debugfs_remove_recursive(dir);
+		}
+	}
 
 	return 0;
 }
