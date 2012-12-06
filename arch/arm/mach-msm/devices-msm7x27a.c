@@ -1869,6 +1869,7 @@ static void __init msm_cpr_init(void)
 
 	msm_smem_get_cpr_info(cpr_info);
 	msm_cpr_pdata.disable_cpr = cpr_info->disable_cpr;
+	msm_cpr_pdata.pvs_fuse = cpr_info->pvs_fuse;
 
 	/**
 	 * Set the ring_osc based on efuse BIT(0)
