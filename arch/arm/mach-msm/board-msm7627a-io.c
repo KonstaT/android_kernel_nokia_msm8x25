@@ -920,7 +920,8 @@ void __init qrd7627a_add_io_devices(void)
 
 	/* keypad */
 
-	if (machine_is_qrd_skud_prime()) {
+	if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+		|| machine_is_msm8625q_skud()) {
 		kp_matrix_info_sku3.keymap = keymap_skud;
 		kp_matrix_info_sku3.output_gpios = kp_row_gpios_skud;
 		kp_matrix_info_sku3.input_gpios = kp_col_gpios_skud;
@@ -935,7 +936,8 @@ void __init qrd7627a_add_io_devices(void)
 			machine_is_msm8625_evt())
 		platform_device_register(&kp_pdev_8625);
 	else if (machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()
-		|| machine_is_qrd_skud_prime())
+		|| machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+		|| machine_is_msm8625q_skud())
 		platform_device_register(&kp_pdev_sku3);
 
 	/* leds */
