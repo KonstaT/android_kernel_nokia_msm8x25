@@ -502,6 +502,35 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				rc = -EFAULT;
 			break;
 
+		case CFG_SENSOR_PIP_GET_CAM_MODE:
+			if (s_ctrl->func_tbl->
+			sensor_pip_get_mode == NULL) {
+				rc = 0;
+				break;
+			}
+			rc = s_ctrl->func_tbl->
+				sensor_pip_get_mode(
+				s_ctrl,
+				&cdata.cfg.pip_mode);
+
+			if (copy_to_user((void *)argp,
+				&cdata,
+				sizeof(struct sensor_cfg_data)))
+				rc = -EFAULT;
+			break;
+
+		case CFG_SENSOR_PIP_SET_CAM_MODE:
+			if (s_ctrl->func_tbl->
+				sensor_pip_set_mode == NULL) {
+					rc = 0;
+					break;
+			}
+			rc = s_ctrl->func_tbl->
+				sensor_pip_set_mode(
+				s_ctrl,
+				cdata.cfg.pip_mode);
+			break;
+
 		case CFG_START_STREAM:
 			if (s_ctrl->func_tbl->sensor_start_stream == NULL) {
 				rc = -EFAULT;

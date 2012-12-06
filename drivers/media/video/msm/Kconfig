@@ -301,6 +301,12 @@ config OV7692
 config OV7695
 	bool "Sensor OV7695 (VGA YUV)"
 	depends on MSM_CAMERA && MSM_CAMERA_V4L2
-	default y
+	default n
 	---help---
 	  Omni Vision VGA YUV Sensor for QRD Devices
+config OV7695_RAW
+	bool "Sensor OV7695 (RAW)"
+	depends on MSM_CAMERA && MSM_CAMERA_V4L2
+	default n
+	---help---
+	  Omni Vision BAYER Sensor for QRD Devices
