@@ -147,6 +147,13 @@ static struct camera_vreg_t ov5648_gpio_vreg[] = {
 	{"ldo12", REG_LDO, 2700000, 3300000, 0},
 	{"smps3", REG_LDO, 1800000, 1800000, 0},
 };
+
+static struct camera_vreg_t ov5648_gpio_vreg_evbd[] = {
+	{"ldo12", REG_LDO, 2700000, 3300000, 0},
+	{"smps3", REG_LDO, 1800000, 1800000, 0},
+	{"cam_ov5648_avdd", REG_GPIO, 0, 0, 0},
+	{"cam_ov5648_vdd", REG_GPIO, 0, 0, 0},
+};
 #endif
 
 static struct camera_vreg_t ov8825_gpio_vreg[] = {
@@ -279,6 +286,13 @@ static struct msm_camera_gpio_conf skud_gpio_conf_ov7695 = {
 static struct camera_vreg_t ov7695_gpio_vreg[] = {
 	{"ldo12", REG_LDO, 2700000, 3300000, 0},
 	{"smps3", REG_LDO, 1800000, 1800000, 0},
+};
+
+static struct camera_vreg_t ov7695_gpio_vreg_evbd[] = {
+	{"ldo12", REG_LDO, 2700000, 3300000, 0},
+	{"smps3", REG_LDO, 1800000, 1800000, 0},
+	{"cam_ov7695_avdd", REG_GPIO, 0, 0, 0},
+	{"cam_ov7695_vdd", REG_GPIO, 0, 0, 0},
 };
 static struct msm_camera_sensor_platform_info sensor_board_info_ov7695 = {
 	.mount_angle = 90,
@@ -538,8 +552,13 @@ static void __init msm7x27a_init_cam(void)
 		machine_is_qrd_skud_prime())
 	{  //for SKUD
 #ifdef CONFIG_OV5648
-		sensor_board_info_ov5648.cam_vreg = ov5648_gpio_vreg;
-		sensor_board_info_ov5648.num_vreg = ARRAY_SIZE(ov5648_gpio_vreg);
+		if(machine_is_msm8625q_evbd()) {
+			sensor_board_info_ov5648.cam_vreg = ov5648_gpio_vreg_evbd;
+			sensor_board_info_ov5648.num_vreg = ARRAY_SIZE(ov5648_gpio_vreg_evbd);
+		} else {
+			sensor_board_info_ov5648.cam_vreg = ov5648_gpio_vreg;
+			sensor_board_info_ov5648.num_vreg = ARRAY_SIZE(ov5648_gpio_vreg);
+		}
 		msm_act_main_cam_7_info.vcm_pwd = GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN;
 		msm_act_main_cam_7_info.vcm_enable = 1;
 		msm_camera_sensor_ov5648_data.sensor_reset=GPIO_SKUD_CAM_5MP_CAMIF_RESET;
@@ -549,8 +568,13 @@ static void __init msm7x27a_init_cam(void)
 		msm_flash_src_ov5648._fsrc.ext_driver_src.led_flash_en = GPIO_SKUD_CAM_LED_FLASH_EN;
 #endif
 #ifdef CONFIG_OV7695
-		sensor_board_info_ov7695.cam_vreg = ov7695_gpio_vreg;
-		sensor_board_info_ov7695.num_vreg = ARRAY_SIZE(ov7695_gpio_vreg);
+		if(machine_is_msm8625q_evbd()) {
+			sensor_board_info_ov7695.cam_vreg = ov7695_gpio_vreg_evbd;
+			sensor_board_info_ov7695.num_vreg = ARRAY_SIZE(ov7695_gpio_vreg_evbd);
+		} else {
+			sensor_board_info_ov7695.cam_vreg = ov7695_gpio_vreg;
+			sensor_board_info_ov7695.num_vreg = ARRAY_SIZE(ov7695_gpio_vreg);
+		}
 		msm_camera_sensor_ov7695_data.vcm_pwd = 0;
 		msm_camera_sensor_ov7695_data.vcm_enable = 0;
 		sensor_board_info_ov7695.gpio_conf = &skud_gpio_conf_ov7695;
@@ -773,53 +797,6 @@ static void evb_camera_gpio_cfg(void)
 			__func__, msm_camera_sensor_ov7692_data.sensor_pwd);
 
 }
-
-
-static void evbd_camera_gpio_cfg(void)
-{
-	int rc = 0;
-
-	rc = gpio_request(GPIO_SKU3_CAM_5MP_SHDN_N, "ov5647");
-	if (rc < 0)
-		pr_err("%s: gpio_request OV5647 sensor_pwd: %d failed!",
-			 __func__, GPIO_SKU3_CAM_5MP_SHDN_N);
-
-	rc = gpio_tlmm_config(GPIO_CFG(GPIO_SKU3_CAM_5MP_SHDN_N,
-				0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
-				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	if (rc < 0) {
-		pr_err("%s:unable to enable Powr Dwn gpio for main camera!\n",
-			 __func__);
-		gpio_free(GPIO_SKU3_CAM_5MP_SHDN_N);
-	}
-
-	rc = gpio_direction_output(GPIO_SKU3_CAM_5MP_SHDN_N, 1);
-	if (rc < 0)
-		pr_err("%s: unable to set gpio: %d direction for ov5647 camera\n",
-			__func__,GPIO_SKU3_CAM_5MP_SHDN_N);
-
-	rc = gpio_request(GPIO_SKU3_CAM_5MP_CAMIF_RESET, "ov5647");
-	if (rc < 0)
-		pr_err("%s: gpio_request OV5647 sensor_reset: %d failed!",
-			 __func__, GPIO_SKU3_CAM_5MP_CAMIF_RESET);
-
-	rc = gpio_tlmm_config(GPIO_CFG(
-				GPIO_SKU3_CAM_5MP_CAMIF_RESET,
-				0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
-				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	if (rc < 0) {
-		pr_err("%s: unable to enable reset gpio for main camera!\n",
-			 __func__);
-		gpio_free(GPIO_SKU3_CAM_5MP_CAMIF_RESET);
-	}
-
-	rc = gpio_direction_output(
-			GPIO_SKU3_CAM_5MP_CAMIF_RESET, 1);
-	if (rc < 0)
-		pr_err("%s: unable to set gpio: %d direction for ov5647 camera\n",
-			__func__, GPIO_SKU3_CAM_5MP_CAMIF_RESET);
-}
-
 
 static void skud_camera_gpio_cfg(void)
 {
@@ -1521,8 +1498,6 @@ void __init msm7627a_camera_init(void)
 #endif
 		evb_camera_gpio_cfg();
 	} 
-	if(machine_is_msm8625q_evbd())
-		evbd_camera_gpio_cfg();
 
 	if(machine_is_qrd_skud_prime() ||
 		machine_is_msm8625q_skud()||
