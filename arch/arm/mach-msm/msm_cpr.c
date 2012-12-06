@@ -1067,6 +1067,8 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	cpufreq_register_notifier(&cpr->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
+	pr_info("CPR: driver registered successfully\n");
+
 	return res;
 
 err_cpr_config:
