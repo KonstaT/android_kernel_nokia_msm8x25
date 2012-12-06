@@ -1953,7 +1953,9 @@ static void __init msm_cpr_init(void)
 	if (machine_is_qrd_skud_prime() || cpu_is_msm8625q())
 		msm_cpr_pdata.step_size = 6250;
 
-	platform_device_register(&msm8625_vp_device);
+	if (cpu_is_msm8625())
+		platform_device_register(&msm8625_vp_device);
+
 	platform_device_register(&msm8625_device_cpr);
 }
 
