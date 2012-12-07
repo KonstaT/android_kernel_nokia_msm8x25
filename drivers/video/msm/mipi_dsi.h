@@ -298,7 +298,7 @@ int mipi_dsi_cmds_rx(struct msm_fb_data_type *mfd,
 			struct dsi_buf *tp, struct dsi_buf *rp,
 			struct dsi_cmd_desc *cmds, int len);
 int mipi_dsi_cmd_dma_rx(struct dsi_buf *tp, int rlen);
-void mipi_dsi_host_init(struct mipi_panel_info *pinfo);
+void mipi_dsi_host_init(struct mipi_panel_info *pinfo, char dlane_swap);
 void mipi_dsi_op_mode_config(int mode);
 void mipi_dsi_cmd_mode_ctrl(int enable);
 void mdp4_dsi_cmd_trigger(void);

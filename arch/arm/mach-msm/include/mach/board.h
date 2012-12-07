@@ -449,6 +449,7 @@ struct mipi_dsi_platform_data {
 	int (*get_lane_config)(void);
 	char (*splash_is_enabled)(void);
 	int target_type;
+	char dlane_swap;
 };
 
 enum mipi_dsi_3d_ctrl {
@@ -470,7 +471,6 @@ struct mipi_dsi_panel_platform_data {
 	int fpga_3d_config_addr;
 	int *gpio;
 	struct mipi_dsi_phy_ctrl *phy_ctrl_settings;
-	char dlane_swap;
 	void (*dsi_pwm_cfg)(void);
 	char enable_wled_bl_ctrl;
 };

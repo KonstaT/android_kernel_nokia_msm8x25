@@ -92,7 +92,6 @@ static int mipi_video_hx8389b_qhd_pt_init(void)
 	pinfo.mipi.frame_rate = 60; /* FIX ME */
 
 	pinfo.mipi.dsi_phy_db = &dsi_video_mode_phy_db;
-	pinfo.mipi.dlane_swap = 0x00;
 	/* append EOT at the end of data burst */
 	pinfo.mipi.tx_eot_append = 0x01;
 
