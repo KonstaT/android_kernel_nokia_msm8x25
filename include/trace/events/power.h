@@ -7,6 +7,30 @@
 #include <linux/ktime.h>
 #include <linux/tracepoint.h>
 
+TRACE_EVENT(cpr_data,
+
+	TP_PROTO(uint32_t new_voltage, uint32_t old_voltage,
+			uint32_t err_steps),
+
+	TP_ARGS(new_voltage, old_voltage, err_steps),
+
+	TP_STRUCT__entry(
+		__field(uint32_t,	new_voltage)
+		__field(uint32_t,	old_voltage)
+		__field(uint32_t,	err_steps)
+	),
+
+	TP_fast_assign(
+		__entry->new_voltage = new_voltage;
+		__entry->old_voltage = old_voltage;
+		__entry->err_steps = err_steps;
+	),
+
+	TP_printk("New voltage = %u Earlier voltage = %u Error_steps = %d",
+		__entry->new_voltage, __entry->old_voltage, __entry->err_steps)
+
+);
+
 DECLARE_EVENT_CLASS(cpu,
 
 	TP_PROTO(unsigned int state, unsigned int cpu_id),
