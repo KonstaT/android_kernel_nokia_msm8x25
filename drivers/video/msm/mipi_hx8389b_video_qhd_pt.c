@@ -29,7 +29,7 @@ static struct mipi_dsi_phy_ctrl dsi_video_mode_phy_db = {
 	/* strength */
 	{0xbb, 0x02, 0x06, 0x00},
 	/* pll control */
-	{0x01, 0xbb, 0x31, 0xd2, 0x00, 0x40, 0x37, 0x62,
+	{0x01, 0xec, 0x31, 0xd2, 0x00, 0x40, 0x37, 0x62,
 	0x01, 0x0f, 0x07,
 	0x05, 0x14, 0x03, 0x0, 0x0, 0x0, 0x20, 0x0, 0x02, 0x0},
 };
@@ -89,7 +89,7 @@ static int mipi_video_hx8389b_qhd_pt_init(void)
 	pinfo.mipi.stream = 0; /* dma_p */
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_NONE;
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;
-	pinfo.mipi.frame_rate = 55; /* FIX ME */
+	pinfo.mipi.frame_rate = 60; /* FIX ME */
 
 	pinfo.mipi.dsi_phy_db = &dsi_video_mode_phy_db;
 	pinfo.mipi.dlane_swap = 0x00;
