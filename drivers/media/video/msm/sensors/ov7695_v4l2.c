@@ -42,7 +42,7 @@ static struct msm_camera_i2c_reg_conf ov7695_recommend_settings[] = {
 	{0x3717, 0x19},
 	{0x0309, 0x24}, //DAC clk div by 4
 	{0x3820, 0x90},
-	{0x0101, 0x01}, //mirror on, flip off
+	{0x0101, 0x02}, //mirror off, flip on
 	{0x5100, 0x01}, //lenc
 	{0x520a, 0xf4}, //red gain from 0x400 to 0xfff
 	{0x520b, 0xf4}, //green gain from 0x400 to 0xfff
@@ -61,7 +61,7 @@ static struct msm_camera_i2c_reg_conf ov7695_recommend_settings[] = {
 	{0x3024, 0x00},
 	{0x3503, 0x00}, //AGC auto on, AEC auto on
 	//OV7695_ISP
-	{0x0101, 0x01}, //mirror_on
+	{0x0101, 0x02}, //mirror off, flip on
 	{0x5002, 0x40}, //[7:6] Y source select, manual 60Hz
 	{0x5910, 0x00}, //Y formula
 	{0x3a0f, 0x50}, //AEC in H
