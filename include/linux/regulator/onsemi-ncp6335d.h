@@ -24,6 +24,7 @@ struct ncp6335d_platform_data {
 	int slew_rate_ns;
 	int discharge_enable;
 	int rearm_disable;
+	bool sleep_enable;
 };
 
 #endif
