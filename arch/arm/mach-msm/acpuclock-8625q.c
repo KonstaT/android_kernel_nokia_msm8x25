@@ -128,7 +128,11 @@ static struct clock_state drv_state = { 0 };
 # define DELTA_LEVEL_2_UV 75000
 # define DELTA_LEVEL_3_UV 150000
 
-
+/*
+ * The default initialization is according to the requirements of
+ * SKUD_prime. If the target is quad core, we reinitialize this table using
+ * the reinitalize_freq_table() function.
+ */
 static struct clkctl_acpu_speed acpu_freq_tbl_cmn[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 30720 },
 	{ 1, 245760, ACPU_PLL_1, 1, 0, 30720, 3, MAX_NOMINAL_VOLTAGE, 61440 },
@@ -554,11 +558,38 @@ static unsigned long acpuclk_8625q_get_rate(int cpu)
 		return 0;
 }
 
+static int reinitialize_freq_table(bool target_select)
+{
+	/*
+	 * target_flag is set only if it is a Quad core chip,
+	 * In that case, we modify the initialization
+	 * of the table according to the specific requirement
+	 * for this target. Otherwise the default initialized table is
+	 * used for SKUD_prime.
+	 */
+	if (target_select) {
+		struct clkctl_acpu_speed *tbl;
+		for (tbl = acpu_freq_tbl; tbl->a11clk_khz; tbl++) {
+
+			if (tbl->a11clk_khz >= 1008000) {
+				tbl->axiclk_khz = 300000;
+				if (tbl->a11clk_khz == 1209600)
+					tbl->vdd = 0;
+			} else {
+				if (tbl->a11clk_khz != 600000
+					&& tbl->a11clk_khz != 19200)
+					tbl->vdd = 1050000;
+			}
+		}
+
+	}
+	return 0;
+}
+
 #define MHZ 1000000
 
 static void __devinit select_freq_plan(unsigned int pvs_voltage,
-					unsigned int nominal_vol_uv,
-					unsigned int default_vol_uv)
+							bool target_sel)
 {
 	unsigned long pll_mhz[ACPU_PLL_END];
 	int i;
@@ -619,6 +650,8 @@ static void __devinit select_freq_plan(unsigned int pvs_voltage,
 		}
 	}
 
+	reinitialize_freq_table(target_sel);
+
 	/*
 	 *PVS Voltage calculation  formula
 	 *1.4 Ghz device
@@ -632,8 +665,6 @@ static void __devinit select_freq_plan(unsigned int pvs_voltage,
 	*/
 	for (tbl = acpu_freq_tbl; tbl->a11clk_khz; tbl++) {
 		if (tbl->a11clk_khz >= 1008000) {
-			if (tbl->a11clk_khz == 1209600)
-				tbl->vdd = default_vol_uv;
 			/*
 			 * Change voltage as per PVS formula,
 			 * i is initialized above with 2 or 1
@@ -645,9 +676,7 @@ static void __devinit select_freq_plan(unsigned int pvs_voltage,
 
 			tbl->vdd = max((int)(pvs_voltage - delta[i]), tbl->vdd);
 			i--;
-		} else if (tbl->a11clk_khz != 600000
-					&& tbl->a11clk_khz != 19200)
-			tbl->vdd = nominal_vol_uv;
+		}
 	}
 
 
@@ -757,8 +786,7 @@ static int __devinit acpuclk_8625q_probe(struct platform_device *pdev)
 {
 	const struct acpuclk_pdata_8625q *pdata = pdev->dev.platform_data;
 	unsigned int pvs_voltage = pdata->pvs_voltage_uv;
-	unsigned int nom_vol_uv = pdata->nominal_voltage;
-	unsigned int default_vol_uv = pdata->default_turbo_voltage;
+	bool target_sel = pdata->flag;
 
 	drv_state.max_speed_delta_khz = pdata->acpu_clk_data->
 						max_speed_delta_khz;
@@ -767,7 +795,7 @@ static int __devinit acpuclk_8625q_probe(struct platform_device *pdev)
 	BUG_ON(IS_ERR(drv_state.ebi1_clk));
 
 	mutex_init(&drv_state.lock);
-	select_freq_plan(pvs_voltage, nom_vol_uv, default_vol_uv);
+	select_freq_plan(pvs_voltage, target_sel);
 	acpuclk_8625q_data.wait_for_irq_khz = find_wait_for_irq_khz();
 
 	if (acpuclk_hw_init() < 0)
