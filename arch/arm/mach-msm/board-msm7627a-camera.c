@@ -319,6 +319,42 @@ static struct msm_camera_sensor_info msm_camera_sensor_ov7695_data = {
 };
 #endif
 
+#ifdef CONFIG_OV7695_RAW
+static struct msm_camera_gpio_conf skud_gpio_conf_ov7695_raw = {
+	.camera_off_table = camera_off_gpio_table,
+	.camera_on_table = camera_on_gpio_table,
+	.gpio_no_mux = 1,
+};
+
+static struct camera_vreg_t ov7695_raw_gpio_vreg[] = {
+	{"ldo12", REG_LDO, 2700000, 3300000, 0},
+	{"smps3", REG_LDO, 1800000, 1800000, 0},
+};
+static struct msm_camera_sensor_platform_info sensor_board_info_ov7695_raw = {
+	.mount_angle = 90,
+	.cam_vreg = msm_cam_vreg,
+	.num_vreg = ARRAY_SIZE(msm_cam_vreg),
+	.gpio_conf = &skud_gpio_conf_ov7695_raw,
+};
+
+static struct msm_camera_sensor_flash_data flash_ov7695_raw = {
+	.flash_type     = MSM_CAMERA_FLASH_NONE,
+};
+
+static struct msm_camera_sensor_info msm_camera_sensor_ov7695_raw_data = {
+	.sensor_name	    = "ov7695_raw",
+	.sensor_reset_enable    = 0,
+	.sensor_reset	   = GPIO_NOT_CONFIGURED,
+	.sensor_pwd	     = GPIO_NOT_CONFIGURED,
+	.pdata			= &msm_camera_device_data_csi1[0],//&msm_camera_device_data_csi0[0],
+	.flash_data	     = &flash_ov7695_raw,
+	.sensor_platform_info   = &sensor_board_info_ov7695_raw,
+	.csi_if		 = 1,
+	.camera_type = FRONT_CAMERA_2D,
+	.sensor_type = BAYER_SENSOR,
+};
+#endif
+
 #ifdef CONFIG_OV5647
 
 static struct msm_actuator_info msm_act_main_cam_5_info = {
@@ -580,6 +616,15 @@ static void __init msm7x27a_init_cam(void)
 		sensor_board_info_ov7695.gpio_conf = &skud_gpio_conf_ov7695;
 		sensor_board_info_ov7695.mount_angle = 270;
 #endif
+#ifdef CONFIG_OV7695_RAW
+		sensor_board_info_ov7695_raw.cam_vreg = ov7695_raw_gpio_vreg;
+		sensor_board_info_ov7695_raw.num_vreg = ARRAY_SIZE(ov7695_raw_gpio_vreg);
+		msm_camera_sensor_ov7695_raw_data.vcm_pwd = 0;
+		msm_camera_sensor_ov7695_raw_data.vcm_enable = 0;
+		msm_camera_sensor_ov7695_raw_data.sensor_pwd = GPIO_SKUD_CAM_1MP_PWDN;
+		sensor_board_info_ov7695_raw.gpio_conf = &skud_gpio_conf_ov7695_raw;
+		sensor_board_info_ov7695_raw.mount_angle = 90;
+#endif
 	}
 	platform_device_register(&msm_camera_server);
 	if (machine_is_msm8625_surf() || machine_is_msm8625_evb()
@@ -635,7 +680,20 @@ static struct i2c_board_info i2c_camera_devices[] = {
 	},
 
 };
-
+static struct i2c_board_info i2c_camera_devices_qpr_skud[] = {
+#ifdef CONFIG_OV5648
+        {
+                I2C_BOARD_INFO("ov5648", 0x36 << 1),//original
+                .platform_data = &msm_camera_sensor_ov5648_data,
+        },
+#endif
+#ifdef CONFIG_OV7695_RAW
+        {
+                I2C_BOARD_INFO("ov7695_raw", 0x21 << 1),
+                .platform_data = &msm_camera_sensor_ov7695_raw_data,
+        },
+#endif
+};
 static struct i2c_board_info i2c_camera_devices_qpr[] = {
 #ifdef CONFIG_OV5648
 	{
@@ -1576,11 +1634,14 @@ void __init msm7627a_camera_init(void)
 #endif
 		pr_debug("i2c_register_board_info\n");
         if (machine_is_qrd_skud_prime()||
-			machine_is_msm8625q_skud()||
 			machine_is_msm8625q_evbd()) {
 		i2c_register_board_info(MSM_GSBI0_QUP_I2C_BUS_ID,
 				i2c_camera_devices_qpr,
 				ARRAY_SIZE(i2c_camera_devices_qpr));
+	} else if(machine_is_msm8625q_skud()){
+		i2c_register_board_info(MSM_GSBI0_QUP_I2C_BUS_ID,
+				i2c_camera_devices_qpr_skud,
+				ARRAY_SIZE(i2c_camera_devices_qpr_skud));
 	} else {
 		i2c_register_board_info(MSM_GSBI0_QUP_I2C_BUS_ID,
 				i2c_camera_devices,

@@ -816,7 +816,9 @@ struct msm_snapshot_pp_status {
 #define CFG_START_STREAM              44
 #define CFG_STOP_STREAM               45
 #define CFG_GET_CSI_PARAMS            46
-#define CFG_MAX			47
+#define CFG_SENSOR_PIP_SET_CAM_MODE   47
+#define CFG_SENSOR_PIP_GET_CAM_MODE   48
+#define CFG_MAX			49
 
 
 #define MOVE_NEAR	0
@@ -853,6 +855,11 @@ struct msm_snapshot_pp_status {
 #define CAMERA_EFFECT_BLUISH	12
 #define CAMERA_EFFECT_REDDISH	13
 #define CAMERA_EFFECT_GREENISH	14
+
+/* PIP working mode */
+#define CAM_WORKING_MODE_NORMAL     0
+#define CAM_WORKING_MODE_PIP        1
+
 
 /* QRD */
 #define CAMERA_ANTIBANDING_OFF		0
@@ -1285,6 +1292,7 @@ struct sensor_cfg_data {
 		uint8_t saturation;
 		uint8_t sharpness;
 		int8_t brightness;
+		int32_t pip_mode;
 		int ae_mode;
 		uint8_t wb_val;
 		int8_t exp_compensation;
