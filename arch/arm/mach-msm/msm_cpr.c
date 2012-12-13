@@ -198,7 +198,7 @@ static int32_t cpr_poll_result_done(struct msm_cpr *cpr)
 	return rc;
 }
 
-static void
+static int
 cpr_2pt_kv_analysis(struct msm_cpr *cpr, struct msm_cpr_mode *chip_data)
 {
 	int32_t level_uV = 0, rc;
@@ -233,13 +233,13 @@ cpr_2pt_kv_analysis(struct msm_cpr *cpr, struct msm_cpr_mode *chip_data)
 	rc = regulator_set_voltage(cpr->vreg_cx, level_uV, level_uV);
 	if (rc) {
 		pr_err("Initial voltage set at %duV failed\n", level_uV);
-		return;
+		return rc;
 	}
 
 	rc = regulator_enable(cpr->vreg_cx);
 	if (rc) {
 		pr_err("failed to enable %s, rc=%d\n", "vdd_cx", rc);
-		return;
+		return rc;
 	}
 
 	/* First CPR measurement at a higher voltage to get QUOT1 */
@@ -254,13 +254,13 @@ cpr_2pt_kv_analysis(struct msm_cpr *cpr, struct msm_cpr_mode *chip_data)
 	rc = cpr_poll_result_done(cpr);
 	if (rc) {
 		pr_err("Quot1: Exiting due to INT_DONE poll timeout\n");
-		return;
+		goto err_poll_result_done;
 	}
 
 	rc = cpr_poll_result(cpr);
 	if (rc) {
 		pr_err("Quot1: Exiting due to BUSY poll timeout\n");
-		return;
+		goto err_poll_result;
 	}
 
 	quot1 = (cpr_read_reg(cpr, RBCPR_DEBUG1) & QUOT_SLOW_M) >> 12;
@@ -275,7 +275,7 @@ cpr_2pt_kv_analysis(struct msm_cpr *cpr, struct msm_cpr_mode *chip_data)
 	rc = regulator_set_voltage(cpr->vreg_cx, level_uV, level_uV);
 	if (rc) {
 		pr_err("Voltage set at %duV failed\n", level_uV);
-		return;
+		goto err_set_voltage;
 	}
 
 	cpr_modify_reg(cpr, RBCPR_CTL, HW_TO_PMIC_EN_M, SW_MODE);
@@ -314,10 +314,12 @@ cpr_2pt_kv_analysis(struct msm_cpr *cpr, struct msm_cpr_mode *chip_data)
 out_2pt_kv:
 	/* Program the step quot */
 	cpr_write_reg(cpr, RBCPR_STEP_QUOT, (chip_data->step_quot & 0xFF));
-	return;
+	return 0;
+err_set_voltage:
 err_poll_result:
 err_poll_result_done:
 	regulator_disable(cpr->vreg_cx);
+	return rc;
 }
 
 static inline
@@ -602,7 +604,7 @@ static irqreturn_t cpr_irq0_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void cpr_config(struct msm_cpr *cpr)
+static int cpr_config(struct msm_cpr *cpr)
 {
 	uint32_t delay_count, cnt = 0, rc;
 	struct msm_cpr_mode *chip_data;
@@ -650,13 +652,19 @@ static void cpr_config(struct msm_cpr *cpr)
 	}
 
 	/* Configure the step quot */
-	cpr_2pt_kv_analysis(cpr, chip_data);
+	rc = cpr_2pt_kv_analysis(cpr, chip_data);
+	if (rc) {
+		pr_err("CPR: step quot configure failed%d\n", rc);
+		return rc;
+	}
 
 	/* Call the PMIC specific routine to set the voltage */
 	rc = regulator_set_voltage(cpr->vreg_cx, chip_data->calibrated_uV,
 					chip_data->calibrated_uV);
-	if (rc)
-		pr_err("Voltage set failed %d\n", rc);
+	if (rc) {
+		pr_err("CPR: voltage set failed %d\n", rc);
+		return rc;
+	}
 
 	/*
 	 * Program the Timer Register for delay between CPR measurements
@@ -678,6 +686,7 @@ static void cpr_config(struct msm_cpr *cpr)
 	/* Enable Auto ACK for Mid interrupts */
 	cpr_modify_reg(cpr, RBCPR_CTL, SW_AUTO_CONT_ACK_EN_M,
 			SW_AUTO_CONT_ACK_EN);
+	return 0;
 }
 
 static int
@@ -1006,7 +1015,11 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	cpr->prev_mode = TURBO_MODE;
 
 	/* Initial configuration of CPR */
-	cpr_config(cpr);
+	res = cpr_config(cpr);
+	if (res) {
+		pr_err("CPR: configuration failed %d\n", res);
+		goto err_cpr_config;
+	}
 
 	platform_set_drvdata(pdev, cpr);
 
@@ -1056,6 +1069,7 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 
 	return res;
 
+err_cpr_config:
 err_reg_get:
 	free_irq(irqn, cpr);
 err_ioremap:
