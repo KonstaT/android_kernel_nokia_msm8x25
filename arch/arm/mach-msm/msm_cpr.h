@@ -176,6 +176,7 @@ struct msm_cpr_config {
 	uint32_t max_quot;
 	bool disable_cpr;
 	uint32_t step_size;
+	uint8_t pvs_fuse;
 	uint32_t (*get_quot)(uint32_t max_quot, uint32_t max_freq,
 				uint32_t new_freq);
 	void (*clk_enable)(void);
