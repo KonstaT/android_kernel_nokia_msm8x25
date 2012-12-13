@@ -179,6 +179,7 @@ struct msm_cpr_config {
 	uint32_t (*get_quot)(uint32_t max_quot, uint32_t max_freq,
 				uint32_t new_freq);
 	void (*clk_enable)(void);
+	void (*cpr_reset)(void);
 };
 
 /**
