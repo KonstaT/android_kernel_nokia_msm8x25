@@ -1939,8 +1939,6 @@ static void __init msm_cpr_init(void)
 	else if (msm8625_cpu_id() == MSM8625)
 		msm_cpr_pdata.max_freq = 1008000;
 
-	msm_cpr_clk_enable();
-
 	if (cpu_is_msm8625q())
 		msm_cpr_pdata.step_size = 6250;
 
