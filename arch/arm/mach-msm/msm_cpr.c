@@ -47,6 +47,8 @@
 #define STEP_QUOT_MAX 25
 #define STEP_QUOT_MIN 12
 
+#define VMAX_BREACH_CNT 15
+
 void __iomem *virt_start_ptr;
 
 /* Need platform device handle for suspend and resume APIs */
@@ -102,6 +104,7 @@ struct msm_cpr {
 /* Need to maintain state data for suspend and resume APIs */
 static struct msm_cpr_reg cpr_save_state;
 static struct msm_cpr *msm_cpr;
+static int max_volt_count;
 
 static inline
 void cpr_write_reg(struct msm_cpr *cpr, u32 offset, u32 value)
@@ -491,6 +494,12 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 	if (action == UP) {
 		/* Clear IRQ, ACK and return if Vdd already at Vmax */
 		if (cpr->max_volt_set == 1) {
+
+			if (++max_volt_count == VMAX_BREACH_CNT) {
+				/* Disable CPR */
+				cpr_disable(cpr);
+			}
+
 			cpr_write_reg(cpr, RBIF_IRQ_CLEAR, ALL_CPR_IRQ);
 			cpr_write_reg(cpr, RBIF_CONT_NACK_CMD, 0x1);
 			return;
@@ -792,6 +801,7 @@ cpr_freq_transition(struct notifier_block *nb, unsigned long val,
 		/* Clear all the interrupts */
 		cpr_write_reg(cpr, RBIF_IRQ_CLEAR, ALL_CPR_IRQ);
 
+		max_volt_count = 0;
 		cpr_enable(cpr);
 		break;
 	default:
