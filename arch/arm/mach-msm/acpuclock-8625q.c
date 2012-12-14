@@ -320,12 +320,13 @@ static int acpuclk_8625q_set_rate(int cpu, unsigned long rate,
 		goto out;
 	}
 
-	if (reason != SETRATE_PC)
+	if (reason != SETRATE_PC) {
 		cur_s->vdd = regulator_get_voltage(drv_state.vreg_cpu);
-
-	if (cur_s->vdd <= 0)
-		goto out;
-
+		if (cur_s->vdd <= 0) {
+			rc = -EINVAL;
+			goto out;
+		}
+	}
 	pr_debug("current freq=%dKhz vdd=%duV\n",
 			cur_s->a11clk_khz, cur_s->vdd);
 
