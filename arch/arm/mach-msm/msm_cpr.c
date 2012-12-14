@@ -47,7 +47,7 @@
 #define TIMER_COUNT(freq, delay) ((freq * delay) / 1000)
 #define ALL_CPR_IRQ 0x3F
 #define STEP_QUOT_MAX 25
-#define STEP_QUOT_MIN 12
+#define STEP_QUOT_MIN 14
 
 #define VMAX_BREACH_CNT 15
 
@@ -302,12 +302,13 @@ cpr_2pt_kv_analysis(struct msm_cpr *cpr, struct msm_cpr_mode *chip_data)
 	 * margin on top of calculated step quot to help reduce the
 	 * number of CPR interrupts. The present value suggested is 3.
 	 * Further, if the step quot is outside range, clamp it to the
-	 * maximum permitted value.
+	 * maximum permitted value. The step quot limits are based on the
+	 * voltage step so adjust it based on step value used.
 	 */
 	chip_data->step_quot = ((quot1 - quot2) / 4) + 3;
-	if (chip_data->step_quot < STEP_QUOT_MIN ||
-			chip_data->step_quot > STEP_QUOT_MAX)
-		chip_data->step_quot = STEP_QUOT_MAX;
+	if (chip_data->step_quot < (STEP_QUOT_MIN / chip_data->step_div) ||
+		chip_data->step_quot > (STEP_QUOT_MAX / chip_data->step_div))
+		chip_data->step_quot = STEP_QUOT_MAX / chip_data->step_div;
 
 	msm_cpr_debug(MSM_CPR_DEBUG_CONFIG,
 		"Step Quot is %d\n", chip_data->step_quot);
