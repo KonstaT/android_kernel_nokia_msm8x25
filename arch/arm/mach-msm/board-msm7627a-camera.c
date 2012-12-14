@@ -922,6 +922,28 @@ static void skud_camera_gpio_cfg(void)
 		pr_err("%s: unable to set gpio: %d direction for ov7695 camera\n",
 		__func__, GPIO_SKUD_CAM_1MP_PWDN);
 
+        printk("gpio request: GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN is %d\n", GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN);
+        rc = gpio_request(GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN, "msm_actuator");
+	if (rc < 0)
+		printk("%s: gpio_request msm_actuator : %d failed!",
+		__func__, GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN);
+
+	rc = gpio_tlmm_config(GPIO_CFG(
+                GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN,
+                0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
+                GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+        if (rc < 0) {
+		printk("%s:unable to enable Powr Dwn gpio for msm_actuator!\n", __func__);
+               gpio_free(GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN);
+        }
+        rc = gpio_direction_output(GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN, 0);
+        if (rc < 0)
+              pr_err("%s: unable to set gpio: %d direction for ov5648 camera\n",
+               __func__, GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN);
+
+        /*Free the gpio for the actuator will request it again, only do tlmm config here.*/
+        gpio_free(GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN);
+
 }
 
 #ifndef CONFIG_MSM_CAMERA_V4L2
