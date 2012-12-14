@@ -1,6 +1,7 @@
 /*
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (c) 2013, Code Aurora Forum. All rights reserved.
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -664,7 +665,7 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 		}
 	}
 
-#ifdef CONFIG_DMA_CMA
+#ifdef CONFIG_CMA
 	if (is_cma_pageblock(page)) {
 		struct page *oldpage = page, *newpage;
 		int err;
