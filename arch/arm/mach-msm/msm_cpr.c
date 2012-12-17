@@ -83,8 +83,6 @@ enum {
 
 struct msm_cpr {
 	int curr_osc;
-	int cpr_mode;
-	int prev_mode;
 	uint32_t floor;
 	uint32_t ceiling;
 	bool max_volt_set;
@@ -360,7 +358,7 @@ cpr_up_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	int set_volt_uV, rc;
 	struct msm_cpr_mode *chip_data;
 
-	chip_data = &cpr->config->cpr_mode_data[cpr->cpr_mode];
+	chip_data = cpr->config->cpr_mode_data;
 
 	/* Set New PMIC voltage */
 	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
@@ -413,7 +411,7 @@ cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	int set_volt_uV, rc;
 	struct msm_cpr_mode *chip_data;
 
-	chip_data = &cpr->config->cpr_mode_data[cpr->cpr_mode];
+	chip_data = cpr->config->cpr_mode_data;
 
 	/* Set New PMIC volt */
 	set_volt_uV = (new_volt > cpr->cur_Vmin ? new_volt
@@ -456,16 +454,15 @@ cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 		 * interrupt if a freq switch already caused a mode
 		 * change since we need this interrupt in the new mode.
 		 */
-		if (cpr->cpr_mode == cpr->prev_mode) {
-			/* Enable Auto ACK for CPR Down Flags
-			 * while DOWN_INT to App is disabled */
-			cpr_modify_reg(cpr, RBCPR_CTL,
-					SW_AUTO_CONT_NACK_DN_EN_M,
-					SW_AUTO_CONT_NACK_DN_EN);
-			cpr_irq_set(cpr, DOWN_INT, 0);
-			msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
-					"DOWN_INT disabled\n");
-		}
+		/* Enable Auto ACK for CPR Down Flags
+		 * while DOWN_INT to App is disabled */
+		cpr_modify_reg(cpr, RBCPR_CTL,
+				SW_AUTO_CONT_NACK_DN_EN_M,
+				SW_AUTO_CONT_NACK_DN_EN);
+		cpr_irq_set(cpr, DOWN_INT, 0);
+		msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
+				"DOWN_INT disabled\n");
+
 	}
 	/* Acknowledge the Recommendation */
 	cpr_write_reg(cpr, RBIF_CONT_ACK_CMD, 0x1);
@@ -476,7 +473,7 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 	uint32_t curr_volt, new_volt, error_step;
 	struct msm_cpr_mode *chip_data;
 
-	chip_data = &cpr->config->cpr_mode_data[cpr->cpr_mode];
+	chip_data = cpr->config->cpr_mode_data;
 	error_step = cpr_read_reg(cpr, RBCPR_RESULT_0) >> 2;
 
 	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
@@ -618,7 +615,7 @@ static int cpr_config(struct msm_cpr *cpr)
 	uint32_t delay_count, cnt = 0, rc;
 	struct msm_cpr_mode *chip_data;
 
-	chip_data = &cpr->config->cpr_mode_data[cpr->cpr_mode];
+	chip_data = cpr->config->cpr_mode_data;
 
 	/* Program the SW vlevel */
 	cpr_modify_reg(cpr, RBIF_SW_VLEVEL, SW_VLEVEL_M,
@@ -727,7 +724,6 @@ cpr_freq_transition(struct notifier_block *nb, unsigned long val,
 			"RBIF_IRQ_EN(0): 0x%x\n",
 			cpr_read_reg(cpr, RBIF_IRQ_EN(cpr->config->irq_line)));
 
-		cpr->prev_mode = cpr->cpr_mode;
 		break;
 
 	case CPUFREQ_POSTCHANGE:
@@ -739,12 +735,12 @@ cpr_freq_transition(struct notifier_block *nb, unsigned long val,
 		 */
 		if (freqs->new > cpr->config->max_nom_freq) {
 			new_freq = freqs->new;
-			cpr->cur_Vmin = cpr->config->cpr_mode_data[1].turbo_Vmin;
-			cpr->cur_Vmax = cpr->config->cpr_mode_data[1].turbo_Vmax;
+			cpr->cur_Vmin = cpr->config->cpr_mode_data->turbo_Vmin;
+			cpr->cur_Vmax = cpr->config->cpr_mode_data->turbo_Vmax;
 		} else {
 			new_freq = cpr->config->max_nom_freq;
-			cpr->cur_Vmin = cpr->config->cpr_mode_data[1].nom_Vmin;
-			cpr->cur_Vmax = cpr->config->cpr_mode_data[1].nom_Vmax;
+			cpr->cur_Vmin = cpr->config->cpr_mode_data->nom_Vmin;
+			cpr->cur_Vmax = cpr->config->cpr_mode_data->nom_Vmax;
 		}
 
 		/* Configure CPR for the new frequency */
@@ -970,8 +966,8 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	cpr->config = pdata;
 
 	/* Set initial Vmin,Vmax equal to turbo */
-	cpr->cur_Vmin = cpr->config->cpr_mode_data[1].turbo_Vmin;
-	cpr->cur_Vmax = cpr->config->cpr_mode_data[1].turbo_Vmax;
+	cpr->cur_Vmin = cpr->config->cpr_mode_data->turbo_Vmin;
+	cpr->cur_Vmax = cpr->config->cpr_mode_data->turbo_Vmax;
 
 	cpr_pdev = pdev;
 	msm_cpr = cpr;
@@ -1019,10 +1015,6 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 		goto err_reg_get;
 	}
 
-	/* Assume current mode is TURBO Mode */
-	cpr->cpr_mode = TURBO_MODE;
-	cpr->prev_mode = TURBO_MODE;
-
 	/* Initial configuration of CPR */
 	res = cpr_config(cpr);
 	if (res) {
@@ -1032,16 +1024,15 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cpr);
 
-	chip_data = &cpr->config->cpr_mode_data[cpr->cpr_mode];
+	chip_data = cpr->config->cpr_mode_data;
 	msm_cpr_debug(MSM_CPR_DEBUG_CONFIG,
 		"CPR Platform Data (upside_steps: %d) (downside_steps: %d))",
 		cpr->config->up_threshold, cpr->config->dn_threshold);
 	msm_cpr_debug(MSM_CPR_DEBUG_CONFIG,
-		"(nominal_voltage: %duV) (turbo_voltage: %duV)\n",
-		cpr->config->cpr_mode_data[NORMAL_MODE].calibrated_uV,
-		cpr->config->cpr_mode_data[TURBO_MODE].calibrated_uV);
+		"(default calibrated voltage: %duV)\n",
+		cpr->config->cpr_mode_data->calibrated_uV);
 	msm_cpr_debug(MSM_CPR_DEBUG_CONFIG,
-		"(Current corner: TURBO) (gcnt_target: %d) (quot: %d)\n",
+		"(gcnt_target: %d) (quot: %d)\n",
 		chip_data->ring_osc_data[chip_data->ring_osc].gcnt,
 		chip_data->ring_osc_data[chip_data->ring_osc].quot);
 
