@@ -33,6 +33,8 @@
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
 
+#include <trace/events/power.h>
+
 #include "msm_cpr.h"
 
 #define MODULE_NAME "msm-cpr"
@@ -532,6 +534,7 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 		msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 			"(UP Voltage recommended by CPR: %d uV)\n", new_volt);
 		cpr_up_event_handler(cpr, new_volt);
+		trace_cpr_data(new_volt, curr_volt, error_step);
 
 	} else if (action == DOWN) {
 		/**
@@ -570,6 +573,7 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 		msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 			"(DN Voltage recommended by CPR: %d uV)\n", new_volt);
 		cpr_dn_event_handler(cpr, new_volt);
+		trace_cpr_data(new_volt, curr_volt, -error_step);
 	}
 }
 
