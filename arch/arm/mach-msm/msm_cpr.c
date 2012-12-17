@@ -58,8 +58,19 @@ static struct platform_device *cpr_pdev;
 
 static bool enable = 1;
 static bool disable_cpr = true;
+static int nom_Vmin;
+static int turbo_Vmin;
+static int max_quot;
+
 module_param(enable, bool, 0644);
+module_param(nom_Vmin, int, 0644);
+module_param(turbo_Vmin, int, 0644);
+module_param(max_quot, int, 0644);
+
 MODULE_PARM_DESC(enable, "CPR Enable");
+MODULE_PARM_DESC(nom_Vmin, "Nominal VMin");
+MODULE_PARM_DESC(turbo_Vmin, "Turbo VMin");
+MODULE_PARM_DESC(max_quot, "Max Quot");
 
 extern struct regulator *ncp6335d_handle;
 
@@ -96,7 +107,7 @@ struct msm_cpr {
 	struct mutex cpr_mutex;
 	spinlock_t cpr_lock;
 	struct regulator *vreg_cx;
-	const struct msm_cpr_config *config;
+	struct msm_cpr_config *config;
 	struct notifier_block freq_transition;
 	uint32_t step_size;
 };
@@ -928,7 +939,7 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 {
 	int res, irqn, irq_enabled;
 	struct msm_cpr *cpr;
-	const struct msm_cpr_config *pdata = pdev->dev.platform_data;
+	struct msm_cpr_config *pdata = pdev->dev.platform_data;
 	void __iomem *base;
 	struct resource *mem;
 	struct msm_cpr_mode *chip_data;
@@ -968,6 +979,13 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 
 	/* Initialize platform_data */
 	cpr->config = pdata;
+
+	if (nom_Vmin != 0)
+		cpr->config->cpr_mode_data->nom_Vmin = nom_Vmin;
+	if (turbo_Vmin != 0)
+		cpr->config->cpr_mode_data->turbo_Vmin = turbo_Vmin;
+	if (max_quot != 0)
+		cpr->config->max_quot = max_quot;
 
 	/* Set initial Vmin,Vmax equal to turbo */
 	cpr->cur_Vmin = cpr->config->cpr_mode_data->turbo_Vmin;
