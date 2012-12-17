@@ -623,7 +623,7 @@ static void __init msm7x27a_init_cam(void)
 		msm_camera_sensor_ov7695_raw_data.vcm_enable = 0;
 		msm_camera_sensor_ov7695_raw_data.sensor_pwd = GPIO_SKUD_CAM_1MP_PWDN;
 		sensor_board_info_ov7695_raw.gpio_conf = &skud_gpio_conf_ov7695_raw;
-		sensor_board_info_ov7695_raw.mount_angle = 90;
+		sensor_board_info_ov7695_raw.mount_angle = 270;
 #endif
 	}
 	platform_device_register(&msm_camera_server);
