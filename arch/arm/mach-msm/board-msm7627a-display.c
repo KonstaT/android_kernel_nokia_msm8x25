@@ -31,10 +31,12 @@
 #define MSM_FB_SIZE		0x4BF000
 #define MSM7x25A_MSM_FB_SIZE    0x1C2000
 #define MSM8x25_MSM_FB_SIZE	0x5FA000
+#define MSM8x25Q_MSM_FB_SIZE	0xAC8000
 #else
 #define MSM_FB_SIZE		0x32A000
 #define MSM7x25A_MSM_FB_SIZE	0x12C000
 #define MSM8x25_MSM_FB_SIZE	0x3FC000
+#define MSM8x25Q_MSM_FB_SIZE	0x730000
 #endif
 
 /*
@@ -754,6 +756,17 @@ static struct platform_device mipi_dsi_NT35516_panel_device = {
 	}
 };
 
+static struct msm_panel_common_pdata mipi_NT35590_pdata = {
+	.backlight = evb_backlight_control,
+};
+
+static struct platform_device mipi_dsi_NT35590_panel_device = {
+	.name   = "mipi_NT35590",
+	.id     = 0,
+	.dev    = {
+		.platform_data = &mipi_NT35590_pdata,
+	}
+};
 static struct platform_device *msm_fb_devices[] __initdata = {
 	&msm_fb_device,
 	&lcdc_toshiba_panel_device,
@@ -784,6 +797,7 @@ static struct platform_device *evb_fb_devices[] __initdata = {
 static struct platform_device *skud_fb_devices[] __initdata = {
 	&msm_fb_device,
 	&mipi_dsi_hx8389b_panel_device,
+	&mipi_dsi_NT35590_panel_device,
 };
 
 void __init msm_msm7627a_allocate_memory_regions(void)
@@ -795,10 +809,10 @@ void __init msm_msm7627a_allocate_memory_regions(void)
 		fb_size = MSM7x25A_MSM_FB_SIZE;
 	else if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
 						|| machine_is_msm8625_evt()
-						|| machine_is_msm8625q_evbd()
-						|| machine_is_msm8625q_skud()
 						|| machine_is_qrd_skud_prime())
 		fb_size = MSM8x25_MSM_FB_SIZE;
+	else if (machine_is_msm8625q_evbd() || machine_is_msm8625q_skud())
+		fb_size = MSM8x25Q_MSM_FB_SIZE;
 	else
 		fb_size = MSM_FB_SIZE;
 
@@ -1551,6 +1565,9 @@ void msm7x27a_set_display_params(char *prim_panel)
 				PANEL_NAME_MAX_LEN)))
 			disable_splash = 1;
 	}
+
+	if (machine_is_msm8625q_evbd() || machine_is_msm8625q_skud())
+		mipi_dsi_pdata.dlane_swap = 0x0;
 }
 
 void __init msm_fb_add_devices(void)
@@ -1567,7 +1584,6 @@ void __init msm_fb_add_devices(void)
 		if (disable_splash)
 			mdp_pdata.cont_splash_enabled = 0x0;
 
-
 		platform_add_devices(evb_fb_devices,
 				ARRAY_SIZE(evb_fb_devices));
 	} else if (machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()) {
@@ -1577,7 +1593,8 @@ void __init msm_fb_add_devices(void)
 						ARRAY_SIZE(qrd3_fb_devices));
 	} else if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
 						|| machine_is_msm8625q_skud()) {
-		mdp_pdata.cont_splash_enabled = 0x1;
+		if (disable_splash)
+			mdp_pdata.cont_splash_enabled = 0x0;
 		platform_add_devices(skud_fb_devices,
 				ARRAY_SIZE(skud_fb_devices));
 	} else {
