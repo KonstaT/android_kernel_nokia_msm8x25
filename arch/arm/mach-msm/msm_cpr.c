@@ -284,7 +284,6 @@ cpr_2pt_kv_analysis(struct msm_cpr *cpr, struct msm_cpr_mode *chip_data)
 	cpr_modify_reg(cpr, RBCPR_CTL, HW_TO_PMIC_EN_M, SW_MODE);
 	cpr_modify_reg(cpr, RBCPR_CTL, LOOP_EN_M, ENABLE_CPR);
 
-	/* cpr_write_reg(cpr, RBIF_CONT_NACK_CMD, 0x1); */
 	rc = cpr_poll_result_done(cpr);
 	if (rc) {
 		pr_err("Quot2: Exiting due to INT_DONE poll timeout\n");
@@ -327,16 +326,7 @@ err_poll_result_done:
 }
 
 static inline
-void cpr_irq_clr_and_ack(struct msm_cpr *cpr, uint32_t mask)
-{
-	/* Clear the interrupt */
-	cpr_write_reg(cpr, RBIF_IRQ_CLEAR, ALL_CPR_IRQ);
-	/* Acknowledge the Recommendation */
-	cpr_write_reg(cpr, RBIF_CONT_ACK_CMD, 0x1);
-}
-
-static inline
-void cpr_irq_clr_and_nack(struct msm_cpr *cpr, uint32_t mask)
+void cpr_irq_clr_and_nack(struct msm_cpr *cpr)
 {
 	cpr_write_reg(cpr, RBIF_IRQ_CLEAR, ALL_CPR_IRQ);
 	cpr_write_reg(cpr, RBIF_CONT_NACK_CMD, 0x1);
@@ -383,7 +373,7 @@ cpr_up_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 							set_volt_uV);
 	if (rc) {
 		pr_err("Unable to set_voltage = %d, rc(%d)\n", set_volt_uV, rc);
-		cpr_irq_clr_and_nack(cpr, BIT(4) | BIT(0));
+		cpr_irq_clr_and_nack(cpr);
 		return;
 	}
 
@@ -396,7 +386,7 @@ cpr_up_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	/* Clear all the interrupts */
 	cpr_write_reg(cpr, RBIF_IRQ_CLEAR, ALL_CPR_IRQ);
 
-	/* Disable Auto ACK for Down interrupts */
+	/* Disable Auto NACK for Down interrupts */
 	cpr_modify_reg(cpr, RBCPR_CTL, SW_AUTO_CONT_NACK_DN_EN_M, 0);
 
 	/* Enable down interrupts to App as it might have got disabled if CPR
@@ -404,12 +394,17 @@ cpr_up_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	 */
 	cpr_irq_set(cpr, DOWN_INT, 1);
 
-	/* Acknowledge the Recommendation */
-	cpr_write_reg(cpr, RBIF_CONT_ACK_CMD, 0x1);
+	/**
+	 * The error steps in case of up interrupt is always more than one
+	 * since we add 1 to the recommended error step. As per present CPR
+	 * IP design, the step quot internal recalculation should be done
+	 * when error step is one. So, we always send nack here.
+	 */
+	cpr_write_reg(cpr, RBIF_CONT_NACK_CMD, 0x1);
 }
 
 static void
-cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
+cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt, uint32_t err_step)
 {
 	int set_volt_uV, rc;
 	struct msm_cpr_mode *chip_data;
@@ -434,7 +429,7 @@ cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 							set_volt_uV);
 	if (rc) {
 		pr_err("Unable to set_voltage = %d, rc(%d)\n", set_volt_uV, rc);
-		cpr_irq_clr_and_nack(cpr, BIT(2) | BIT(0));
+		cpr_irq_clr_and_nack(cpr);
 		return;
 	}
 
@@ -449,26 +444,29 @@ cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 
 	if (new_volt <= cpr->cur_Vmin) {
 		/*
+		 * Enable Auto NACK for CPR Down Flags
 		 * Disable down interrupt to App after we hit Vmin
 		 * It shall be enabled after we service an up interrupt
-		 *
-		 * A race condition between freq switch handler and CPR
-		 * interrupt handler is possible. So, do not disable
-		 * interrupt if a freq switch already caused a mode
-		 * change since we need this interrupt in the new mode.
 		 */
-		/* Enable Auto ACK for CPR Down Flags
-		 * while DOWN_INT to App is disabled */
 		cpr_modify_reg(cpr, RBCPR_CTL,
 				SW_AUTO_CONT_NACK_DN_EN_M,
 				SW_AUTO_CONT_NACK_DN_EN);
 		cpr_irq_set(cpr, DOWN_INT, 0);
 		msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 				"DOWN_INT disabled\n");
-
 	}
-	/* Acknowledge the Recommendation */
-	cpr_write_reg(cpr, RBIF_CONT_ACK_CMD, 0x1);
+
+	/**
+	 * As per present CPR IP design, the step quot internal recalculation
+	 * should be performed only when error step is 1. If it is more than 1,
+	 * step quot calculation should be skipped. Whenever an ACK is sent,
+	 * step quot recalculation takes place, and it gets skipped whenever
+	 * NACK is sent.
+	 */
+	if (err_step == 1)
+		cpr_write_reg(cpr, RBIF_CONT_ACK_CMD, 0x1);
+	else
+		cpr_write_reg(cpr, RBIF_CONT_NACK_CMD, 0x1);
 }
 
 static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
@@ -492,16 +490,13 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 		"Current voltage=%d\n", curr_volt);
 
 	if (action == UP) {
-		/* Clear IRQ, ACK and return if Vdd already at Vmax */
+		/* Clear IRQ, NACK and return if Vdd already at Vmax */
 		if (cpr->max_volt_set == 1) {
-
 			if (++max_volt_count == VMAX_BREACH_CNT) {
 				/* Disable CPR */
 				cpr_disable(cpr);
 			}
-
-			cpr_write_reg(cpr, RBIF_IRQ_CLEAR, ALL_CPR_IRQ);
-			cpr_write_reg(cpr, RBIF_CONT_NACK_CMD, 0x1);
+			cpr_irq_clr_and_nack(cpr);
 			return;
 		}
 
@@ -513,7 +508,7 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 					cpr->config->up_margin)) {
 			msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 				"UP_INT error step too small to set\n");
-			cpr_irq_clr_and_nack(cpr, BIT(4) | BIT(0));
+			cpr_irq_clr_and_nack(cpr);
 			return;
 		}
 
@@ -547,7 +542,7 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 			msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 				"DOWN_INT error_step=%d is too small to set\n",
 								error_step);
-			cpr_irq_clr_and_nack(cpr, BIT(2) | BIT(0));
+			cpr_irq_clr_and_nack(cpr);
 			return;
 		}
 
@@ -573,7 +568,8 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 			RBCPR_GCNT_TARGET(cpr->curr_osc)) & TARGET_M);
 		msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 			"(DN Voltage recommended by CPR: %d uV)\n", new_volt);
-		cpr_dn_event_handler(cpr, new_volt);
+
+		cpr_dn_event_handler(cpr, new_volt, error_step);
 		trace_cpr_data(new_volt, curr_volt, -error_step);
 	}
 }
@@ -600,12 +596,12 @@ static irqreturn_t cpr_irq0_handler(int irq, void *dev_id)
 	} else if (reg_val & BIT(1)) {
 		msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 			"CPR:IRQ %d occured for Min Flag\n", irq);
-		cpr_irq_clr_and_nack(cpr, BIT(1) | BIT(0));
+		cpr_irq_clr_and_nack(cpr);
 
 	} else if (reg_val & BIT(5)) {
 		msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 			"CPR:IRQ %d occured for MAX Flag\n", irq);
-		cpr_irq_clr_and_nack(cpr, BIT(5) | BIT(0));
+		cpr_irq_clr_and_nack(cpr);
 
 	} else if (reg_val & BIT(3)) {
 		/* SW_AUTO_CONT_ACK_EN is enabled */
