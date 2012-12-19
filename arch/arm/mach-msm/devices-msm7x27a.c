@@ -1949,6 +1949,12 @@ static void __init msm_cpr_init(void)
 	platform_device_register(&msm8625_device_cpr);
 }
 
+static void __init msm_pm_memory_reserve(void)
+{
+	virt_start_ptr = ioremap_nocache(MSM8625_NON_CACHE_MEM, SZ_2K);
+	memset(virt_start_ptr, 0x0, SZ_2K);
+}
+
 static struct clk_lookup msm_clock_8625_dummy[] = {
 	CLK_DUMMY("core_clk",		adm_clk.c,	"msm_dmov", 0),
 	CLK_DUMMY("adsp_clk",		adsp_clk.c,	NULL, 0),
@@ -2096,6 +2102,11 @@ int __init msm7x2x_misc_init(void)
 	} else {
 		platform_device_register(&msm7x27a_device_acpuclk);
 	}
+
+	/*
+	 * Remove the memory block @ 0xFC00000 to log debug information
+	 */
+	msm_pm_memory_reserve();
 
 	if (cpu_is_msm8625q() || (cpu_is_msm8625() &&
 			(SOCINFO_VERSION_MAJOR(socinfo_get_version()) >= 2)))

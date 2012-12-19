@@ -105,6 +105,20 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	pr_debug("CPU%u: Booted secondary processor\n", cpu);
 
+	if (virt_start_ptr) {
+		switch (cpu) {
+		case 1:
+			*(uint32_t *)(virt_start_ptr + 0x24) = 0x0;
+			break;
+		case 2:
+			*(uint32_t *)(virt_start_ptr + 0x28) = 0x0;
+			break;
+		case 3:
+			*(uint32_t *)(virt_start_ptr + 0x2C) = 0x0;
+			break;
+		}
+	}
+
 	WARN_ON(msm_platform_secondary_init(cpu));
 
 	/*

@@ -36,6 +36,7 @@
 #include <trace/events/power.h>
 
 #include "msm_cpr.h"
+#include "pm.h"
 
 #define MODULE_NAME "msm-cpr"
 
@@ -50,8 +51,6 @@
 #define STEP_QUOT_MIN 12
 
 #define VMAX_BREACH_CNT 15
-
-void __iomem *virt_start_ptr;
 
 /* Need platform device handle for suspend and resume APIs */
 static struct platform_device *cpr_pdev;
@@ -953,10 +952,8 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	virt_start_ptr = ioremap_nocache(MSM8625_NON_CACHE_MEM, SZ_2K);
 	msm_cpr_debug(MSM_CPR_DEBUG_CONFIG,
 		"virt_start_ptr = %x\n", (uint32_t) virt_start_ptr);
-	memset(virt_start_ptr, 0x0, SZ_2K);
 
 	/* enable clk for cpr */
 	if (!pdata->clk_enable) {
