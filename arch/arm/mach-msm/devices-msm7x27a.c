@@ -1764,6 +1764,7 @@ static struct msm_cpr_mode msm_cpr_mode_data = {
 		},
 	.ring_osc = 0,
 	.step_quot = ~0,
+	.step_div = 1,
 	.tgt_volt_offset = 0,
 	.turbo_Vmax = 1350000,
 	.turbo_Vmin = 1150000,
@@ -1940,8 +1941,10 @@ static void __init msm_cpr_init(void)
 	else if (msm8625_cpu_id() == MSM8625)
 		msm_cpr_pdata.max_freq = 1008000;
 
-	if (machine_is_qrd_skud_prime() || cpu_is_msm8625q())
+	if (machine_is_qrd_skud_prime() || cpu_is_msm8625q()) {
 		msm_cpr_pdata.step_size = 6250;
+		msm_cpr_mode_data.step_div = 2;
+	}
 
 	if (cpu_is_msm8625())
 		platform_device_register(&msm8625_vp_device);
