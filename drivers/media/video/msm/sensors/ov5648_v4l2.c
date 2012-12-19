@@ -1936,6 +1936,8 @@ int32_t ov5648_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 		MSM_CAMERA_I2C_BYTE_DATA);
 	msleep(40);
 	gpio_direction_output(info->sensor_pwd, 0);
+	gpio_direction_output(info->sensor_reset, 0);
+
 	/* PIP powerdown */
 	if(CAM_MODE_PIP == ov5648_working_mode)
 	{
