@@ -2031,8 +2031,11 @@ static int __init msm_gpio_config_gps(void)
 	unsigned int gps_gpio = 7;
 	int ret = 0;
 
-	if (!machine_is_msm8625_evb())
+	if (!machine_is_msm8625_evb() && !machine_is_msm8625q_evbd())
 		return ret;
+
+	if (machine_is_msm8625q_evbd())
+		gps_gpio = 49;
 
 	ret = gpio_tlmm_config(GPIO_CFG(gps_gpio, 0, GPIO_CFG_OUTPUT,
 			GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
