@@ -979,7 +979,7 @@ void __init msm8x25_kgsl_3d0_init(void)
 			kgsl_3d0_pdata.pwrlevel[0].bus_freq = 300000000;
 
 			kgsl_3d0_pdata.pwrlevel[1].gpu_freq = 320000000;
-			kgsl_3d0_pdata.pwrlevel[1].bus_freq = 200000000;
+			kgsl_3d0_pdata.pwrlevel[1].bus_freq = 245000000;
 
 			kgsl_3d0_pdata.pwrlevel[2].gpu_freq = 192000000;
 			kgsl_3d0_pdata.pwrlevel[2].bus_freq = 160000000;
