@@ -910,7 +910,7 @@ void __init qrd7627a_add_io_devices(void)
 		ft5x06_touchpad_setup();
 	}
 
-	/* headset and power key*/
+	/* handset and power key*/
 	/* ignore end key as this target doesn't need it */
 	hs_platform_data.ignore_end_key = true;
 	platform_device_register(&hs_pdev);
@@ -943,9 +943,19 @@ void __init qrd7627a_add_io_devices(void)
 		platform_device_register(&kp_pdev_sku3);
 
 	/* leds */
-	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb() ||
-						machine_is_msm8625_evt()) {
-		platform_device_register(&pmic_mpp_leds_pdev);
-		platform_device_register(&tricolor_leds_pdev);
+
+	if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+		|| machine_is_msm8625q_skud()) {
+		ctp_backlight_info.flags =
+			PM_MPP__I_SINK__LEVEL_40mA << 16 | PM_MPP_8;
 	}
+
+	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb() ||
+		machine_is_msm8625_evt() || machine_is_qrd_skud_prime()
+		|| machine_is_msm8625q_evbd() || machine_is_msm8625q_skud())
+		platform_device_register(&pmic_mpp_leds_pdev);
+
+	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb() ||
+		machine_is_msm8625_evt() || machine_is_msm8625q_evbd())
+		platform_device_register(&tricolor_leds_pdev);
 }
