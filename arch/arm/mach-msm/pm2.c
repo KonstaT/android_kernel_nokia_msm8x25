@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/tick.h>
 #include <linux/memory.h>
+#include <linux/i2c-gpio.h>
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
 #ifdef CONFIG_CPU_V7
@@ -927,6 +928,8 @@ static int msm_pm_power_collapse
 		goto acpu_set_clock_fail;
 	}
 
+	i2c_gpio_suspend_set(true);
+
 	msm_sirc_enter_sleep();
 	msm_gpio_enter_sleep(from_idle);
 
@@ -1167,6 +1170,8 @@ static int msm_pm_power_collapse
 
 	*(uint32_t *)(virt_start_ptr + 0x30) = 0x16;
 
+	i2c_gpio_suspend_set(false);
+
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_CLOCK, KERN_INFO,
 		"%s(): restore clock rate to %lu\n", __func__,
 		saved_acpuclk_rate);
@@ -1263,6 +1268,8 @@ power_collapse_restore_gpio_bail:
 		DEM_SLAVE_SMSM_PWRC_EARLY_EXIT, DEM_SLAVE_SMSM_RUN);
 
 	MSM_PM_DEBUG_PRINT_STATE("msm_pm_power_collapse(): RUN");
+
+	i2c_gpio_suspend_set(false);
 
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_CLOCK, KERN_INFO,
 		"%s(): restore clock rate to %lu\n", __func__,

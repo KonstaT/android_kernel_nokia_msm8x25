@@ -23,6 +23,8 @@ struct i2c_gpio_private_data {
 	struct i2c_algo_bit_data bit_data;
 	struct i2c_gpio_platform_data pdata;
 };
+/* required for suspend/resume API */
+static struct platform_device *i2c_gpio_pdev;
 
 /* Toggle SDA by changing the direction of the pin */
 static void i2c_gpio_setsda_dir(void *data, int state)
@@ -200,6 +202,8 @@ static int __devinit i2c_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_add_bus;
 
+	i2c_gpio_pdev = pdev;
+
 	of_i2c_register_devices(adap);
 
 	platform_set_drvdata(pdev, priv);
@@ -244,6 +248,64 @@ static const struct of_device_id i2c_gpio_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, i2c_gpio_dt_ids);
 #endif
+
+#ifdef CONFIG_PM_SLEEP
+static int i2c_gpio_suspend(struct device *dev)
+{
+	int ret = 0;
+	struct i2c_gpio_private_data *priv = dev_get_drvdata(dev);
+	struct i2c_gpio_platform_data *pdata = &priv->pdata;
+
+	gpio_free(pdata->scl_pin);
+	gpio_free(pdata->sda_pin);
+
+	if (pdata->hw_config)
+		ret = pdata->hw_config(false);
+
+	if (ret)
+		pr_err("%s: Failed to suspend\n", __func__);
+
+	return ret;
+}
+
+static int i2c_gpio_resume(struct device *dev)
+{
+	int ret = 0;
+	struct i2c_gpio_private_data *priv = dev_get_drvdata(dev);
+	struct i2c_gpio_platform_data *pdata = &priv->pdata;
+
+	ret = gpio_request(pdata->sda_pin, "sda");
+	ret |= gpio_request(pdata->scl_pin, "scl");
+
+	if (pdata->hw_config)
+		ret = pdata->hw_config(true);
+
+	if (ret)
+		pr_err("%s: Failed to resume\n", __func__);
+
+	return ret;
+}
+
+int i2c_gpio_suspend_set(bool on)
+{
+	int rc;
+
+	if (!i2c_gpio_pdev) {
+		pr_err("%s: i2c-gpio driver not registered\n", __func__);
+		return -EINVAL;
+	}
+
+	if (on)
+		rc = i2c_gpio_suspend(&i2c_gpio_pdev->dev);
+	else
+		rc = i2c_gpio_resume(&i2c_gpio_pdev->dev);
+
+	return rc;
+}
+#else
+int i2c_gpio_suspend_set(bool on) {return 0};
+#endif
+EXPORT_SYMBOL(i2c_gpio_suspend_set);
 
 static struct platform_driver i2c_gpio_driver = {
 	.driver		= {
