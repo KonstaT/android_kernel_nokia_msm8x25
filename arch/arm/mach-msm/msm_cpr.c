@@ -557,11 +557,11 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 		}
 
 		/**
-		 * As per chip characterization recommendation, deduct 2 steps
+		 * As per chip characterization recommendation, deduct 25mV
 		 * from down error steps to decrease chances of getting closer
 		 * to the system level Vmin, thereby improving stability
 		 */
-		error_step -= 2;
+		error_step -= 2 * chip_data->step_div;
 
 		/* Keep down step upto two per interrupt to avoid any spike */
 		if (error_step > 2)
