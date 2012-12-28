@@ -1025,7 +1025,7 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	/* Initialize the Voltage domain for CPR */
 	cpr->vreg_cx = ncp6335d_handle;
 
-	if (IS_ERR(cpr->vreg_cx)) {
+	if (IS_ERR_OR_NULL(cpr->vreg_cx)) {
 		res = PTR_ERR(cpr->vreg_cx);
 		pr_err("could not get regulator: %d\n", res);
 		goto err_reg_get;
@@ -1090,7 +1090,6 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 
 err_cpr_config:
 err_reg_get:
-	free_irq(irqn, cpr);
 err_ioremap:
 	iounmap(base);
 out:
