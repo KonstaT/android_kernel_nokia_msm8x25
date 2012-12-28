@@ -27,8 +27,9 @@
 #include <asm/mach-types.h>
 #include <mach/rpc_server_handset.h>
 #include <mach/pmic.h>
-
+#include <mach/socinfo.h>
 #include "devices.h"
+
 #include "board-msm7627a.h"
 #include "devices-msm7x2xa.h"
 
@@ -751,6 +752,9 @@ static const unsigned short keymap_sku3[] = {
 static unsigned int kp_row_gpios_skud[] = {31, 32};
 static unsigned int kp_col_gpios_skud[] = {37};
 
+static unsigned int kp_row_gpios_evbdp[] = {42, 37};
+static unsigned int kp_col_gpios_evbdp[] = {31};
+
 static const unsigned short keymap_skud[] = {
 	[KP_INDEX_SKU3(0, 0)] = KEY_VOLUMEUP,
 	[KP_INDEX_SKU3(0, 1)] = KEY_VOLUMEDOWN,
@@ -929,6 +933,23 @@ void __init qrd7627a_add_io_devices(void)
 		kp_matrix_info_sku3.input_gpios = kp_col_gpios_skud;
 		kp_matrix_info_sku3.noutputs = ARRAY_SIZE(kp_row_gpios_skud);
 		kp_matrix_info_sku3.ninputs = ARRAY_SIZE(kp_col_gpios_skud);
+		/* keypad info for EVBD+ */
+		if (machine_is_msm8625q_evbd() &&
+			(socinfo_get_platform_type() == 13)) {
+			gpio_tlmm_config(GPIO_CFG(37, 0,
+						GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
+						GPIO_CFG_8MA), GPIO_CFG_ENABLE);
+			gpio_tlmm_config(GPIO_CFG(42, 0,
+						GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
+						GPIO_CFG_8MA), GPIO_CFG_ENABLE);
+			gpio_tlmm_config(GPIO_CFG(31, 0,
+						GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
+						GPIO_CFG_8MA), GPIO_CFG_ENABLE);
+			kp_matrix_info_sku3.output_gpios = kp_row_gpios_evbdp;
+			kp_matrix_info_sku3.input_gpios = kp_col_gpios_evbdp;
+			kp_matrix_info_sku3.noutputs = ARRAY_SIZE(kp_row_gpios_evbdp);
+			kp_matrix_info_sku3.ninputs = ARRAY_SIZE(kp_col_gpios_evbdp);
+		}
 	}
 
 	if (machine_is_msm8625_evt())
