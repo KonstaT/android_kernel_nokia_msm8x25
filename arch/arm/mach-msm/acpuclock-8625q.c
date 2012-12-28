@@ -577,6 +577,8 @@ static int reinitialize_freq_table(bool target_select)
 				tbl->axiclk_khz = 300000;
 				if (tbl->a11clk_khz == 1209600)
 					tbl->vdd = 0;
+				if (tbl->a11clk_khz == 1008000)
+					tbl->vdd = 1100000;
 			} else {
 				if (tbl->a11clk_khz != 600000
 					&& tbl->a11clk_khz != 19200)
