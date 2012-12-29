@@ -344,12 +344,12 @@ static struct msm_camera_i2c_reg_conf ov5648_pip_snap_settings_master[] = {
 	//;6c 383b b8 	; 80 PIP Location
 	//; pip rotate 180
 	{0x3836, 0x07},
-	{0x3837, 0x3f},
+	{0x3837, 0x37},
 	{0x383a, 0x01},
-	{0x383b, 0xa8},//	; 80 PIP Location
+	{0x383b, 0xa0},//	; 80 PIP Location
 
 	{0x4004, 0x04},//	; black line number
-	{0x4005, 0x1a}, //BLC always update
+//	{0x4005, 0x1a}, //BLC always update
 
 	{0x5b00, 0x02},
 	{0x5b01, 0x80},
@@ -425,10 +425,10 @@ static struct msm_camera_i2c_reg_conf ov5648_pip_prev_settings_master[] = {
 	{0x3836, 0x01},
 	{0x3837, 0xd7},
 	{0x383a, 0x0a},
-	{0x383b, 0x88},
+	{0x383b, 0x80},
 
 	{0x4004, 0x02}, // black line number
-	{0x4005, 0x18},//BLC normal freeze
+//	{0x4005, 0x18},//BLC normal freeze
 
 	{0x5b00, 0x01},
 	{0x5b01, 0x40},
@@ -625,11 +625,12 @@ static struct msm_sensor_output_info_t ov5648_pip_dimensions[] = {
 		.op_pixel_clk = 110000000,
 		.binning_factor = 0x0,
 	},
-	{ /* For ZSL */
-		.x_output = 0xa20,		   /*2592*/
-		.y_output = 0x798,		   /*1944*/
+	//16:9 settings
+	{ /* For SNAPSHOT */
+		.x_output = 0xa00,		   /*2560*/
+		.y_output = 0x5a0,		   /*1440*/
 		.line_length_pclk = 0x160a,
-		.frame_length_lines = 0x7c0,
+		.frame_length_lines = 0x5c8,
 		.vt_pixel_clk = 84000000,
 		.op_pixel_clk = 158000000,
 		.binning_factor = 0x0,
@@ -1280,8 +1281,8 @@ void ov5648_sensor_reset_stream(struct msm_sensor_ctrl_t *s_ctrl)
 
 #ifdef OV5648_OTP_FEATURE
 
-int RG_Ratio_Typical = 0x128;
-int BG_Ratio_Typical = 0x180;
+int RG_Ratio_Typical = 0x125;
+int BG_Ratio_Typical = 0x185;
 
 struct otp_struct {
      int customer_id;
@@ -1553,8 +1554,13 @@ static int32_t ov5648_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 {
 
 	static uint16_t max_line = 1964;
+	uint32_t fix_line = s_ctrl->curr_frame_length_lines;
+	uint8_t offset = s_ctrl->sensor_exp_gain_info->vert_offset;
+
 	uint8_t gain_lsb, gain_hsb;
 	u8 intg_time_hsb, intg_time_msb, intg_time_lsb;
+	CDBG(KERN_ERR "curr_frame_length_lines is 0x%x, %d\r\n"
+		, fix_line, fix_line);
 
 	gain_lsb = (uint8_t) (gain);
 	gain_hsb = (uint8_t)((gain & 0x300)>>8);
@@ -1565,28 +1571,28 @@ static int32_t ov5648_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 	if(CAM_MODE_NORMAL == ov5648_working_mode)
 	{
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
-		if (line > 1964) {
+		if (line > (fix_line - offset)) {
 			msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 				s_ctrl->sensor_output_reg_addr->frame_length_lines,
-				(uint8_t)((line+4) >> 8),
+				(uint8_t)((line + offset) >> 8),
 				MSM_CAMERA_I2C_BYTE_DATA);
 
 			msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 				s_ctrl->sensor_output_reg_addr->frame_length_lines + 1,
-				(uint8_t)((line+4) & 0x00FF),
+				(uint8_t)((line + offset) & 0x00FF),
 				MSM_CAMERA_I2C_BYTE_DATA);
-			max_line = line + 4;
-		} else if (max_line > 1968) {
+			max_line = line + offset;
+		} else if (max_line > fix_line) {
 			msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 				s_ctrl->sensor_output_reg_addr->frame_length_lines,
-				(uint8_t)(1968 >> 8),
+				(uint8_t)(fix_line >> 8),
 				MSM_CAMERA_I2C_BYTE_DATA);
 
 			 msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 				s_ctrl->sensor_output_reg_addr->frame_length_lines + 1,
-				(uint8_t)(1968 & 0x00FF),
+				(uint8_t)(fix_line & 0x00FF),
 				MSM_CAMERA_I2C_BYTE_DATA);
-				max_line = 1968;
+				max_line = fix_line;
 		}
 
 
@@ -1746,7 +1752,7 @@ static int32_t ov5648_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
 
 		/* adjust frame rate */
-		if (line > (fl_lines - offset))
+		if ((s_ctrl->curr_res < MSM_SENSOR_RES_2) && (line > (fl_lines - offset)))
 			fl_lines = line + offset;
 
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
@@ -1936,14 +1942,14 @@ int32_t ov5648_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 		MSM_CAMERA_I2C_BYTE_DATA);
 	msleep(40);
 	gpio_direction_output(info->sensor_pwd, 0);
-	gpio_direction_output(info->sensor_reset, 0);
-
 	/* PIP powerdown */
 	if(CAM_MODE_PIP == ov5648_working_mode)
 	{
 		pip_ov7695_ctrl(PIP_CRL_POWERDOWN, NULL);
 	}
 	/* PIP end */
+	usleep_range(5000, 5100);
+	gpio_direction_output(info->sensor_reset, 0);
 	usleep_range(5000, 5100);
 	msm_sensor_power_down(s_ctrl);
 	msleep(40);
