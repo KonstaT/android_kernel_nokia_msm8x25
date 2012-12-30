@@ -1909,19 +1909,21 @@ static void __init msm_cpr_init(void)
 	msm_cpr_mode_data.calibrated_uV =
 				msm_c2_pmic_mv[cpr_info->pvs_fuse & 0x1F];
 
-	if ((cpr_info->floor_fuse & 0x3) == 0x0) {
-		msm_cpr_mode_data.nom_Vmin = 1000000;
-		msm_cpr_mode_data.turbo_Vmin = 1100000;
-	} else if ((cpr_info->floor_fuse & 0x3) == 0x1) {
-		msm_cpr_mode_data.nom_Vmin = 1050000;
-		msm_cpr_mode_data.turbo_Vmin = 1100000;
-	} else if ((cpr_info->floor_fuse & 0x3) == 0x2) {
-		msm_cpr_mode_data.nom_Vmin = 1100000;
-		msm_cpr_mode_data.turbo_Vmin = 1100000;
-	}
-
-	if (cpu_is_msm8625q())
+	if (cpu_is_msm8625q()) {
 		msm_cpr_mode_data.nom_Vmin = 950000;
+		msm_cpr_mode_data.turbo_Vmin = 1100000;
+	} else {
+		if ((cpr_info->floor_fuse & 0x3) == 0x0) {
+			msm_cpr_mode_data.nom_Vmin = 1000000;
+			msm_cpr_mode_data.turbo_Vmin = 1100000;
+		} else if ((cpr_info->floor_fuse & 0x3) == 0x1) {
+			msm_cpr_mode_data.nom_Vmin = 1050000;
+			msm_cpr_mode_data.turbo_Vmin = 1100000;
+		} else if ((cpr_info->floor_fuse & 0x3) == 0x2) {
+			msm_cpr_mode_data.nom_Vmin = 1100000;
+			msm_cpr_mode_data.turbo_Vmin = 1100000;
+		}
+	}
 
 	pr_debug("%s: cpr: ring_osc: 0x%x\n", __func__,
 		msm_cpr_mode_data.ring_osc);
