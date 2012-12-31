@@ -49,7 +49,7 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_pip_init_settings_slave[] = {
 	{0x3718, 0x88},
 	{0x3632, 0x05},
 	{0x3013, 0xd0},
-	{0x3717, 0x19},
+	{0x3717, 0x18},
 	{0x034c, 0x01},
 	{0x034d, 0x40},
 	{0x034e, 0x00},
@@ -76,6 +76,8 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_pip_init_settings_slave[] = {
 	{0x0341, 0xe0}, // VTS
 	{0x0342, 0x02}, // HTS = 540
 	{0x0343, 0x1c}, // HTS
+	{0x0344, 0x00},
+	{0x0345, 0x00},
 
 	{0x0348, 0x02}, //x end = 639
 	{0x0349, 0x7f}, //x end
@@ -107,7 +109,7 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_pip_init_settings_slave[] = {
 	{0x3a1f, 0x18}, // control zone L
 
 	{0x3a18, 0x00}, // gain ceiling = 16x
-	{0x3a19, 0xf8}, // gain ceiling
+	{0x3a19, 0xe0}, // gain ceiling
 
 	{0x3a08, 0x00}, // B50
 	{0x3a09, 0xde}, // B50
@@ -119,7 +121,7 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_pip_init_settings_slave[] = {
 	{0x3a03, 0xe6}, // max expo 60
 	{0x3a14, 0x02}, // max expo 50
 	{0x3a15, 0xe6}, // max expo 50
-	{0x3a19, 0xe0}, // gain ceiling = 14x
+
 	//lens A Light
 	{0x5100, 0x01}, // red x0
 	{0x5101, 0xc0}, // red x0
@@ -174,12 +176,16 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_pip_preview_settings_slave[] = 
 	{0x0341, 0xe6}, // VTS
 	{0x0342, 0x02}, // HTS = 540
 	{0x0343, 0x1c}, // HTS
+	{0x0344, 0x00},
+	{0x0345, 0x00},
 //	{0x3503, 0x30}, // AGC/AEC on
 
 	{0x0348, 0x02}, //x end = 639
 	{0x0349, 0x7f}, //x end
 	{0x034a, 0x01}, //y end = 479
 	{0x034b, 0xdf}, //y end
+
+	{0x3503, 0x30},// AGC/AEC on
 
 	{0x3a09, 0xde}, // B50
 	{0x3a0b, 0xb9}, // B60
@@ -274,7 +280,7 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_pip_snapshot_settings_slave[] =
 	{0x0383, 0x01}, //; x odd inc
 	{0x4500, 0x25}, //; h sub sample off
 	{0x0387, 0x01}, //; y odd inc
-	{0x3820, 0x90}, //; v bin off
+	{0x3820, 0x94}, //; v bin off
 	{0x3014, 0x0f},
 	{0x301a, 0xf0},
 	{0x370a, 0x23},
@@ -284,11 +290,15 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_pip_snapshot_settings_slave[] =
 	{0x0341, 0xc8}, //; VTS
 	{0x0342, 0x03}, //; HTS = 806
 	{0x0343, 0x26}, //; HTS
+	{0x0344, 0x00},
+	{0x0345, 0x00},
+
 	{0x0348, 0x02}, //; x end = 639
 	{0x0349, 0x7f}, //; x end
 	{0x034a, 0x01}, //; y end = 479
 	{0x034b, 0xdf}, //; y end
 
+	{0x3503, 0x07},
 	{0x3a09, 0x95}, //; B50 L
 	{0x3a0b, 0x7c}, //	; B60 L
 	{0x3a0e, 0x0a}, //	; B50Max
@@ -445,10 +455,10 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_full_settings[] = {
 	{0x3a15, 0x18},	//; max expo 50
 
 
-	{0x0348, 0x02},	//; x end = 655
-	{0x0349, 0x8f},	//; x end
-	{0x034a, 0x01},	//; y end = 479
-	{0x034b, 0xdf},	//; y end
+//	{0x0348, 0x02},	//; x end = 655
+//	{0x0349, 0x8f},	//; x end
+//	{0x034a, 0x01},	//; y end = 479
+//	{0x034b, 0xdf},	//; y end
  };
 static struct msm_camera_i2c_conf_array ov7695_raw_confs[] = {
 	{&ov7695_raw_full_settings[0],
@@ -481,9 +491,9 @@ static struct msm_sensor_output_info_t ov7695_raw_dimensions[] = {
 	{
 		.x_output                = 0x290,
 		.y_output                = 0x1E0,
-		.line_length_pclk        = 0x1388,
+		.line_length_pclk        = 0x2ea,
 		.frame_length_lines      = 0x218,
-		.vt_pixel_clk            = 84000000,
+		.vt_pixel_clk            = 12000000,
 		.op_pixel_clk            = 12000000,
 		.binning_factor          = 0,
 	},

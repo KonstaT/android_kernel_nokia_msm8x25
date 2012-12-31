@@ -636,6 +636,7 @@ static struct msm_sensor_output_info_t ov5648_pip_dimensions[] = {
 		.binning_factor = 0x0,
 	},
 
+
 };
 
 
@@ -1948,6 +1949,9 @@ int32_t ov5648_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 		pip_ov7695_ctrl(PIP_CRL_POWERDOWN, NULL);
 	}
 	/* PIP end */
+
+	usleep_range(5000, 5100);
+	gpio_direction_output(info->sensor_reset, 0);
 	usleep_range(5000, 5100);
 	gpio_direction_output(info->sensor_reset, 0);
 	usleep_range(5000, 5100);
@@ -2042,7 +2046,7 @@ int32_t ov5648_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 					MSM_CAMERA_I2C_BYTE_DATA);
 			msm_sensor_enable_debugfs(s_ctrl);
 			msm_sensor_write_init_settings(s_ctrl);
-#ifdef ov5648_OTP_FEATURE
+#ifdef OV5648_OTP_FEATURE
 			CDBG("Update OTP\n");
 			msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x100, 0x1,
 					MSM_CAMERA_I2C_BYTE_DATA);
