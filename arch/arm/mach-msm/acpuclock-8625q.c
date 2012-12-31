@@ -309,6 +309,10 @@ static int acpuclk_8625q_set_rate(int cpu, unsigned long rate,
 	unsigned int plls_enabled = 0, pll;
 	int delta;
 
+	if (drv_state.vreg_cpu == NULL) {
+		pr_err("regulator handle is NULL\n");
+		return -EINVAL;
+	}
 
 	if (reason == SETRATE_CPUFREQ)
 		mutex_lock(&drv_state.lock);
@@ -750,16 +754,17 @@ static int __init get_reg(void)
 
 	drv_state.vreg_cpu = regulator_get(NULL, "vddx_cx");
 
-	ncp6335d_handle = drv_state.vreg_cpu;
-
 	if (IS_ERR(drv_state.vreg_cpu)) {
 		res = PTR_ERR(drv_state.vreg_cpu);
 		pr_err("could not get regulator: %d\n", res);
+		BUG_ON(res);
 	}
+
+	ncp6335d_handle = drv_state.vreg_cpu;
 
 	return 0;
 }
-fs_initcall(get_reg);
+module_init(get_reg);
 
 
 static struct acpuclk_data acpuclk_8625q_data = {
