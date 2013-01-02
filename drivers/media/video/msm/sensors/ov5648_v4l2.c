@@ -962,7 +962,7 @@ static struct msm_camera_i2c_reg_conf ov5648_video_90fps_settings[] = {
 
 static struct msm_camera_i2c_reg_conf ov5648_zsl_settings[] = {
 	{0x3035, 0x21}, //PLL
-	{0x3501, 0x7b}, //exposure
+//	{0x3501, 0x7b}, //exposure
 	{0x2502, 0x00}, //exposure
 	{0x3708, 0x63}, //
 	{0x3709, 0x12}, //
@@ -1034,11 +1034,11 @@ static struct msm_camera_i2c_reg_conf ov5648_recommend_settings[] =
 	{0x3300, 0x00},
 
 	{0x3500, 0x00}, // exposure [19:16]
-	{0x3501, 0x3d}, // exposure [15:8]
-	{0x3502, 0x00}, // exposure [7:0], exposure = 0x3d0 = 976
+	{0x3501, 0x00}, // exposure [15:8]
+	{0x3502, 0x10}, // exposure [7:0], exposure = 0x3d0 = 976
 	{0x3503, 0x07}, // gain has no delay, manual agc/aec
 	{0x350a, 0x00}, // gain[9:8]
-	{0x350b, 0x40}, // gain[7:0], gain = 4x
+	{0x350b, 0x00}, // gain[7:0],
 
 	{0x3601, 0x33}, // analog control
 	{0x3602, 0x00}, // analog control
