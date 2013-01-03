@@ -35,6 +35,7 @@ enum {
 	HW_PLATFORM_LIQUID  = 9,
 	/* Dragonboard platform id is assigned as 10 in CDT */
 	HW_PLATFORM_DRAGON	= 10,
+	HW_PLATFORM_EVBD	= 13,
 	HW_PLATFORM_INVALID
 };
 
@@ -47,6 +48,7 @@ const char *hw_platform[] = {
 	[HW_PLATFORM_SVLTE_SURF] = "SLVTE_SURF",
 	[HW_PLATFORM_MTP] = "MTP",
 	[HW_PLATFORM_LIQUID] = "Liquid",
+	[HW_PLATFORM_EVBD]	= "EVBD",
 	[HW_PLATFORM_DRAGON] = "Dragon"
 };
 
