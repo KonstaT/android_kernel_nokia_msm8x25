@@ -1088,8 +1088,8 @@ static int synaptics_rmi4_capacitance_button_map(
 
 	if (!pdata->capacitance_button_map) {
 		dev_err(&rmi4_data->i2c_client->dev,
-				"%s: capacitance_button_map is \
-				NULL in board file\n",
+				"%s: capacitance_button_map is" \
+				"NULL in board file\n",
 				__func__);
 		return -ENODEV;
 	} else if (!pdata->capacitance_button_map->map) {
@@ -1724,17 +1724,6 @@ static int __devinit synaptics_rmi4_probe(struct i2c_client *client,
 			&rmi4_data->det_work,
 			msecs_to_jiffies(EXP_FN_DET_INTERVAL));
 
-	if (platform_data->gpio_config) {
-		retval = platform_data->gpio_config(platform_data->irq_gpio,
-							true);
-		if (retval < 0) {
-			dev_err(&client->dev,
-					"%s: Failed to configure GPIO\n",
-					__func__);
-			goto err_gpio;
-		}
-	}
-
 	rmi4_data->irq = gpio_to_irq(platform_data->irq_gpio);
 
 	retval = synaptics_rmi4_irq_enable(rmi4_data, true);
@@ -1765,7 +1754,6 @@ err_sysfs:
 	}
 
 err_enable_irq:
-err_gpio:
 	input_unregister_device(rmi4_data->input_dev);
 
 err_register_input:

@@ -57,7 +57,7 @@
 
 #define IMAGE_FILE_CHECKSUM_SIZE 4
 
-unsigned char *firmware = NULL;
+unsigned char *firmware;
 int fileSize;
 int firmwareBlockSize;
 int firmwareBlockCount;
@@ -66,21 +66,22 @@ int configBlockSize;
 int configBlockCount;
 int configImgSize;
 int totalBlockCount;
-int readConfig = 0;
-int writeConfig = 0;
-int uiConfig = 0;
-int pmConfig = 0;
-int blConfig = 0;
-int dpConfig = 0;
-int force = 0;
-int verbose = 0;
+int readConfig;
+int writeConfig;
+int uiConfig;
+int pmConfig;
+int blConfig;
+int dpConfig;
+int force;
+int verbose;
 
 char mySensor[MAX_STRING_LEN];
 char imageFileName[MAX_STRING_LEN];
 
 static void usage(char *name)
 {
-	printf("Usage: %s [-b {image_file}] [-d {sysfs_entry}] [-r] [-ui] [-pm] [-bl] [-dp] [-f] [-v]\n", name);
+	printf("Usage: %s [-b {image_file}] [-d {sysfs_entry}] [-r] [-ui]" \
+			"[-pm] [-bl] [-dp] [-f] [-v]\n", name);
 	printf("\t[-b {image_file}] - Name of image file\n");
 	printf("\t[-d {sysfs_entry}] - Path to sysfs entry of sensor\n");
 	printf("\t[-r] - Read config area\n");
@@ -94,7 +95,8 @@ static void usage(char *name)
 	return;
 }
 
-static void TimeSubtract(struct timeval *result, struct timeval *x, struct timeval *y)
+static void TimeSubtract(struct timeval *result, struct timeval *x,
+				struct timeval *y)
 {
 	if (x->tv_usec < y->tv_usec) {
 		result->tv_sec = x->tv_sec - y->tv_sec - 1;
@@ -176,8 +178,8 @@ static void WriteValueToFp(FILE *fp, unsigned int value)
 
 	fseek(fp, 0, 0);
 
-	numBytesWritten = fwrite(buf, 1, strlen(buf) + 1, fp);
-	if (numBytesWritten != ((int)(strlen(buf) + 1))) {
+	numBytesWritten = fwrite(buf, 1, strnlen(buf, MAX_INT_LEN) + 1, fp);
+	if (numBytesWritten != ((int)(strnlen(buf, MAX_INT_LEN) + 1))) {
 		printf("ERROR: failed to write value to file pointer\n");
 		fclose(fp);
 		exit(EIO);
@@ -264,7 +266,8 @@ static void SetImageSize(int value)
 {
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, IMAGESIZE_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					IMAGESIZE_FILENAME);
 
 	WriteValueToSysfsFile(tmpfname, value);
 
@@ -275,7 +278,8 @@ static void StartReflash(int value)
 {
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, DOREFLASH_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					DOREFLASH_FILENAME);
 
 	WriteValueToSysfsFile(tmpfname, value);
 
@@ -286,7 +290,8 @@ static void SetConfigArea(int value)
 {
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, CONFIGAREA_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					CONFIGAREA_FILENAME);
 
 	WriteValueToSysfsFile(tmpfname, value);
 
@@ -297,7 +302,8 @@ static void StartWriteConfig(int value)
 {
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, WRITECONFIG_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					WRITECONFIG_FILENAME);
 
 	WriteValueToSysfsFile(tmpfname, value);
 
@@ -308,7 +314,8 @@ static void StartReadConfig(int value)
 {
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, READCONFIG_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					READCONFIG_FILENAME);
 
 	WriteValueToSysfsFile(tmpfname, value);
 
@@ -320,7 +327,8 @@ static int ReadBlockSize(void)
 	unsigned int blockSize;
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, BLOCKSIZE_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					BLOCKSIZE_FILENAME);
 
 	ReadValueFromSysfsFile(tmpfname, &blockSize);
 
@@ -332,7 +340,8 @@ static int ReadFirmwareBlockCount(void)
 	unsigned int imageBlockCount;
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, IMAGEBLOCKCOUNT_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					IMAGEBLOCKCOUNT_FILENAME);
 
 	ReadValueFromSysfsFile(tmpfname, &imageBlockCount);
 
@@ -344,7 +353,8 @@ static int ReadConfigBlockCount(void)
 	unsigned int configBlockCount;
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, CONFIGBLOCKCOUNT_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					CONFIGBLOCKCOUNT_FILENAME);
 
 	ReadValueFromSysfsFile(tmpfname, &configBlockCount);
 
@@ -356,7 +366,8 @@ static int ReadPmConfigBlockCount(void)
 	unsigned int configBlockCount;
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, PMCONFIGBLOCKCOUNT_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					PMCONFIGBLOCKCOUNT_FILENAME);
 
 	ReadValueFromSysfsFile(tmpfname, &configBlockCount);
 
@@ -368,7 +379,8 @@ static int ReadBuildID(void)
 	unsigned int buildID;
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, BUILDID_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					BUILDID_FILENAME);
 
 	ReadValueFromSysfsFile(tmpfname, &buildID);
 
@@ -380,7 +392,8 @@ static int ReadFlashProg(void)
 	unsigned int flashProg;
 	char tmpfname[MAX_STRING_LEN];
 
-	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor, FLASHPROG_FILENAME);
+	snprintf(tmpfname, MAX_STRING_LEN, "%s/%s", mySensor,
+					FLASHPROG_FILENAME);
 
 	ReadValueFromSysfsFile(tmpfname, &flashProg);
 
@@ -405,7 +418,8 @@ static void ReadConfigInfo(void)
 	return;
 }
 
-static void CalculateChecksum(unsigned short *data, unsigned short len, unsigned long *result)
+static void CalculateChecksum(unsigned short *data, unsigned short len,
+						unsigned long *result)
 {
 	unsigned long temp;
 	unsigned long sum1 = 0xffff;
@@ -437,12 +451,16 @@ static int CompareChecksum(void)
 			(unsigned long)firmware[2] * 0x10000 +
 			(unsigned long)firmware[3] * 0x1000000;
 
-	CalculateChecksum((unsigned short *)&firmware[IMAGE_FILE_CHECKSUM_SIZE],
-			((fileSize - IMAGE_FILE_CHECKSUM_SIZE) / 2), &computedChecksum);
+	CalculateChecksum(
+			(unsigned short *)&firmware[IMAGE_FILE_CHECKSUM_SIZE],
+			((fileSize - IMAGE_FILE_CHECKSUM_SIZE) / 2),
+			&computedChecksum);
 
 	if (verbose) {
-		printf("Checksum in image file header = 0x%08x\n", (unsigned int)headerChecksum);
-		printf("Checksum computed from image file = 0x%08x\n", (unsigned int)computedChecksum);
+		printf("Checksum in image file header = 0x%08x\n",
+				(unsigned int)headerChecksum);
+		printf("Checksum computed from image file = 0x%08x\n",
+				(unsigned int)computedChecksum);
 	}
 
 	if (headerChecksum == computedChecksum)
@@ -469,9 +487,10 @@ static int ProceedWithReflash(void)
 		return 1;
 	}
 
-	strptr = strstr(imageFileName, "PR");
+	strptr = strnstr(imageFileName, "PR", MAX_STRING_LEN);
 	if (!strptr) {
-		printf("No valid PR number (PRxxxxxxx) found in image file name...\n");
+		printf("No valid PR number (PRxxxxxxx) found in image file" \
+							" name...\n");
 		return 0;
 	}
 
@@ -567,7 +586,8 @@ static void DoWriteConfig(void)
 static void DoReflash(void)
 {
 	if (verbose)
-		printf("Blocks: %d (firmware: %d, config: %d)\n", totalBlockCount, firmwareBlockCount, configBlockCount);
+		printf("Blocks: %d (firmware: %d, config: %d)\n",
+		totalBlockCount, firmwareBlockCount, configBlockCount);
 
 	if (!ProceedWithReflash())
 		return;
@@ -592,14 +612,16 @@ static int InitFirmwareImage(void)
 		fp = fopen(imageFileName, "rb");
 
 		if (!fp) {
-			printf("ERROR: image file %s not found\n", imageFileName);
+			printf("ERROR: image file %s not found\n",
+						imageFileName);
 			exit(ENODEV);
 		}
 
 		fseek(fp, 0L, SEEK_END);
 		fileSize = ftell(fp);
 		if (fileSize == -1) {
-			printf("ERROR: failed to determine size of %s\n", imageFileName);
+			printf("ERROR: failed to determine size of %s\n",
+						imageFileName);
 			exit(EIO);
 		}
 
@@ -611,7 +633,8 @@ static int InitFirmwareImage(void)
 		} else {
 			numBytesRead = fread(firmware, 1, fileSize, fp);
 			if (numBytesRead != fileSize) {
-				printf("ERROR: failed to read entire content of image file\n");
+				printf("ERROR: failed to read entire content" \
+							"of image file\n");
 				exit(EIO);
 			}
 		}
@@ -620,7 +643,8 @@ static int InitFirmwareImage(void)
 
 		if (!(pmConfig || blConfig || dpConfig)) {
 			if (!CompareChecksum()) {
-				printf("ERROR: failed to validate checksum of image file\n");
+				printf("ERROR: failed to validate checksum" \
+							"of image file\n");
 				exit(EINVAL);
 			}
 		}
@@ -629,7 +653,7 @@ static int InitFirmwareImage(void)
 	return 0;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	int retVal;
 	int this_arg = 1;
@@ -644,7 +668,8 @@ int main(int argc, char* argv[])
 	}
 
 	while (this_arg < argc) {
-		if (!strcmp((const char *)argv[this_arg], "-b")) {
+		if (!strncmp((const char *)argv[this_arg], "-b"),
+				strnlen("-b", MAX_STRING_LEN)) {
 			/* Image file */
 			FILE *file;
 
@@ -657,39 +682,51 @@ int main(int argc, char* argv[])
 			/* check for presence of image file */
 			file = fopen(argv[this_arg], "rb");
 			if (file == 0) {
-				printf("ERROR: image file %s not found\n", argv[this_arg]);
+				printf("ERROR: image file %s not found\n",
+							argv[this_arg]);
 				exit(EINVAL);
 			}
 			fclose(file);
 
-			strncpy(imageFileName, argv[this_arg], MAX_STRING_LEN);
-		} else if (!strcmp((const char *)argv[this_arg], "-d")) {
+			strlcpy(imageFileName, argv[this_arg], MAX_STRING_LEN);
+		} else if (!strncmp((const char *)argv[this_arg], "-d"),
+				strnlen("-d", MAX_STRING_LEN)) {
 			/* path to sensor sysfs entry */
 			this_arg++;
 
 			if (stat(argv[this_arg], &st) == 0) {
-				strncpy(mySensor, argv[this_arg], MAX_STRING_LEN);
+				strlcpy(mySensor, argv[this_arg],
+						MAX_STRING_LEN);
 			} else {
-				printf("ERROR: sensor sysfs entry %s not found\n", argv[this_arg]);
+				printf("ERROR: sensor sysfs entry %s not" \
+						"found\n", argv[this_arg]);
 				exit(EINVAL);
 			}
-		} else if (!strcmp((const char *)argv[this_arg], "-r")) {
+		} else if (!strncmp((const char *)argv[this_arg], "-r"),
+				strnlen("-r", MAX_STRING_LEN)) {
 			readConfig = 1;
-		} else if (!strcmp((const char *)argv[this_arg], "-ui")) {
+		} else if (!strncmp((const char *)argv[this_arg], "-ui"),
+				strnlen("-ui", MAX_STRING_LEN)) {
 			uiConfig = 1;
-		} else if (!strcmp((const char *)argv[this_arg], "-pm")) {
+		} else if (!strncmp((const char *)argv[this_arg], "-pm"),
+				strnlen("-pm", MAX_STRING_LEN)) {
 			pmConfig = 1;
-		} else if (!strcmp((const char *)argv[this_arg], "-bl")) {
+		} else if (!strncmp((const char *)argv[this_arg], "-bl"),
+				strnlen("-bl", MAX_STRING_LEN)) {
 			blConfig = 1;
-		} else if (!strcmp((const char *)argv[this_arg], "-dp")) {
+		} else if (!strncmp((const char *)argv[this_arg], "-dp"),
+				strnlen("-dp", MAX_STRING_LEN)) {
 			dpConfig = 1;
-		} else if (!strcmp((const char *)argv[this_arg], "-f")) {
+		} else if (!strncmp((const char *)argv[this_arg], "-f"),
+				strnlen("-f", MAX_STRING_LEN)) {
 			force = 1;
-		} else if (!strcmp((const char *)argv[this_arg], "-v")) {
+		} else if (!strncmp((const char *)argv[this_arg], "-v"),
+				strnlen("-v", MAX_STRING_LEN)) {
 			verbose = 1;
 		} else {
 			usage(argv[0]);
-			printf("ERROR: invalid parameter %s supplied\n", argv[this_arg]);
+			printf("ERROR: invalid parameter %s supplied\n",
+							argv[this_arg]);
 			exit(EINVAL);
 		}
 		this_arg++;
@@ -703,13 +740,13 @@ int main(int argc, char* argv[])
 	if (uiConfig || pmConfig || blConfig || dpConfig)
 		writeConfig = 1;
 
-	if (!readConfig && !strlen(imageFileName)) {
+	if (!readConfig && !strnlen(imageFileName, MAX_STRING_LEN)) {
 		printf("ERROR: no image file specified\n");
 		exit(EINVAL);
 	}
 
-	if (!strlen(mySensor))
-		strncpy(mySensor, DEFAULT_SENSOR, MAX_STRING_LEN);
+	if (!strnlen(mySensor, MAX_STRING_LEN))
+		strlcpy(mySensor, DEFAULT_SENSOR, MAX_STRING_LEN);
 
 	if (CheckSysfsEntry(mySensor))
 		exit(ENODEV);
