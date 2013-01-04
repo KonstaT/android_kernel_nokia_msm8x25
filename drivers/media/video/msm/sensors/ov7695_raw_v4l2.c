@@ -480,7 +480,7 @@ static struct msm_camera_csi_params ov7695_raw_csi_params = {
 	.lane_cnt    = 2,
 	.lane_assign = 0xe4,
 	.dpcm_scheme = 0,
-	.settle_cnt  = 10,
+	.settle_cnt  = 16,
 };
 
 static struct v4l2_subdev_info ov7695_raw_subdev_info[] = {
