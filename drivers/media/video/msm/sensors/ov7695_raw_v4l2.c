@@ -98,7 +98,7 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_pip_init_settings_slave[] = {
 	{0x3621, 0x77},
 	{0x0100, 0x01}, // stream on
 	//// PIP Demo
-	{0x3503, 0x30}, // delay gain for one frame, and mannual enable.
+	{0x3503, 0x32}, // delay gain for one frame, and mannual enable.
 	{0x5000, 0x8f}, // Gama OFF, AWB OFF
 	{0x5002, 0x8a}, // 50Hz/60Hz select,88 for 60Hz, 8a for 50hz
 	{0x3a0f, 0x38}, // AEC in H
@@ -443,7 +443,7 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_full_settings[] = {
 	{0x0343, 0xea},	//; OV7695 HTS
 
 //	{0x3503, 0x30}, // AGC/AEC on
-	{0x3503, 0x33}, // AGC/AEC off
+	{0x3503, 0x32}, // AGC/AEC off
 
 	{0x3a09, 0xa1},	//; B50
 	{0x3a0b, 0x86}, //; B60
@@ -454,11 +454,11 @@ static struct msm_camera_i2c_reg_conf ov7695_raw_full_settings[] = {
 	{0x3a14, 0x02},	//; max expo 50
 	{0x3a15, 0x18},	//; max expo 50
 
-	{0x3502,0x10},
-	{0x3501,0x0},
-	{0x3500,0x0},
-	{0x350b,0x0},
-	{0x350a,0x0},
+	{0x3502,0x00},
+	{0x3501,0x10},
+	{0x3500,0x00},
+	{0x350b,0x10},
+	{0x350a,0x00},
 
 //	{0x0348, 0x02},	//; x end = 655
 //	{0x0349, 0x8f},	//; x end
