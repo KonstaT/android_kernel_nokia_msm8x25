@@ -29,6 +29,7 @@
 #include <mach/pmic.h>
 #include <mach/socinfo.h>
 #include "devices.h"
+#include <linux/input/synaptics_dsx.h>
 
 #include "board-msm7627a.h"
 #include "devices-msm7x2xa.h"
@@ -42,6 +43,7 @@ defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_MODULE)
 
 #ifndef CLEARPAD3000_ATTEN_GPIO
 #define CLEARPAD3000_ATTEN_GPIO (48)
+#define CLEARPAD3000_ATTEN_GPIO_EVBD_PLUS (115)
 #endif
 
 #ifndef CLEARPAD3000_RESET_GPIO
@@ -50,6 +52,35 @@ defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_MODULE)
 
 #define KP_INDEX(row, col) ((row)*ARRAY_SIZE(kp_col_gpios) + (col))
 
+/******************** SYNAPTICS *********************************/
+
+/*	Synaptics Thin Driver	*/
+
+#define CLEARPAD3000_ADDR 0x20
+
+static unsigned char synaptic_rmi4_button_codes[] = {KEY_MENU, KEY_HOME,
+							KEY_BACK};
+
+static struct synaptics_rmi4_capacitance_button_map synaptic_rmi4_button_map = {
+	.nbuttons = ARRAY_SIZE(synaptic_rmi4_button_codes),
+	.map = synaptic_rmi4_button_codes,
+};
+
+static struct synaptics_rmi4_platform_data rmi4_platformdata = {
+	.irq_flags = IRQF_TRIGGER_FALLING,
+	.irq_gpio = CLEARPAD3000_ATTEN_GPIO_EVBD_PLUS,
+	.capacitance_button_map = &synaptic_rmi4_button_map,
+};
+
+static struct i2c_board_info rmi4_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("synaptics_rmi4_i2c",
+			CLEARPAD3000_ADDR),
+		.platform_data = &rmi4_platformdata,
+	},
+};
+
+/******************** SYNAPTICS *********************************/
 static unsigned int kp_row_gpios[] = {31, 32, 33, 34, 35};
 static unsigned int kp_col_gpios[] = {36, 37, 38, 39, 40};
 
@@ -361,6 +392,12 @@ static struct msm_gpio clearpad3000_cfg_data[] = {
 			GPIO_CFG_PULL_DOWN, GPIO_CFG_8MA), "rmi4_reset"},
 };
 
+static struct msm_gpio clearpad3000_evbd_plus_cfg_data[] = {
+	{GPIO_CFG(CLEARPAD3000_ATTEN_GPIO_EVBD_PLUS, 0, GPIO_CFG_INPUT,
+			GPIO_CFG_NO_PULL, GPIO_CFG_6MA), "rmi4_attn"},
+	{GPIO_CFG(CLEARPAD3000_RESET_GPIO, 0, GPIO_CFG_OUTPUT,
+			GPIO_CFG_PULL_DOWN, GPIO_CFG_8MA), "rmi4_reset"},
+};
 static struct rmi_XY_pair rmi_offset = {.x = 0, .y = 0};
 static struct rmi_range rmi_clipx = {.min = 48, .max = 980};
 static struct rmi_range rmi_clipy = {.min = 7, .max = 1647};
@@ -911,7 +948,29 @@ void __init qrd7627a_add_io_devices(void)
 				|| machine_is_qrd_skud_prime()
 				|| machine_is_msm8625q_skud()
 				|| machine_is_msm8625q_evbd()) {
-		ft5x06_touchpad_setup();
+		if (machine_is_msm8625q_evbd() &&
+				socinfo_get_platform_type() == 0x13) {
+			/* for QPR EVBD+ with synaptic touch panel */
+			rc = msm_gpios_request_enable(
+			clearpad3000_evbd_plus_cfg_data,
+			sizeof(clearpad3000_evbd_plus_cfg_data)
+				/sizeof(struct msm_gpio));
+
+			if (rc)
+				pr_err("%s:Error(%d) to obtain TS GPIO %d.",
+				__func__, rc, CLEARPAD3000_ATTEN_GPIO);
+			pr_err("%s: tis is EVBD+.", __func__);
+			/* Toggling the reset gpio */
+			gpio_set_value(CLEARPAD3000_RESET_GPIO, 0);
+			usleep(10000);
+			gpio_set_value(CLEARPAD3000_RESET_GPIO, 1);
+			usleep(50000);
+
+			i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
+				rmi4_i2c_devices,
+				ARRAY_SIZE(rmi4_i2c_devices));
+		} else
+			ft5x06_touchpad_setup();
 	}
 
 	/* handset and power key*/
@@ -935,7 +994,7 @@ void __init qrd7627a_add_io_devices(void)
 		kp_matrix_info_sku3.ninputs = ARRAY_SIZE(kp_col_gpios_skud);
 		/* keypad info for EVBD+ */
 		if (machine_is_msm8625q_evbd() &&
-			(socinfo_get_platform_type() == 13)) {
+			(socinfo_get_platform_type() == 0x13)) {
 			gpio_tlmm_config(GPIO_CFG(37, 0,
 						GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
 						GPIO_CFG_8MA), GPIO_CFG_ENABLE);
