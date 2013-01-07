@@ -358,11 +358,7 @@ static int acpuclk_8625q_set_rate(int cpu, unsigned long rate,
 	if (strt_s->pll != ACPU_PLL_TCXO)
 		plls_enabled |= 1 << strt_s->pll;
 
-	/* Need to do this when coming out of power collapse since some modem
-	 * firmwares reset the VDD when the application processor enters power
-	 * collapse.
-	 */
-	if (reason == SETRATE_CPUFREQ || reason == SETRATE_PC) {
+	if (reason == SETRATE_CPUFREQ) {
 		/* Increase VDD if needed. */
 		if (tgt_s->vdd > cur_s->vdd) {
 			rc = acpuclk_set_vdd_level(tgt_s->vdd);
