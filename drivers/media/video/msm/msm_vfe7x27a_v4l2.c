@@ -799,12 +799,6 @@ static void vfe_7x_ops(void *driver_data, unsigned id, size_t len,
 			vfe2x_ctrl->vfeFrameId++;
 			if (vfe2x_ctrl->vfeFrameId == 0)
 				vfe2x_ctrl->vfeFrameId = 1; /* wrapped back */
-			if ((op_mode & SNAPSHOT_MASK_MODE) && !raw_mode
-				&& (vfe2x_ctrl->num_snap <= 1)) {
-				CDBG("Ignore SOF for snapshot\n");
-				kfree(data);
-				return;
-			}
 			vfe2x_send_isp_msg(vfe2x_ctrl, MSG_ID_SOF_ACK);
 			if (raw_mode)
 				vfe2x_send_isp_msg(vfe2x_ctrl,
