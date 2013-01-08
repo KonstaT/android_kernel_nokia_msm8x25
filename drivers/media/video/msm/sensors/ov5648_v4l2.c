@@ -1184,7 +1184,7 @@ static struct msm_camera_csi_params ov5648_csi_params = {
 	.lane_cnt    = 2,
 	.lane_assign = 0xe4,
 	.dpcm_scheme = 0,
-	.settle_cnt  = 10,
+	.settle_cnt  = 20,
 };
 
 static struct v4l2_subdev_info ov5648_subdev_info[] = {
