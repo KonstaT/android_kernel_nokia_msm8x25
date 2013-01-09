@@ -1132,7 +1132,7 @@ static int __init msm_init_cpr(void)
 	return platform_driver_register(&msm_cpr_driver);
 }
 
-module_init(msm_init_cpr);
+late_initcall(msm_init_cpr);
 
 static void __exit msm_exit_cpr(void)
 {

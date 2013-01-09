@@ -395,7 +395,7 @@ static int __init ncp6335d_regulator_init(void)
 {
 	return i2c_add_driver(&ncp6335d_regulator_driver);
 }
-subsys_initcall(ncp6335d_regulator_init);
+fs_initcall(ncp6335d_regulator_init);
 
 static void __exit ncp6335d_regulator_exit(void)
 {
