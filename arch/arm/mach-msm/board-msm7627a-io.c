@@ -392,12 +392,6 @@ static struct msm_gpio clearpad3000_cfg_data[] = {
 			GPIO_CFG_PULL_DOWN, GPIO_CFG_8MA), "rmi4_reset"},
 };
 
-static struct msm_gpio clearpad3000_evbd_plus_cfg_data[] = {
-	{GPIO_CFG(CLEARPAD3000_ATTEN_GPIO_EVBD_PLUS, 0, GPIO_CFG_INPUT,
-			GPIO_CFG_NO_PULL, GPIO_CFG_6MA), "rmi4_attn"},
-	{GPIO_CFG(CLEARPAD3000_RESET_GPIO, 0, GPIO_CFG_OUTPUT,
-			GPIO_CFG_PULL_DOWN, GPIO_CFG_8MA), "rmi4_reset"},
-};
 static struct rmi_XY_pair rmi_offset = {.x = 0, .y = 0};
 static struct rmi_range rmi_clipx = {.min = 48, .max = 980};
 static struct rmi_range rmi_clipy = {.min = 7, .max = 1647};
@@ -948,19 +942,23 @@ void __init qrd7627a_add_io_devices(void)
 				|| machine_is_qrd_skud_prime()
 				|| machine_is_msm8625q_skud()
 				|| machine_is_msm8625q_evbd()) {
+		ft5x06_touchpad_setup();
+		/* evbd+ can support synaptic as well */
 		if (machine_is_msm8625q_evbd() &&
-				socinfo_get_platform_type() == 0x13) {
+			(socinfo_get_platform_type() == 0x13)) {
 			/* for QPR EVBD+ with synaptic touch panel */
-			rc = msm_gpios_request_enable(
-			clearpad3000_evbd_plus_cfg_data,
-			sizeof(clearpad3000_evbd_plus_cfg_data)
-				/sizeof(struct msm_gpio));
+			/* TODO: Add  gpio request to the driver
+				to support proper dynamic touch detection */
+			gpio_tlmm_config(
+				GPIO_CFG(CLEARPAD3000_ATTEN_GPIO_EVBD_PLUS, 0,
+				GPIO_CFG_INPUT, GPIO_CFG_NO_PULL,
+				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
 
-			if (rc)
-				pr_err("%s:Error(%d) to obtain TS GPIO %d.",
-				__func__, rc, CLEARPAD3000_ATTEN_GPIO);
-			pr_err("%s: tis is EVBD+.", __func__);
-			/* Toggling the reset gpio */
+			gpio_tlmm_config(
+				GPIO_CFG(CLEARPAD3000_RESET_GPIO, 0,
+				GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
+
 			gpio_set_value(CLEARPAD3000_RESET_GPIO, 0);
 			usleep(10000);
 			gpio_set_value(CLEARPAD3000_RESET_GPIO, 1);
@@ -969,8 +967,7 @@ void __init qrd7627a_add_io_devices(void)
 			i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
 				rmi4_i2c_devices,
 				ARRAY_SIZE(rmi4_i2c_devices));
-		} else
-			ft5x06_touchpad_setup();
+		}
 	}
 
 	/* handset and power key*/
