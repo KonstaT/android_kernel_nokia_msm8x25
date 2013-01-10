@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007-2012, Linux Foundation. All rights reserved.
+ * Copyright (c) 2007-2013, Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -99,6 +99,7 @@ struct clock_state {
 	uint32_t			max_speed_delta_khz;
 	struct clk			*ebi1_clk;
 	struct regulator		*vreg_cpu;
+	bool				probe_success;
 };
 
 struct clkctl_acpu_speed {
@@ -750,6 +751,11 @@ static int __init get_reg(void)
 {
 	int res = 0;
 
+	if (drv_state.probe_success == false) {
+		pr_debug("acpuclock probe didn't complete yet\n");
+		return -EINVAL;
+	}
+
 	drv_state.vreg_cpu = regulator_get(NULL, "vddx_cx");
 
 	if (IS_ERR(drv_state.vreg_cpu)) {
@@ -871,6 +877,8 @@ static int __devinit acpuclk_8625q_probe(struct platform_device *pdev)
 			debugfs_remove_recursive(dir);
 		}
 	}
+
+	drv_state.probe_success = true;
 
 	return 0;
 }
