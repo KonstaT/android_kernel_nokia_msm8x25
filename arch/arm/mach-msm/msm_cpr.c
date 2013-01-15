@@ -1024,9 +1024,12 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	spin_lock_init(&cpr->cpr_lock);
 
 	/* Initialize the Voltage domain for CPR */
-	cpr->vreg_cx = ncp6335d_handle;
+	if(ncp6335d_handle == NULL)
+		cpr->vreg_cx = regulator_get(&pdev->dev, "vddx_cx");
+	else
+		cpr->vreg_cx = ncp6335d_handle;
 
-	if (IS_ERR_OR_NULL(cpr->vreg_cx)) {
+	if (IS_ERR(cpr->vreg_cx)) {
 		res = PTR_ERR(cpr->vreg_cx);
 		pr_err("could not get regulator: %d\n", res);
 		goto err_reg_get;
