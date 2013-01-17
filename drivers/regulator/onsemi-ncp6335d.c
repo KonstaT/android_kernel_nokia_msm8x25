@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/regulator/driver.h>
 #include <linux/regmap.h>
+#include <linux/log2.h>
 #include <linux/regulator/onsemi-ncp6335d.h>
 
 /* registers */
@@ -31,8 +32,8 @@
 /* constraints */
 #define NCP6335D_MIN_VOLTAGE_UV		600000
 #define NCP6335D_STEP_VOLTAGE_UV	6250
-#define NCP6335D_MIN_SLEW_NS		166
-#define NCP6335D_MAX_SLEW_NS		1333
+#define NCP6335D_MIN_SLEW_NS		333
+#define NCP6335D_MAX_SLEW_NS		2666
 
 /* bits */
 #define NCP6335D_ENABLE			BIT(7)
@@ -75,7 +76,7 @@ static void ncp633d_slew_delay(struct ncp6335d_info *dd,
 	int delay;
 
 	val = abs(prev_uV - new_uV) / NCP6335D_STEP_VOLTAGE_UV;
-	delay =  (val * dd->slew_rate / 1000) + 1;
+	delay =  ((val * dd->slew_rate) / 1000) + 1;
 
 	dev_dbg(dd->dev, "Slew Delay = %d\n", delay);
 
@@ -274,10 +275,12 @@ static int __devinit ncp6335d_init(struct ncp6335d_info *dd,
 		dev_err(dd->dev, "Invalid slew rate %d\n", pdata->slew_rate_ns);
 		return -EINVAL;
 	}
-	val = DIV_ROUND_UP(pdata->slew_rate_ns - NCP6335D_MIN_SLEW_NS,
-						NCP6335D_MIN_SLEW_NS);
-	val >>= 1;
+	val = DIV_ROUND_UP(pdata->slew_rate_ns, NCP6335D_MIN_SLEW_NS);
 	dd->slew_rate = val * NCP6335D_MIN_SLEW_NS;
+	if (val)
+		val = ilog2(val);
+	else
+		dd->slew_rate = NCP6335D_MIN_SLEW_NS;
 
 	rc = regmap_update_bits(dd->regmap, REG_NCP6335D_TIMING,
 			NCP6335D_SLEW_MASK, val << NCP6335D_SLEW_SHIFT);
