@@ -71,4 +71,7 @@
 #define MSM7XXX_AD5_PHYS          0xAC000000
 #define MSM7XXX_AD5_SIZE          (SZ_1M*13)
 
+#define MSM7XXX_PBUS_PHYS	  0xA0E00000
+#define MSM7XXX_PBUS_SIZE	  SZ_4K
+
 #endif
