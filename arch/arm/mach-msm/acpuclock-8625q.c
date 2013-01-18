@@ -259,6 +259,8 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 	if (hunt_s->ahbclk_div > clk_div) {
 		reg_clksel &= ~(0x3 << 1);
 		reg_clksel |= (hunt_s->ahbclk_div << 1);
+		reg_clksel &= ~(0x3 << 14);
+		reg_clksel |= (0x1 << 14);
 		writel_relaxed(reg_clksel, A11S_CLK_SEL_ADDR);
 	}
 
@@ -268,6 +270,10 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 	reg_clkctl |= hunt_s->a11clk_src_sel << (4 + 8 * src_sel);
 	reg_clkctl |= hunt_s->a11clk_src_div << (0 + 8 * src_sel);
 	writel_relaxed(reg_clkctl, A11S_CLK_CNTL_ADDR);
+
+	/* Wait for write to CNTL register to take affect */
+	mb();
+	udelay(3);
 
 	/* Program clock source selection */
 	reg_clksel ^= 1;
@@ -284,6 +290,8 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 	if (hunt_s->ahbclk_div < clk_div) {
 		reg_clksel &= ~(0x3 << 1);
 		reg_clksel |= (hunt_s->ahbclk_div << 1);
+		reg_clksel &= ~(0x3 << 14);
+		reg_clksel |= (0x1 << 14);
 		writel_relaxed(reg_clksel, A11S_CLK_SEL_ADDR);
 	}
 }
@@ -534,6 +542,8 @@ static int __devinit acpuclk_hw_init(void)
 	reg_clksel = readl_relaxed(A11S_CLK_SEL_ADDR);
 	reg_clksel &= ~(0x3 << 14);
 	reg_clksel |= (0x1 << 14);
+	reg_clksel &= ~(0x3 << 1);
+	reg_clksel |= (0x3 << 1);
 	writel_relaxed(reg_clksel, A11S_CLK_SEL_ADDR);
 
 	res = clk_set_rate(drv_state.ebi1_clk, speed->axiclk_khz * 1000);

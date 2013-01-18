@@ -3,7 +3,7 @@
  * MSM Power Management Routines
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2012 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2013 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -161,6 +161,13 @@ struct msm_pm_kobj_attribute {
 	unsigned int cpu;
 	struct kobj_attribute ka;
 };
+
+struct msm8x25q_ahb_registers {
+	uint32_t sel;
+	uint32_t cntl;
+};
+
+static struct msm8x25q_ahb_registers msm8x25q_ahb;
 
 #define GET_CPU_OF_ATTR(attr) \
 	(container_of(attr, struct msm_pm_kobj_attribute, ka)->cpu)
@@ -456,6 +463,9 @@ enum {
 #define APPS_PWRDOWN      (MSM_CSR_BASE + 0x440)
 #define APPS_STANDBY_CTL  (MSM_CSR_BASE + 0x108)
 #define APPS_SECOP	  NULL
+#define A11S_CLK_CNTL_ADDR	(MSM_CSR_BASE + 0x100)
+#define A11S_CLK_SEL_ADDR	(MSM_CSR_BASE + 0x104)
+
 #endif
 
 /*
@@ -982,6 +992,12 @@ static int msm_pm_power_collapse
 		goto power_collapse_early_exit;
 	}
 
+	/* save the AHB clock registers */
+	if (cpu_is_msm8625q()) {
+		msm8x25q_ahb.sel = readl_relaxed(A11S_CLK_SEL_ADDR);
+		msm8x25q_ahb.cntl = readl_relaxed(A11S_CLK_CNTL_ADDR);
+	}
+
 	msm_pm_boot_config_before_pc(smp_processor_id(),
 			virt_to_phys(msm_pm_collapse_exit));
 
@@ -1079,6 +1095,13 @@ static int msm_pm_power_collapse
 #endif
 		cpu_init();
 		local_fiq_enable();
+	}
+
+	/* restore the AHB clock registers */
+	if (cpu_is_msm8625q()) {
+		writel_relaxed(msm8x25q_ahb.sel, A11S_CLK_SEL_ADDR);
+		writel_relaxed(msm8x25q_ahb.cntl, A11S_CLK_CNTL_ADDR);
+		mb();
 	}
 
 	*(uint32_t *)(virt_start_ptr + 0x30) = 0x11;
