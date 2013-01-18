@@ -977,6 +977,7 @@ static struct reserve_info msm7627a_reserve_info __initdata = {
 static void __init msm7627a_reserve(void)
 {
 	reserve_info = &msm7627a_reserve_info;
+	memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
 	msm_reserve();
 #ifdef CONFIG_CMA
 	dma_declare_contiguous(
@@ -989,7 +990,6 @@ static void __init msm7627a_reserve(void)
 
 static void __init msm8625_reserve(void)
 {
-	memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
 	memblock_remove(MSM8625_CPU_PHYS, SZ_8);
 	memblock_remove(MSM8625_WARM_BOOT_PHYS, SZ_32);
 	msm7627a_reserve();
