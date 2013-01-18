@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2009, 2013 Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2009, 2013 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -640,7 +640,9 @@ void mdp_hw_init(int cont_splash)
 	 */
 	if (!cont_splash) {
 		MDP_OUTP(MDP_BASE + 0xE0000, 0);
+		msleep(20);
 		MDP_OUTP(MDP_BASE + 0xF0000, 0);
+		msleep(20);
 	}
 	MDP_OUTP(MDP_BASE + 0x100, 0xffffffff);
 	MDP_OUTP(MDP_BASE + 0x90070, 0);
