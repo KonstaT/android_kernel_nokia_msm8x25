@@ -696,7 +696,7 @@ static struct regulator_init_data ncp6335d_init_data = {
 static struct ncp6335d_platform_data ncp6335d_pdata = {
 	.init_data = &ncp6335d_init_data,
 	.default_vsel = NCP6335D_VSEL0,
-	.slew_rate_ns = 166,
+	.slew_rate_ns = 333,
 	.rearm_disable = 1,
 	.sleep_enable = true,
 };
