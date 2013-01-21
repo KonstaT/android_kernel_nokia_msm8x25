@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/reboot.h>
 #include <linux/pm.h>
+#include <linux/regulator/onsemi-ncp6335d.h>
 #include <asm/system_misc.h>
 #include <mach/proc_comm.h>
 
@@ -33,7 +34,13 @@ static void msm_pm_power_off(void)
 
 static void msm_pm_restart(char str, const char *cmd)
 {
+	int rc;
+
 	pr_debug("The reset reason is %x\n", restart_reason);
+
+	rc = ncp6335d_restart_config();
+	if (rc)
+		pr_err("Unable to configure NCP6335D for restart\n");
 
 	/* Disable interrupts */
 	local_irq_disable();
