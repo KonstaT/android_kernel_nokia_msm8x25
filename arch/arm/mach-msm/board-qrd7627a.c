@@ -698,7 +698,6 @@ static struct ncp6335d_platform_data ncp6335d_pdata = {
 	.default_vsel = NCP6335D_VSEL0,
 	.slew_rate_ns = 333,
 	.rearm_disable = 1,
-	.sleep_enable = true,
 };
 
 static struct i2c_board_info i2c2_info[] __initdata = {
