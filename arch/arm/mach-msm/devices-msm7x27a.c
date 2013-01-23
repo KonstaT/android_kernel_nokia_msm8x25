@@ -1930,18 +1930,21 @@ static void __init msm_cpr_init(void)
 	pr_info("%s: cpr: turbo_quot: 0x%x\n", __func__, cpr_info->turbo_quot);
 	pr_info("%s: cpr: pvs_fuse: 0x%x\n", __func__, cpr_info->pvs_fuse);
 	pr_info("%s: cpr: floor_fuse: 0x%x\n", __func__, cpr_info->floor_fuse);
+	kfree(cpr_info);
+
+	if ((msm8625_cpu_id() == MSM8625A) || cpu_is_msm8625q())
+		msm_cpr_pdata.max_freq = 1209600;
+	else if (msm8625_cpu_id() == MSM8625) {
+		msm_cpr_pdata.max_freq = 1008000;
+		msm_cpr_mode_data.turbo_Vmin = 1175000;
+	}
+
 	pr_info("%s: cpr: nom_Vmin: %d, turbo_Vmin: %d\n", __func__,
 		msm_cpr_mode_data.nom_Vmin,
 		msm_cpr_mode_data.turbo_Vmin);
 	pr_info("%s: cpr: nom_Vmax: %d, turbo_Vmax: %d\n", __func__,
 		msm_cpr_mode_data.nom_Vmax,
 		msm_cpr_mode_data.turbo_Vmax);
-	kfree(cpr_info);
-
-	if ((msm8625_cpu_id() == MSM8625A) || cpu_is_msm8625q())
-		msm_cpr_pdata.max_freq = 1209600;
-	else if (msm8625_cpu_id() == MSM8625)
-		msm_cpr_pdata.max_freq = 1008000;
 
 	if (machine_is_qrd_skud_prime() || cpu_is_msm8625q()) {
 		msm_cpr_pdata.step_size = 6250;
