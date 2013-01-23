@@ -198,6 +198,7 @@ static struct platform_device kp_pdev_8625 = {
 
 #define MXT_TS_IRQ_GPIO         48
 #define MXT_TS_RESET_GPIO       26
+#define MXT_TS_EVBD_IRQ_GPIO    115
 #define MAX_VKEY_LEN		100
 
 static ssize_t mxt_virtual_keys_register(struct kobject *kobj,
@@ -967,6 +968,37 @@ void __init qrd7627a_add_io_devices(void)
 			i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
 				rmi4_i2c_devices,
 				ARRAY_SIZE(rmi4_i2c_devices));
+		}
+		else {
+			if (machine_is_msm8625q_evbd()) {
+				mxt_config_array[0].config = mxt_config_data;
+				mxt_config_array[0].config_length =
+				ARRAY_SIZE(mxt_config_data);
+				mxt_platform_data.panel_maxy = 875;
+				mxt_platform_data.need_calibration = true;
+				mxt_platform_data.irq_gpio = MXT_TS_EVBD_IRQ_GPIO;
+				mxt_vkey_setup();
+
+			rc = gpio_tlmm_config(GPIO_CFG(MXT_TS_EVBD_IRQ_GPIO, 0,
+						GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
+						GPIO_CFG_8MA), GPIO_CFG_ENABLE);
+			if (rc) {
+				pr_err("%s: gpio_tlmm_config for %d failed\n",
+						__func__, MXT_TS_EVBD_IRQ_GPIO);
+			}
+
+			rc = gpio_tlmm_config(GPIO_CFG(MXT_TS_RESET_GPIO, 0,
+						GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
+						GPIO_CFG_8MA), GPIO_CFG_ENABLE);
+			if (rc) {
+				pr_err("%s: gpio_tlmm_config for %d failed\n",
+						__func__, MXT_TS_RESET_GPIO);
+			}
+
+			i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
+				mxt_device_info,
+				ARRAY_SIZE(mxt_device_info));
+			}
 		}
 	}
 
