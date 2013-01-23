@@ -72,7 +72,8 @@ enum ion_heap_ids {
 	ION_CAMERA_HEAP_ID = 20, /* 8660 only */
 	ION_SF_HEAP_ID = 24,
 	ION_IOMMU_HEAP_ID = 25,
-	ION_QSECOM_HEAP_ID = 27,
+	ION_QSECOM_HEAP_ID = 26,
+	ION_AUDIO_HEAP_BL_ID = 27,
 	ION_AUDIO_HEAP_ID = 28,
 
 	ION_MM_FIRMWARE_HEAP_ID = 29,
@@ -108,6 +109,7 @@ enum cp_mem_usage {
 
 #define ION_VMALLOC_HEAP_NAME	"vmalloc"
 #define ION_AUDIO_HEAP_NAME	"audio"
+#define ION_AUDIO_BL_HEAP_NAME	"bl_mem_audio"
 #define ION_SF_HEAP_NAME	"sf"
 #define ION_MM_HEAP_NAME	"mm"
 #define ION_CAMERA_HEAP_NAME	"camera_preview"
