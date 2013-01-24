@@ -53,6 +53,7 @@ enum {
 struct fan53555_platform_data {
 	struct regulator_init_data *regulator;
 	unsigned int slew_rate;
+	unsigned int slew_delay;
 	/* Sleep VSEL ID */
 	unsigned int sleep_vsel_id;
 };
