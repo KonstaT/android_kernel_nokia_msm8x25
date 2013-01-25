@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,5 +26,14 @@ struct ncp6335d_platform_data {
 	int rearm_disable;
 	bool sleep_enable;
 };
+
+#ifdef CONFIG_REGULATOR_ONSEMI_NCP6335D
+int ncp6335d_restart_config(void);
+#else
+static inline int ncp6335d_restart_config()
+{
+	return 0;
+}
+#endif
 
 #endif
