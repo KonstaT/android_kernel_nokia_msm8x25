@@ -191,7 +191,7 @@ struct msm_cpr_reg {
 /* msm_cpr_pm_resume: Used by Power Manager for Idle Power Collapse */
 void msm_cpr_pm_resume(void);
 /* msm_cpr_pm_suspend: Used by Power Manager for Idle Power Collapse */
-void msm_cpr_pm_suspend(void);
+int msm_cpr_pm_suspend(void);
 /* msm_cpr_enable: Used by Power Manager for GDFS */
 void msm_cpr_enable(void);
 /* msm_cpr_disable: Used by Power Manager for GDFS */
@@ -200,7 +200,7 @@ void msm_cpr_disable(void);
 /* msm_cpr_pm_resume: Used by Power Manager for Idle Power Collapse */
 void msm_cpr_pm_resume(void) { }
 /* msm_cpr_pm_suspend: Used by Power Manager for Idle Power Collapse */
-void msm_cpr_pm_suspend(void) { }
+int msm_cpr_pm_suspend(void) { return 0; }
 /* msm_cpr_enable: Used by Power Manager for GDFS */
 void msm_cpr_enable(void) { }
 /* msm_cpr_disable: Used by Power Manager for GDFS */

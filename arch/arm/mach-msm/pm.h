@@ -87,7 +87,7 @@ struct msm_pm_sleep_ops {
 };
 
 struct msm_pm_cpr_ops {
-	void (*cpr_suspend)(void);
+	int (*cpr_suspend)(void);
 	void (*cpr_resume)(void);
 };
 

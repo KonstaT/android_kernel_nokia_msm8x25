@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-13, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -98,6 +98,7 @@ struct msm_cpr {
 	uint32_t floor;
 	uint32_t ceiling;
 	bool max_volt_set;
+	bool irq_done;
 	void __iomem *base;
 	unsigned int irq;
 	uint32_t cur_Vmin;
@@ -589,6 +590,7 @@ static irqreturn_t cpr_irq0_handler(int irq, void *dev_id)
 	struct msm_cpr *cpr = dev_id;
 	uint32_t reg_val, ctl_reg;
 
+	cpr->irq_done = false;
 	reg_val = cpr_read_reg(cpr, RBIF_IRQ_STATUS);
 	ctl_reg = cpr_read_reg(cpr, RBCPR_CTL);
 
@@ -618,6 +620,7 @@ static irqreturn_t cpr_irq0_handler(int irq, void *dev_id)
 		msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 			"CPR:IRQ %d occured for Mid Flag\n", irq);
 	}
+	cpr->irq_done = true;
 	return IRQ_HANDLED;
 }
 
@@ -858,6 +861,11 @@ static int msm_cpr_suspend(void)
 
 	/* Disable CPR measurement before IRQ to avoid pending interrupts */
 	cpr_disable(cpr);
+
+	/* Avoid suspend when regulator call (on i2c) sleeps */
+	if (cpr->irq_done == false)
+		return -EBUSY;
+
 	disable_irq(cpr->irq);
 
 	/* Clear all the interrupts */
@@ -892,13 +900,13 @@ void msm_cpr_pm_resume(void)
 }
 EXPORT_SYMBOL(msm_cpr_pm_resume);
 
-void msm_cpr_pm_suspend(void)
+int msm_cpr_pm_suspend(void)
 {
 	if (!enable || disable_cpr)
-		return;
+		return 0;
 
 	max_volt_count = 0;
-	msm_cpr_suspend();
+	return msm_cpr_suspend();
 }
 EXPORT_SYMBOL(msm_cpr_pm_suspend);
 #else
@@ -1020,6 +1028,7 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	cpr->base = base;
 
 	cpr->step_size = pdata->step_size;
+	cpr->irq_done = true;
 
 	spin_lock_init(&cpr->cpr_lock);
 
