@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,6 +26,7 @@
 #include <asm/smp_scu.h>
 #include <asm/unified.h>
 #include <mach/msm_iomap.h>
+#include <mach/irqs.h>
 #include "pm.h"
 
 #define CORE_RESET_BASE		0xA8600590
@@ -141,6 +142,9 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 		per_cpu(power_collapsed, cpu) = 0;
 	}
 
+#ifdef CONFIG_MSM_FIQ
+	gic_set_irq_secure(GIC_SECURE_SOFT_IRQ);
+#endif
 	/*
 	 * Synchronise with the boot thread.
 	 */
