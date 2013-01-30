@@ -81,8 +81,7 @@ int ncp6335d_restart_config()
 	int rc, set_val;
 
 	if (!ncp6335d) {
-		dev_err(ncp6335d->dev,
-			"OnSemi NCP6335D driver not intialized\n");
+		pr_err("%s: OnSemi NCP6335D driver not intialized\n", __func__);
 		return -ENODEV;
 	}
 
