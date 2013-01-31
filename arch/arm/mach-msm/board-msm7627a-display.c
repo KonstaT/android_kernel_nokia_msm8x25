@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -797,6 +797,7 @@ static struct platform_device *evb_fb_devices[] __initdata = {
 static struct platform_device *skud_fb_devices[] __initdata = {
 	&msm_fb_device,
 	&mipi_dsi_hx8389b_panel_device,
+	&mipi_dsi_NT35510_panel_device,
 	&mipi_dsi_NT35590_panel_device,
 };
 
@@ -1564,6 +1565,10 @@ void msm7x27a_set_display_params(char *prim_panel)
 			strnlen("mipi_video_nt35510_wvga",
 				PANEL_NAME_MAX_LEN)))
 			disable_splash = 1;
+		else if (!(machine_is_msm7627a_evb() || machine_is_msm8625_evb()
+					|| machine_is_msm8625_evt()))
+			disable_splash = 1;
+
 	}
 
 	if (machine_is_msm8625q_evbd() || machine_is_msm8625q_skud())
