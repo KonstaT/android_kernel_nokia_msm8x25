@@ -502,7 +502,7 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 	if (action == UP) {
 		/* Clear IRQ, NACK and return if Vdd already at Vmax */
 		if (cpr->max_volt_set == 1) {
-			if (++max_volt_count == VMAX_BREACH_CNT) {
+			if (++max_volt_count >= VMAX_BREACH_CNT) {
 				/* Disable CPR */
 				cpr_disable(cpr);
 			}
@@ -897,6 +897,7 @@ void msm_cpr_pm_suspend(void)
 	if (!enable || disable_cpr)
 		return;
 
+	max_volt_count = 0;
 	msm_cpr_suspend();
 }
 EXPORT_SYMBOL(msm_cpr_pm_suspend);
