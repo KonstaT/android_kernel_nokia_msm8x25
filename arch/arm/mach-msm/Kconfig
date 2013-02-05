@@ -2517,4 +2517,13 @@ config MSM_FIQ
 	  if apps is not responding and holding lock with irqs disabled.
 	  Modem will then generate an raise a FIQ on this line before sending
 	  SMSM reset
+config MSM_PBUS
+	bool "Enable PBUS handler for debugging"
+	depends on ARCH_MSM8625 || ARCH_MSM7X27A
+	default y
+	help
+	  Register PBUS interrupt handler. This will help
+	  in debugging PBUS hang issues. This handler reads
+	  client address which caused PBUS hang and PBUS
+	  master information at the time of hang.
 endif
