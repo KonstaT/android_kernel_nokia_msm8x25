@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -35,7 +35,6 @@ static char disp_on2[2] = {0x26, 0x00};
 static char disp_on3[2] = {0xFF, 0x00}; /* WaitTime(10) */
 
 static char lane[2] = {0xBA, 0x03}; /* MIPI 4 lane */
-static char disp_on_rotate[2] = {0x36, 0xd7}; /* Fix 180 degree orientation */
 
 static char command_mode[2] = {0xC2, 0x08}; /* Setting 0x08 for MIPI cmd mode */
 
@@ -92,7 +91,7 @@ static char disp_on53[2] = {0x1D, 0x00};
 static char disp_on54[2] = {0x1E, 0x00};
 static char disp_on55[2] = {0x1F, 0x07};
 static char disp_on56[2] = {0x20, 0x00};
-static char disp_on57[2] = {0x21, 0x00};
+static char disp_on57[2] = {0x21, 0x06};
 static char disp_on58[2] = {0x22, 0x55};
 static char disp_on59[2] = {0x23, 0x4D};
 static char disp_on60[2] = {0x2D, 0x02};
@@ -520,7 +519,6 @@ static struct dsi_cmd_desc nt35590_cmd_display_on_cmds[] = {
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(disp_on2), disp_on2},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 10, sizeof(disp_on3), disp_on3},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(lane), lane},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(disp_on_rotate), disp_on_rotate},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(command_mode), command_mode},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(disp_on6), disp_on6},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(disp_on7), disp_on7},
@@ -988,7 +986,6 @@ static struct dsi_cmd_desc nt35590_video_display_on_cmds[] = {
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(disp_on2), disp_on2},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 10, sizeof(disp_on3), disp_on3},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(lane), lane},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(disp_on_rotate), disp_on_rotate},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(video_mode), video_mode},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(disp_on6), disp_on6},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(disp_on7), disp_on7},
