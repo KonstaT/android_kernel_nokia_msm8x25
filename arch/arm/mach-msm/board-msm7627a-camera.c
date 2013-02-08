@@ -591,15 +591,16 @@ static void __init msm7x27a_init_cam(void)
 		if(machine_is_msm8625q_evbd()) {
 			sensor_board_info_ov5648.cam_vreg = ov5648_gpio_vreg_evbd;
 			sensor_board_info_ov5648.num_vreg = ARRAY_SIZE(ov5648_gpio_vreg_evbd);
+			sensor_board_info_ov5648.mount_angle = 270;
 		} else {
 			sensor_board_info_ov5648.cam_vreg = ov5648_gpio_vreg;
 			sensor_board_info_ov5648.num_vreg = ARRAY_SIZE(ov5648_gpio_vreg);
+			sensor_board_info_ov5648.mount_angle = 90;
 		}
 		msm_act_main_cam_7_info.vcm_pwd = GPIO_SKUD_CAM_5MP_CAM_VCM_PWDN;
 		msm_act_main_cam_7_info.vcm_enable = 1;
 		msm_camera_sensor_ov5648_data.sensor_reset=GPIO_SKUD_CAM_5MP_CAMIF_RESET;
 		msm_camera_sensor_ov5648_data.sensor_pwd = GPIO_SKUD_CAM_5MP_SHDN_N;
-		sensor_board_info_ov5648.mount_angle = 90;
 		msm_flash_src_ov5648._fsrc.ext_driver_src.led_en = GPIO_SKUD_CAM_LED_EN;
 		msm_flash_src_ov5648._fsrc.ext_driver_src.led_flash_en = GPIO_SKUD_CAM_LED_FLASH_EN;
 #endif
