@@ -1,7 +1,7 @@
 /*
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
-  Copyright (c) 2013, Code Aurora Forum. All rights reserved.
+  Copyright (c) 2013, The Linux Foundation. All rights reserved.
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.

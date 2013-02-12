@@ -2,7 +2,7 @@
  *  linux/mm/memory.c
  *
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
- *  Copyright (c) 2013, Code Aurora Forum. All rights reserved.
+ *  Copyright (c) 2013, The Linux Foundation. All rights reserved.
  */
 
 /*
