@@ -389,6 +389,7 @@ struct i2c_adapter {
 
 	struct mutex userspace_clients_lock;
 	struct list_head userspace_clients;
+	int (*recover_bus)(struct i2c_adapter *);
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
