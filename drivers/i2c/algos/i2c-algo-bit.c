@@ -552,6 +552,12 @@ static int bit_xfer(struct i2c_adapter *i2c_adap,
 			return ret;
 	}
 
+	if (!getsda(adap)) {
+		dev_err(&i2c_adap->dev, "SDA low, applying bus recovery\n");
+		/* I2C Bus Recovery */
+		i2c_adap->recover_bus(i2c_adap);
+	}
+
 	bit_dbg(3, &i2c_adap->dev, "emitting start condition\n");
 	i2c_start(adap);
 	for (i = 0; i < num; i++) {
@@ -623,6 +629,40 @@ const struct i2c_algorithm i2c_bit_algo = {
 };
 EXPORT_SYMBOL(i2c_bit_algo);
 
+/* I2C Bus recovey sequence:
+ * 1. Master tries to pull up SDA line
+ * 2. Master generates a clock pulse on SCL (1-0-1 transition)
+ * 3. Master checks SDA. If SDA = 0 goto Step 2 until 9 iterations completed;
+ *    if SDA = 1 goto Step 4.
+ * 4. Master sends a STOP command initializing completely the bus.
+ */
+static int i2c_algo_bit_recovery(struct i2c_adapter *i2c_adap)
+{
+	int i;
+	struct i2c_algo_bit_data *adap = i2c_adap->algo_data;
+
+	/* 9 clock pulses on SCL line */
+	for (i = 0; i < 9; i++) {
+		sdahi(adap);
+		sclhi(adap);
+		scllo(adap);
+		sclhi(adap);
+		if (getsda(adap)) {
+			bit_dbg(2, &i2c_adap->dev, "SDA = 1 and bus has recovered\n");
+			break;
+		}
+	}
+
+	if (i == 9) {
+		bit_dbg(2, &i2c_adap->dev, "SDA = 0 and bus recovery failed\n");
+		return -ENODEV;
+	}
+	/* stop condition */
+	i2c_stop(adap);
+
+	return 0;
+}
+
 /*
  * registering functions to load algorithms at runtime
  */
@@ -641,6 +681,7 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 	/* register new adapter to i2c module... */
 	adap->algo = &i2c_bit_algo;
 	adap->retries = 3;
+	adap->recover_bus = i2c_algo_bit_recovery;
 
 	ret = add_adapter(adap);
 	if (ret < 0)
