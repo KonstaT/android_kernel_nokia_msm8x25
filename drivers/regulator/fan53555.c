@@ -85,15 +85,18 @@ struct fan53555_device_info {
 	/* Sleep voltage cache */
 	unsigned int sleep_vol_cache;
 	int curr_voltage;
+	unsigned int vsel_ctrl_val;
 };
 
 static void dump_registers(struct fan53555_device_info *di,
 			unsigned int reg, const char *func)
 {
+#ifdef DEBUG
 	unsigned int val = 0;
 
 	regmap_read(di->regmap, reg, &val);
 	dev_dbg(di->dev, "%s: FAN53555: Reg = %x, Val = %x\n", func, reg, val);
+#endif
 }
 
 static void fan53555_slew_delay(struct fan53555_device_info *di,
@@ -113,13 +116,19 @@ static void fan53555_slew_delay(struct fan53555_device_info *di,
 static int fan53555_enable(struct regulator_dev *rdev)
 {
 	int ret;
+	unsigned int temp = 0;
 	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
 
-	ret = regmap_update_bits(di->regmap, di->vol_reg,
-				FAN53555_ENABLE, FAN53555_ENABLE);
-	if (ret)
-		dev_err(di->dev, "Unable to enable regualtor rc(%d)", ret);
+	temp = di->vsel_ctrl_val & ~FAN53555_ENABLE;
+	temp |= FAN53555_ENABLE;
 
+	ret = regmap_write(di->regmap, di->vol_reg, temp);
+	if (ret) {
+		dev_err(di->dev, "Unable to enable regualtor rc(%d)", ret);
+		return ret;
+	}
+
+	di->vsel_ctrl_val = temp;
 	dump_registers(di, di->vol_reg, __func__);
 
 	return ret;
@@ -128,13 +137,18 @@ static int fan53555_enable(struct regulator_dev *rdev)
 static int fan53555_disable(struct regulator_dev *rdev)
 {
 	int ret;
+	unsigned int temp = 0;
 	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
 
-	ret = regmap_update_bits(di->regmap, di->vol_reg,
-					FAN53555_ENABLE, 0);
-	if (ret)
-		dev_err(di->dev, "Unable to disable regualtor rc(%d)", ret);
+	temp = di->vsel_ctrl_val & ~FAN53555_ENABLE;
 
+	ret = regmap_write(di->regmap, di->vol_reg, temp);
+	if (ret) {
+		dev_err(di->dev, "Unable to disable regualtor rc(%d)", ret);
+		return ret;
+	}
+
+	di->vsel_ctrl_val = temp;
 	dump_registers(di, di->vol_reg, __func__);
 
 	return ret;
@@ -164,6 +178,7 @@ static int fan53555_set_voltage(struct regulator_dev *rdev,
 {
 	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
 	int ret, set_val, new_uV;
+	unsigned int temp = 0;
 
 	set_val = DIV_ROUND_UP(min_uV - di->vsel_min, di->vsel_step);
 	new_uV = (set_val * di->vsel_step) + di->vsel_min;
@@ -174,8 +189,10 @@ static int fan53555_set_voltage(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	ret = regmap_update_bits(di->regmap, di->vol_reg,
-		VSEL_NSEL_MASK, (set_val & VSEL_NSEL_MASK));
+	temp = di->vsel_ctrl_val & ~VSEL_NSEL_MASK;
+	temp |= (set_val & VSEL_NSEL_MASK);
+
+	ret = regmap_write(di->regmap, di->vol_reg, temp);
 	if (ret) {
 		dev_err(di->dev, "Unable to set volatge (%d %d)\n",
 							min_uV, max_uV);
@@ -183,6 +200,7 @@ static int fan53555_set_voltage(struct regulator_dev *rdev,
 	} else {
 		fan53555_slew_delay(di, di->curr_voltage, new_uV);
 		di->curr_voltage = new_uV;
+		di->vsel_ctrl_val = temp;
 	}
 
 	dump_registers(di, di->vol_reg, __func__);
@@ -248,7 +266,8 @@ static struct regulator_desc rdesc = {
 static int fan53555_device_setup(struct fan53555_device_info *di,
 				struct fan53555_platform_data *pdata)
 {
-	unsigned int reg, data, mask;
+	unsigned int reg, data, mask, val;
+	int ret;
 
 	/* Setup voltage control register */
 	switch (pdata->sleep_vsel_id) {
@@ -283,6 +302,17 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 			"Chip ID[%d]\n not supported!\n", di->chip_id);
 		return -EINVAL;
 	}
+
+	/* get the current programmed voltage */
+	ret = regmap_read(di->regmap, di->vol_reg, &val);
+	if (ret) {
+		dev_err(di->dev, "Unable to get volatge rc(%d)", ret);
+		return ret;
+	}
+	di->vsel_ctrl_val = val;
+	di->curr_voltage = ((val & VSEL_NSEL_MASK) * di->vsel_step)
+						+ di->vsel_min;
+
 	/* Init slew rate */
 	if (pdata->slew_rate & 0x7) {
 		di->slew_rate = pdata->slew_rate;
