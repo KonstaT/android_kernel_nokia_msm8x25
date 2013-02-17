@@ -60,7 +60,7 @@ enum {
 	FAN53555_CHIP_ID_03,
 	FAN53555_CHIP_ID_04,
 	FAN53555_CHIP_ID_05,
-	FAN53555_CHIP_ID_09 = 9,
+	FAN53555_CHIP_ID_09 = 12,
 };
 
 struct fan53555_device_info {
@@ -339,6 +339,13 @@ static int __devinit fan53555_regulator_probe(struct i2c_client *client,
 						PTR_ERR(di->regulator));
 		return PTR_ERR(di->regulator);
 	}
+
+	dump_registers(di, FAN53555_VSEL0, __func__);
+	dump_registers(di, FAN53555_VSEL1, __func__);
+	dump_registers(di, FAN53555_CONTROL, __func__);
+	dump_registers(di, FAN53555_ID1, __func__);
+	dump_registers(di, FAN53555_ID2, __func__);
+	dump_registers(di, FAN53555_MONITOR, __func__);
 
 	return ret;
 
