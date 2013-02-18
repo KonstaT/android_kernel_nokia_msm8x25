@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,6 +18,12 @@
 
 #ifdef CONFIG_MSM_FIQ
 #define FIQ_START               0
+
+/*
+ * Use GIC_SECURE_SOFT_IRQ as secure SGI, so that
+ * it gets handled as FIQ.
+ */
+#define GIC_SECURE_SOFT_IRQ	9
 #endif
 
 /* As per QGIC2 PPI 16 aka 0 is reserved */

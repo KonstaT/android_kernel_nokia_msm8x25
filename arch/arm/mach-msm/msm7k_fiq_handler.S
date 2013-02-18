@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,11 +20,16 @@
 
 ENTRY(msm7k_fiq_start)
 	sub    r14, r14, #4 @return address
+	mov    r9, #0
+        mrc    p15, 0, r9, c0, c0, 5   /* MPIDR */
+	and    r9, r9, #0x3		  @r9 = CPU_ID
 	ldr    r8, Lmsm_fiq_stack
-	ldr    sp, [r8]       @get stack
+	ldr    sp, [r8, r9, LSL #2]       @get stack
 	stmfa  sp!, {r0-r7, lr}
 	stmfa  sp!, {r8-r9}
 	ldr    r8, Ldump_cpu_ctx
+	mov    r10, #148		  @size of msm_dump_cpu_ctx
+	mla    r8, r9, r10, r8
 	@ store magic to indicate a valid dump
 	ldr    r9, Lmagic
 	str    r9, [r8], #4
@@ -80,6 +85,8 @@ ENTRY(msm7k_fiq_start)
 	mov    r14, r1
 	mov    r5, #PSR_I_BIT | PSR_F_BIT | FIQ_MODE
 	msr    cpsr_c, r5     @ select SVC mode
+fiq_wait_forever:
+	b      fiq_wait_forever
 	ldmfa sp!, {r8-r9}
 	ldmfa sp!, {r0-r7, pc}^
 Ldump_cpu_ctx:

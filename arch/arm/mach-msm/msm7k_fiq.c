@@ -18,7 +18,7 @@
 #include <asm/unwind.h>
 #include <asm/hardware/gic.h>
 #include <asm/cacheflush.h>
-#include <mach/irqs-8625.h>
+#include <mach/irqs.h>
 #include <mach/socinfo.h>
 #include <mach/fiq.h>
 
@@ -26,44 +26,41 @@
 
 #define MODULE_NAME "MSM7K_FIQ"
 
-struct msm_watchdog_dump msm_dump_cpu_ctx;
+struct msm_watchdog_dump msm_dump_cpu_ctx[NR_CPUS];
 static int fiq_counter;
 static int msm_fiq_no;
-void *msm7k_fiq_stack;
+void *msm7k_fiq_stack[NR_CPUS];
+static spinlock_t msm_fiq_lock;
 
 /* Called from the FIQ asm handler */
 void msm7k_fiq_handler(void)
 {
-	struct irq_data *d;
-	struct irq_chip *c;
 	struct pt_regs ctx_regs;
-	unsigned long flags;
+	static cpumask_t fiq_cpu_mask;
+	int this_cpu;
+	unsigned long msm_fiq_flags;
 
-	pr_info("Fiq is received %s\n", __func__);
-	fiq_counter++;
+	spin_lock_irqsave(&msm_fiq_lock, msm_fiq_flags);
+	this_cpu = smp_processor_id();
 
-	local_irq_save(flags);
-	d = irq_get_irq_data(msm_fiq_no);
-	c = irq_data_get_irq_chip(d);
-	c->irq_mask(d);
+	pr_info("%s: Fiq is received on CPU%d\n", __func__, this_cpu);
+	fiq_counter += 1;
 
-	if (cpu_is_msm8625() || cpu_is_msm8625q())
-		/* Clear the IRQ from the ENABLE_SET */
-		gic_clear_irq_pending(msm_fiq_no);
-	else
-		/* Clear the IRQ from the VIC_INT_CLEAR0*/
-		c->irq_ack(d);
-
-	ctx_regs.ARM_pc = msm_dump_cpu_ctx.fiq_r14;
-	ctx_regs.ARM_lr = msm_dump_cpu_ctx.svc_r14;
-	ctx_regs.ARM_sp = msm_dump_cpu_ctx.svc_r13;
-	ctx_regs.ARM_fp = msm_dump_cpu_ctx.usr_r11;
+	ctx_regs.ARM_pc = msm_dump_cpu_ctx[this_cpu].fiq_r14;
+	ctx_regs.ARM_lr = msm_dump_cpu_ctx[this_cpu].svc_r14;
+	ctx_regs.ARM_sp = msm_dump_cpu_ctx[this_cpu].svc_r13;
+	ctx_regs.ARM_fp = msm_dump_cpu_ctx[this_cpu].usr_r11;
 	unwind_backtrace(&ctx_regs, current);
-	arch_trigger_all_cpu_backtrace();
-	local_irq_restore(flags);
+
+	if (fiq_counter == 1 && (cpu_is_msm8625() || cpu_is_msm8625q())) {
+		cpumask_copy(&fiq_cpu_mask, cpu_online_mask);
+		cpu_clear(this_cpu, fiq_cpu_mask);
+		gic_raise_secure_softirq(&fiq_cpu_mask, GIC_SECURE_SOFT_IRQ);
+	}
 
 	flush_cache_all();
 	outer_flush_all();
+	spin_unlock_irqrestore(&msm_fiq_lock, msm_fiq_flags);
 	return;
 }
 
@@ -73,14 +70,25 @@ struct fiq_handler msm7k_fh = {
 
 static int __init msm_setup_fiq_handler(void)
 {
-	int ret = 0;
+	int i, ret = 0;
 
+	spin_lock_init(&msm_fiq_lock);
 	claim_fiq(&msm7k_fh);
 	set_fiq_handler(&msm7k_fiq_start, msm7k_fiq_length);
-	msm7k_fiq_stack = (void *)__get_free_pages(GFP_KERNEL,
-				THREAD_SIZE_ORDER);
-	if (msm7k_fiq_stack == NULL) {
+
+	for_each_possible_cpu(i) {
+		msm7k_fiq_stack[i] = (void *)__get_free_pages(GFP_KERNEL,
+			THREAD_SIZE_ORDER);
+		if (msm7k_fiq_stack[i] == NULL)
+			break;
+	}
+
+	if (i != nr_cpumask_bits) {
 		pr_err("FIQ STACK SETUP IS NOT SUCCESSFUL\n");
+		for (i = 0; i < nr_cpumask_bits && msm7k_fiq_stack[i] != NULL;
+					i++)
+			free_pages((unsigned long)msm7k_fiq_stack[i],
+					THREAD_SIZE_ORDER);
 		return -ENOMEM;
 	}
 
