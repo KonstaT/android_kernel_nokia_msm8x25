@@ -71,7 +71,7 @@ MODULE_PARM_DESC(nom_Vmin, "Nominal VMin");
 MODULE_PARM_DESC(turbo_Vmin, "Turbo VMin");
 MODULE_PARM_DESC(max_quot, "Max Quot");
 
-extern struct regulator *ncp6335d_handle;
+extern struct regulator *ext_vreg_handle;
 
 static int msm_cpr_debug_mask;
 module_param_named(
@@ -1024,10 +1024,10 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	spin_lock_init(&cpr->cpr_lock);
 
 	/* Initialize the Voltage domain for CPR */
-	if(ncp6335d_handle == NULL)
+	if (ext_vreg_handle == NULL)
 		cpr->vreg_cx = regulator_get(&pdev->dev, "vddx_cx");
 	else
-		cpr->vreg_cx = ncp6335d_handle;
+		cpr->vreg_cx = ext_vreg_handle;
 
 	if (IS_ERR(cpr->vreg_cx)) {
 		res = PTR_ERR(cpr->vreg_cx);

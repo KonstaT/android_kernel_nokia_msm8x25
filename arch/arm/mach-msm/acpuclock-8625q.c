@@ -53,7 +53,7 @@
 /* Max CPU frequency allowed by hardware while in standby waiting for an irq. */
 #define MAX_WAIT_FOR_IRQ_KHZ 128000
 
-struct regulator *ncp6335d_handle;
+struct regulator *ext_vreg_handle;
 
 /**
  * enum - For acpuclock PLL IDs
@@ -774,7 +774,7 @@ static int __init get_reg(void)
 		BUG_ON(res);
 	}
 
-	ncp6335d_handle = drv_state.vreg_cpu;
+	ext_vreg_handle = drv_state.vreg_cpu;
 
 	return 0;
 }
