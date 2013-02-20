@@ -378,7 +378,7 @@ static int __init fan53555_regulator_init(void)
 	return i2c_add_driver(&fan53555_regulator_driver);
 }
 /* Revisit the code to decide the actual sequence */
-subsys_initcall(fan53555_regulator_init);
+fs_initcall(fan53555_regulator_init);
 
 static void __exit fan53555_regulator_exit(void)
 {
