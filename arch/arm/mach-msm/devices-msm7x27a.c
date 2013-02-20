@@ -1946,12 +1946,6 @@ static void __init msm_cpr_init(void)
 		msm_cpr_mode_data.nom_Vmax,
 		msm_cpr_mode_data.turbo_Vmax);
 
-	if (machine_is_qrd_skud_prime() || cpu_is_msm8625q()) {
-		msm_cpr_pdata.step_size = 6250;
-		msm_cpr_mode_data.step_div = 2;
-		msm_cpr_pdata.dn_threshold = 5;
-	}
-
 	if (cpu_is_msm8625())
 		platform_device_register(&msm8625_vp_device);
 
