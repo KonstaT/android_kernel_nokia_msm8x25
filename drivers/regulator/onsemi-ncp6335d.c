@@ -183,7 +183,7 @@ static int ncp6335d_set_voltage(struct regulator_dev *rdev,
 					NCP6335D_STEP_VOLTAGE_UV);
 	new_uV = (set_val * NCP6335D_STEP_VOLTAGE_UV) +
 					NCP6335D_MIN_VOLTAGE_UV;
-	if (new_uV > (max_uV + NCP6335D_MIN_VOLTAGE_UV)) {
+	if (new_uV > (max_uV + NCP6335D_STEP_VOLTAGE_UV)) {
 		dev_err(dd->dev, "Unable to set volatge (%d %d)\n",
 							min_uV, max_uV);
 		return -EINVAL;
