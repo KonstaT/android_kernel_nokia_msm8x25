@@ -95,6 +95,7 @@ static struct pll_config pll4_cfg_tbl[] = {
 
 struct clock_state {
 	struct clkctl_acpu_speed	*current_speed;
+	struct clkctl_acpu_speed	*prev_speed;
 	struct mutex			lock;
 	uint32_t			max_speed_delta_khz;
 	struct clk			*ebi1_clk;
@@ -435,6 +436,7 @@ static int acpuclk_8625q_set_rate(int cpu, unsigned long rate,
 		plls_enabled |= 1 << tgt_s->pll;
 	}
 	acpuclk_set_div(tgt_s);
+	drv_state.prev_speed = drv_state.current_speed;
 	drv_state.current_speed = tgt_s;
 	pr_debug("The new clock speed is %u\n", tgt_s->a11clk_khz);
 	/* Re-adjust lpj for the new clock speed. */
