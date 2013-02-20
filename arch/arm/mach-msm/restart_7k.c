@@ -18,6 +18,7 @@
 #include <linux/reboot.h>
 #include <linux/pm.h>
 #include <linux/regulator/onsemi-ncp6335d.h>
+#include <linux/regulator/fan53555.h>
 #include <asm/system_misc.h>
 #include <mach/proc_comm.h>
 
@@ -41,6 +42,10 @@ static void msm_pm_restart(char str, const char *cmd)
 	rc = ncp6335d_restart_config();
 	if (rc)
 		pr_err("Unable to configure NCP6335D for restart\n");
+
+	rc = fan53555_restart_config();
+	if (rc)
+		pr_err("Unable to configure FAN53555 for restart\n");
 
 	/* Disable interrupts */
 	local_irq_disable();

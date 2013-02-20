@@ -52,6 +52,7 @@
 #define FAN53555_ENABLE			BIT(7)
 
 #define FAN53555_NVOLTAGES	64	/* Numbers of voltages */
+#define FAN53555_DEF_VTG_UV	1100000	/* Default voltage */
 
 /* IC Type */
 enum {
@@ -88,6 +89,8 @@ struct fan53555_device_info {
 	unsigned int vsel_ctrl_val;
 };
 
+static struct fan53555_device_info *fan53555;
+
 static void dump_registers(struct fan53555_device_info *di,
 			unsigned int reg, const char *func)
 {
@@ -112,6 +115,29 @@ static void fan53555_slew_delay(struct fan53555_device_info *di,
 
 	udelay(delay);
 }
+
+int fan53555_restart_config()
+{
+	int rc, set_val;
+
+	if (!fan53555) {
+		pr_err("%s: Fairchild FAN53555 driver not intialized\n",
+								__func__);
+		return -ENODEV;
+	}
+
+	set_val = DIV_ROUND_UP(FAN53555_DEF_VTG_UV - fan53555->vsel_min,
+			fan53555->vsel_step);
+	rc = regmap_update_bits(fan53555->regmap, fan53555->vol_reg,
+			VSEL_NSEL_MASK, (set_val & VSEL_NSEL_MASK));
+	if (rc)
+		dev_err(fan53555->dev, "Unable to set volatge rc(%d)", rc);
+	else
+		udelay(20);
+
+	return rc;
+}
+EXPORT_SYMBOL(fan53555_restart_config);
 
 static int fan53555_enable(struct regulator_dev *rdev)
 {
@@ -392,6 +418,8 @@ static int __devinit fan53555_regulator_probe(struct i2c_client *client,
 						PTR_ERR(di->regulator));
 		return PTR_ERR(di->regulator);
 	}
+
+	fan53555 = di;
 
 	dump_registers(di, FAN53555_VSEL0, __func__);
 	dump_registers(di, FAN53555_VSEL1, __func__);
