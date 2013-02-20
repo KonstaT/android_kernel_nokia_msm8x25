@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/regulator/fan53555.h>
+#include <linux/delay.h>
 
 /* Voltage setting */
 #define FAN53555_VSEL0		0x00
@@ -80,6 +81,7 @@ struct fan53555_device_info {
 	unsigned int vsel_step;
 	/* Voltage slew rate limiting */
 	unsigned int slew_rate;
+	unsigned int slew_delay;
 	/* Sleep voltage cache */
 	unsigned int sleep_vol_cache;
 	int curr_voltage;
@@ -92,6 +94,20 @@ static void dump_registers(struct fan53555_device_info *di,
 
 	regmap_read(di->regmap, reg, &val);
 	dev_dbg(di->dev, "%s: FAN53555: Reg = %x, Val = %x\n", func, reg, val);
+}
+
+static void fan53555_slew_delay(struct fan53555_device_info *di,
+					int prev_uV, int new_uV)
+{
+	u8 val;
+	int delay;
+
+	val = abs(prev_uV - new_uV) / fan53555->vsel_step;
+	delay =  ((val * di->slew_delay) / 1000) + 1;
+
+	dev_dbg(di->dev, "Slew Delay = %d\n", delay);
+
+	udelay(delay);
 }
 
 static int fan53555_enable(struct regulator_dev *rdev)
@@ -164,9 +180,11 @@ static int fan53555_set_voltage(struct regulator_dev *rdev,
 		dev_err(di->dev, "Unable to set volatge (%d %d)\n",
 							min_uV, max_uV);
 		return ret;
+	} else {
+		fan53555_slew_delay(di, di->curr_voltage, new_uV);
+		di->curr_voltage = new_uV;
 	}
 
-	di->curr_voltage = new_uV;
 	dump_registers(di, di->vol_reg, __func__);
 
 	return ret;
@@ -266,13 +284,18 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 		return -EINVAL;
 	}
 	/* Init slew rate */
-	if (pdata->slew_rate & 0x7)
+	if (pdata->slew_rate & 0x7) {
 		di->slew_rate = pdata->slew_rate;
-	else
+		di->slew_delay = (di->vsel_step >> 6) * (1 << di->slew_rate);
+	} else {
 		di->slew_rate = FAN53555_SLEW_RATE_64MV;
+		di->slew_delay = 200;
+	}
+
 	reg = FAN53555_CONTROL;
 	data = di->slew_rate << CTL_SLEW_SHIFT;
 	mask = CTL_SLEW_MASK;
+
 	return regmap_update_bits(di->regmap, reg, mask, data);
 }
 
