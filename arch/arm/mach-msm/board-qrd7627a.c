@@ -35,6 +35,7 @@
 #include <linux/ion.h>
 #include <linux/i2c-gpio.h>
 #include <linux/regulator/onsemi-ncp6335d.h>
+#include <linux/regulator/fan53555.h>
 #include <linux/dma-contiguous.h>
 #include <linux/dma-mapping.h>
 #include <asm/mach/mmc.h>
@@ -669,7 +670,6 @@ static struct platform_device evbd_vreg_gpio_ext_1p8v __devinitdata = {
 			&msm_gpio_regulator_pdata[GPIO_VREG_ID_EXT_1P8V_EVBD],
 	},
 };
-
 /* Regulator configuration for the NCP6335D buck */
 struct regulator_consumer_supply ncp6335d_consumer_supplies[] = {
 	REGULATOR_SUPPLY("ncp6335d", NULL),
@@ -703,10 +703,46 @@ static struct ncp6335d_platform_data ncp6335d_pdata = {
 	.rearm_disable = 1,
 };
 
+/* Regulator configuration for the FAN53555 buck */
+struct regulator_consumer_supply fan53555_consumer_supplies[] = {
+	REGULATOR_SUPPLY("fan53555", NULL),
+	/* TO DO: NULL entry needs to be fixed once
+	 * we fix the cross-dependencies.
+	*/
+	REGULATOR_SUPPLY("vddx_cx", NULL),
+};
+
+static struct regulator_init_data fan53555_init_data = {
+	.constraints	= {
+		.name		= "fan53555",
+		.min_uV		= 603000,
+		.max_uV		= 1411000,
+		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE |
+				REGULATOR_CHANGE_STATUS |
+				REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_NORMAL |
+				REGULATOR_MODE_FAST,
+		.initial_mode	= REGULATOR_MODE_NORMAL,
+		.always_on	= 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(fan53555_consumer_supplies),
+	.consumer_supplies = fan53555_consumer_supplies,
+};
+
+static struct fan53555_platform_data fan53555_pdata = {
+	.regulator = &fan53555_init_data,
+	.slew_rate = FAN53555_SLEW_RATE_64MV,
+	.sleep_vsel_id = FAN53555_VSEL_ID_1,
+};
+
 static struct i2c_board_info i2c2_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("ncp6335d", 0x38 >> 1),
 		.platform_data = &ncp6335d_pdata,
+	},
+	{
+		I2C_BOARD_INFO("fan53555", 0xC0 >> 1),
+		.platform_data = &fan53555_pdata,
 	},
 };
 
@@ -1203,7 +1239,6 @@ static void __init msm_qrd_init(void)
 					|| machine_is_msm8625q_skud())
 		i2c_register_board_info(2, i2c2_info,
 				ARRAY_SIZE(i2c2_info));
-
 
 #if defined(CONFIG_BT) && defined(CONFIG_MARIMBA_CORE)
 	msm7627a_bt_power_init();
