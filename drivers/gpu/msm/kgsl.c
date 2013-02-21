@@ -2698,6 +2698,8 @@ static int __init kgsl_core_init(void)
 	kgsl_mmu_set_mmutype(ksgl_mmu_type);
 
 	if (KGSL_MMU_TYPE_GPU == kgsl_mmu_get_mmutype()) {
+		if (cpu_is_msm8625q() && (get_ddr_size() > SZ_512M))
+			kgsl_pagetable_count = 16 ;
 		result = kgsl_ptdata_init();
 		if (result)
 			goto err;
