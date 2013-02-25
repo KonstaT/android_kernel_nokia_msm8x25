@@ -5657,12 +5657,7 @@ static struct page *
 __alloc_contig_migrate_alloc(struct page *page, unsigned long private,
 			     int **resultp)
 {
-	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-
-	if (PageHighMem(page))
-		gfp_mask |= __GFP_HIGHMEM;
-
-	return alloc_page(gfp_mask);
+	return alloc_page(GFP_HIGHUSER_MOVABLE);
 }
 
 /* [start, end) must belong to a single zone. */
