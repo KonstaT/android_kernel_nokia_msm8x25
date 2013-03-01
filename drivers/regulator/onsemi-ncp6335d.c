@@ -18,6 +18,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regmap.h>
 #include <linux/log2.h>
+#include <linux/syscore_ops.h>
 #include <linux/regulator/onsemi-ncp6335d.h>
 
 /* registers */
@@ -61,6 +62,9 @@ struct ncp6335d_info {
 	unsigned int mode_bit;
 	int curr_voltage;
 	int slew_rate;
+	int restart_config_done;
+	struct syscore_ops ncp6335d_syscore;
+	struct mutex restart_lock;
 };
 
 static struct ncp6335d_info *ncp6335d;
@@ -76,14 +80,11 @@ static void dump_registers(struct ncp6335d_info *dd,
 #endif
 }
 
-int ncp6335d_restart_config()
+static void ncp6335d_restart_config(void)
 {
 	int rc, set_val;
 
-	if (!ncp6335d) {
-		pr_err("%s: OnSemi NCP6335D driver not intialized\n", __func__);
-		return -ENODEV;
-	}
+	mutex_lock(&ncp6335d->restart_lock);
 
 	set_val = DIV_ROUND_UP(NCP6335D_DEF_VTG_UV - NCP6335D_MIN_VOLTAGE_UV,
 						NCP6335D_STEP_VOLTAGE_UV);
@@ -94,9 +95,10 @@ int ncp6335d_restart_config()
 	else
 		udelay(20);
 
-	return rc;
+	ncp6335d->restart_config_done = true;
+
+	mutex_unlock(&ncp6335d->restart_lock);
 }
-EXPORT_SYMBOL(ncp6335d_restart_config);
 
 static void ncp633d_slew_delay(struct ncp6335d_info *dd,
 					int prev_uV, int new_uV)
@@ -179,6 +181,17 @@ static int ncp6335d_set_voltage(struct regulator_dev *rdev,
 	int rc, set_val, new_uV;
 	struct ncp6335d_info *dd = rdev_get_drvdata(rdev);
 
+	mutex_lock(&ncp6335d->restart_lock);
+	/*
+	 * Do not allow any other voltage transitions after
+	 * restart configuration is done.
+	 */
+	if (dd->restart_config_done) {
+		dev_err(dd->dev, "Restart config done. Cannot set volatage\n");
+		rc = -EINVAL;
+		goto err_set_vtg;
+	}
+
 	set_val = DIV_ROUND_UP(min_uV - NCP6335D_MIN_VOLTAGE_UV,
 					NCP6335D_STEP_VOLTAGE_UV);
 	new_uV = (set_val * NCP6335D_STEP_VOLTAGE_UV) +
@@ -186,7 +199,8 @@ static int ncp6335d_set_voltage(struct regulator_dev *rdev,
 	if (new_uV > (max_uV + NCP6335D_STEP_VOLTAGE_UV)) {
 		dev_err(dd->dev, "Unable to set volatge (%d %d)\n",
 							min_uV, max_uV);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_set_vtg;
 	}
 
 	temp = dd->vsel_ctrl_val & ~NCP6335D_VOUT_SEL_MASK;
@@ -204,6 +218,8 @@ static int ncp6335d_set_voltage(struct regulator_dev *rdev,
 
 	dump_registers(dd, dd->vsel_reg, __func__);
 
+err_set_vtg:
+	mutex_unlock(&ncp6335d->restart_lock);
 	return rc;
 }
 
@@ -407,12 +423,15 @@ static int __devinit ncp6335d_regulator_probe(struct i2c_client *client,
 	dd->init_data = pdata->init_data;
 	dd->dev = &client->dev;
 	i2c_set_clientdata(client, dd);
+	dd->restart_config_done = false;
 
 	rc = ncp6335d_init(dd, pdata);
 	if (rc) {
 		dev_err(&client->dev, "Unable to intialize the regulator\n");
 		return -EINVAL;
 	}
+
+	mutex_init(&dd->restart_lock);
 
 	dd->regulator = regulator_register(&rdesc, &client->dev,
 					dd->init_data, dd, NULL);
@@ -423,6 +442,12 @@ static int __devinit ncp6335d_regulator_probe(struct i2c_client *client,
 	}
 
 	ncp6335d = dd;
+	/*
+	 * Register for the syscore shutdown hook. This is to make sure
+	 * that the buck voltage is set to default before restart.
+	 */
+	dd->ncp6335d_syscore.shutdown = ncp6335d_restart_config;
+	register_syscore_ops(&dd->ncp6335d_syscore);
 
 	return 0;
 }
@@ -432,6 +457,10 @@ static int __devexit ncp6335d_regulator_remove(struct i2c_client *client)
 	struct ncp6335d_info *dd = i2c_get_clientdata(client);
 
 	regulator_unregister(dd->regulator);
+
+	unregister_syscore_ops(&dd->ncp6335d_syscore);
+
+	mutex_destroy(&dd->restart_lock);
 
 	return 0;
 }
