@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/reboot.h>
 #include <linux/pm.h>
-#include <linux/regulator/fan53555.h>
 #include <asm/system_misc.h>
 #include <mach/proc_comm.h>
 
@@ -34,13 +33,7 @@ static void msm_pm_power_off(void)
 
 static void msm_pm_restart(char str, const char *cmd)
 {
-	int rc;
-
 	pr_debug("The reset reason is %x\n", restart_reason);
-
-	rc = fan53555_restart_config();
-	if (rc)
-		pr_err("Unable to configure FAN53555 for restart\n");
 
 	/* Disable interrupts */
 	local_irq_disable();
