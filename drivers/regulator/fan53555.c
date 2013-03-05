@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
+#include <linux/syscore_ops.h>
 #include <linux/regulator/fan53555.h>
 #include <linux/delay.h>
 
@@ -87,6 +88,9 @@ struct fan53555_device_info {
 	unsigned int sleep_vol_cache;
 	int curr_voltage;
 	unsigned int vsel_ctrl_val;
+	int restart_config_done;
+	struct syscore_ops fan53555_syscore;
+	struct mutex restart_lock;
 };
 
 static struct fan53555_device_info *fan53555;
@@ -116,15 +120,11 @@ static void fan53555_slew_delay(struct fan53555_device_info *di,
 	udelay(delay);
 }
 
-int fan53555_restart_config()
+static void fan53555_restart_config(void)
 {
 	int rc, set_val;
 
-	if (!fan53555) {
-		pr_err("%s: Fairchild FAN53555 driver not intialized\n",
-								__func__);
-		return -ENODEV;
-	}
+	mutex_lock(&fan53555->restart_lock);
 
 	set_val = DIV_ROUND_UP(FAN53555_DEF_VTG_UV - fan53555->vsel_min,
 			fan53555->vsel_step);
@@ -135,9 +135,10 @@ int fan53555_restart_config()
 	else
 		udelay(20);
 
-	return rc;
+	fan53555->restart_config_done = true;
+
+	mutex_unlock(&fan53555->restart_lock);
 }
-EXPORT_SYMBOL(fan53555_restart_config);
 
 static int fan53555_enable(struct regulator_dev *rdev)
 {
@@ -206,13 +207,25 @@ static int fan53555_set_voltage(struct regulator_dev *rdev,
 	int ret, set_val, new_uV;
 	unsigned int temp = 0;
 
+	mutex_lock(&di->restart_lock);
+	/*
+	 * Do not allow any other voltage transitions after
+	 * restart configuration is done.
+	 */
+	if (di->restart_config_done) {
+		dev_err(di->dev, "Restart config done. Cannot set volatage\n");
+		ret = -EINVAL;
+		goto err_set_vtg;
+	}
+
 	set_val = DIV_ROUND_UP(min_uV - di->vsel_min, di->vsel_step);
 	new_uV = (set_val * di->vsel_step) + di->vsel_min;
 
 	if (new_uV > (max_uV + di->vsel_step)) {
 		dev_err(di->dev, "Unable to set volatge (%d %d)\n",
 							min_uV, max_uV);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_set_vtg;
 	}
 
 	temp = di->vsel_ctrl_val & ~VSEL_NSEL_MASK;
@@ -222,7 +235,7 @@ static int fan53555_set_voltage(struct regulator_dev *rdev,
 	if (ret) {
 		dev_err(di->dev, "Unable to set volatge (%d %d)\n",
 							min_uV, max_uV);
-		return ret;
+		goto err_set_vtg;
 	} else {
 		fan53555_slew_delay(di, di->curr_voltage, new_uV);
 		di->curr_voltage = new_uV;
@@ -231,6 +244,8 @@ static int fan53555_set_voltage(struct regulator_dev *rdev,
 
 	dump_registers(di, di->vol_reg, __func__);
 
+err_set_vtg:
+	mutex_unlock(&di->restart_lock);
 	return ret;
 }
 
@@ -388,6 +403,7 @@ static int __devinit fan53555_regulator_probe(struct i2c_client *client,
 	di->dev = &client->dev;
 	di->regulator = pdata->regulator;
 	i2c_set_clientdata(client, di);
+	di->restart_config_done = false;
 	/* Get chip ID */
 	ret = regmap_read(di->regmap, FAN53555_ID1, &val);
 	if (ret < 0) {
@@ -404,6 +420,7 @@ static int __devinit fan53555_regulator_probe(struct i2c_client *client,
 	di->chip_rev = val & DIE_REV;
 	dev_info(&client->dev, "FAN53555 Option[%d] Rev[%d] Detected!\n",
 				di->chip_id, di->chip_rev);
+	mutex_init(&di->restart_lock);
 	/* Device init */
 	ret = fan53555_device_setup(di, pdata);
 	if (ret < 0) {
@@ -420,6 +437,12 @@ static int __devinit fan53555_regulator_probe(struct i2c_client *client,
 	}
 
 	fan53555 = di;
+	/*
+	 * Register for the syscore shutdown hook. This is to make sure
+	 * that the buck voltage is set to default before restart.
+	 */
+	di->fan53555_syscore.shutdown = fan53555_restart_config;
+	register_syscore_ops(&di->fan53555_syscore);
 
 	dump_registers(di, FAN53555_VSEL0, __func__);
 	dump_registers(di, FAN53555_VSEL1, __func__);
@@ -437,6 +460,9 @@ static int __devexit fan53555_regulator_remove(struct i2c_client *client)
 	struct fan53555_device_info *di = i2c_get_clientdata(client);
 
 	regulator_unregister(di->rdev);
+	unregister_syscore_ops(&di->fan53555_syscore);
+	mutex_destroy(&di->restart_lock);
+
 	return 0;
 }
 
