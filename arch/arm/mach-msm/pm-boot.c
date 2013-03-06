@@ -173,12 +173,35 @@ int __devinit msm_pm_boot_init(struct msm_pm_boot_platform_data *pdata)
 			 * On 8625 while cores coming out of GDFS observed
 			 * the memory corruption at very first memory read.
 			 */
-			msm_pm_reset_vector[0] = 0xE59F000C; /* ldr r0, 0x14 */
-			msm_pm_reset_vector[1] = 0xE59F1008; /* ldr r1, 0x14 */
-			msm_pm_reset_vector[2] = 0xE1500001; /* cmp r0, r1 */
-			msm_pm_reset_vector[3] = 0x1AFFFFFB; /* bne 0x0 */
-			msm_pm_reset_vector[4] = 0xE12FFF10; /* bx  r0 */
-			msm_pm_reset_vector[5] = entry; /* 0x14 */
+
+			/* ldr r0, 0x34 */
+			msm_pm_reset_vector[0] = 0xE59F002C;
+			/* ldr r1, 0x34 */
+			msm_pm_reset_vector[1] = 0xE59F1028;
+			/* cmp r0, r1 */
+			msm_pm_reset_vector[2] = 0xE1500001;
+			/* bne 0x0 */
+			msm_pm_reset_vector[3] = 0x1AFFFFFB;
+			/* mrc p15, 0x0, r2, c0, c0, 0x5 */
+			msm_pm_reset_vector[4] = 0xEE102FB0;
+			/* and r2, r2, #0x3 */
+			msm_pm_reset_vector[5] = 0xE2022003;
+			/* mov r3, #0xfc00000 */
+			msm_pm_reset_vector[6] = 0xE3A036FC;
+			/* mov r4, #0x4 */
+			msm_pm_reset_vector[7] = 0xE3A04004;
+			/* mul r4, r4, r2 */
+			msm_pm_reset_vector[8] = 0xE0040294;
+			/* mov r5, #0x40 */
+			msm_pm_reset_vector[9] = 0xE3A05040;
+			/* add r3, r3, r5 */
+			msm_pm_reset_vector[10] = 0xE0833005;
+			/* str r0, [r3, r4] */
+			msm_pm_reset_vector[11] = 0xE7830004;
+			/* bx r0 */
+			msm_pm_reset_vector[12] = 0xE12FFF10;
+			/* 0x34 */
+			msm_pm_reset_vector[13] = entry;
 
 			/*
 			 * Here upper 16bits[16:31] used by CORE1
