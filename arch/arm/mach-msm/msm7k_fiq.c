@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <linux/irq.h>
 #include <asm/fiq.h>
 #include <asm/unwind.h>
@@ -21,6 +22,7 @@
 #include <mach/irqs.h>
 #include <mach/socinfo.h>
 #include <mach/fiq.h>
+#include <mach/msm_iomap.h>
 
 #include "msm_watchdog.h"
 
@@ -53,6 +55,81 @@ void msm7k_fiq_handler(void)
 	unwind_backtrace(&ctx_regs, current);
 
 	if (fiq_counter == 1 && (cpu_is_msm8625() || cpu_is_msm8625q())) {
+		if (cpu_is_msm8625()) {
+			/*
+			 * Dumping MPA5 status registers
+			 */
+			pr_info("MPA5_CFG_CTL_REG = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x30));
+			pr_info("MPA5_BOOT_REMAP_ADDR = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x34));
+			pr_info("MPA5_GDFS_CNT_VAL = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x38));
+			pr_info("MPA5_STATUS_REG = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x3c));
+
+			/*
+			 * Dumping SPM registers
+			 */
+			pr_info("SPM0_SAW2_CFG	= 0x%x\n",
+					__raw_readl(MSM_SAW0_BASE + 0x8));
+			pr_info("SPM0_SAW2_STS_0 = 0x%x\n",
+					__raw_readl(MSM_SAW0_BASE + 0xC));
+			pr_info("SPM0_SAW2_CTL = 0x%x\n",
+					__raw_readl(MSM_SAW0_BASE + 0x20));
+			pr_info("SPM1_SAW2_CFG = 0x%x\n",
+					__raw_readl(MSM_SAW1_BASE + 0x8));
+			pr_info("SPM1_SAW2_STS_0 = 0x%x\n",
+					__raw_readl(MSM_SAW1_BASE + 0xC));
+			pr_info("SPM1_SAW2_CTL = 0x%x\n",
+					__raw_readl(MSM_SAW1_BASE + 0x20));
+		} else if (cpu_is_msm8625q()) {
+			/*
+			 * Dumping MPA5 status registers
+			 */
+			pr_info("MPA5_CFG_CTL_REG = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x30));
+			pr_info("MPA5_BOOT_REMAP_ADDR = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x34));
+			pr_info("MPA5_GDFS_CNT_VAL = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x38));
+			pr_info("MPA5_STATUS_REG = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x3c));
+			pr_info("MPA5_CFG_CTL_REG1 = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x48));
+			pr_info("MPA5_BOOT_REMAP_ADDR1 = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x4c));
+			pr_info("MPA5_STATUS_REG1 = 0x%x\n",
+					__raw_readl(MSM_CFG_CTL_BASE + 0x50));
+
+			/*
+			 * Dumping SPM registers
+			 */
+			pr_info("SPM0_SAW2_CFG = 0x%x\n",
+					__raw_readl(MSM_SAW0_BASE + 0x8));
+			pr_info("SPM0_SAW2_STS_0 = 0x%x\n",
+					__raw_readl(MSM_SAW0_BASE + 0xC));
+			pr_info("SPM0_SAW2_CTL = 0x%x\n",
+					__raw_readl(MSM_SAW0_BASE + 0x20));
+			pr_info("SPM1_SAW2_CFG = 0x%x\n",
+					__raw_readl(MSM_SAW1_BASE + 0x8));
+			pr_info("SPM1_SAW2_STS_0 = 0x%x\n",
+					__raw_readl(MSM_SAW1_BASE + 0xC));
+			pr_info("SPM1_SAW2_CTL = 0x%x\n",
+					__raw_readl(MSM_SAW1_BASE + 0x20));
+			pr_info("SPM2_SAW2_CFG = 0x%x\n",
+					__raw_readl(MSM_SAW2_BASE + 0x8));
+			pr_info("SPM2_SAW2_STS_0 = 0x%x\n",
+					__raw_readl(MSM_SAW2_BASE + 0xC));
+			pr_info("SPM2_SAW2_CTL = 0x%x\n",
+					__raw_readl(MSM_SAW2_BASE + 0x20));
+			pr_info("SPM3_SAW2_CFG = 0x%x\n",
+					__raw_readl(MSM_SAW3_BASE + 0x8));
+			pr_info("SPM3_SAW2_STS_0 = 0x%x\n",
+					__raw_readl(MSM_SAW3_BASE + 0xC));
+			pr_info("SPM3_SAW2_CTL = 0x%x\n",
+					__raw_readl(MSM_SAW3_BASE + 0x20));
+		}
 		cpumask_copy(&fiq_cpu_mask, cpu_online_mask);
 		cpu_clear(this_cpu, fiq_cpu_mask);
 		gic_raise_secure_softirq(&fiq_cpu_mask, GIC_SECURE_SOFT_IRQ);
