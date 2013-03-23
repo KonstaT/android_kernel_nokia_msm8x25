@@ -192,3 +192,113 @@ exit\@:
 	ldmfd   sp!, {r5, r6}
 	.endif
 .endm
+
+.macro	DUMP_SPM_REG, addr
+	stmfd	sp!, {r5, r6}
+	mrc     p15, 0, r6, c0, c0, 5
+	and     r6, r6, #0x3
+	teq     r6, #0x1
+	beq     core1\@
+	teq     r6, #0x2
+	beq     core2\@
+	teq     r6, #0x3
+	beq     core3\@
+
+	/*
+	 * SAW2_CFG (0x8)
+	 */
+	ldr	r5, =spm0_base_addr
+	ldr	r5, [r5]
+	ldr	r6, [r5, #0x8]
+	ldr	r5, =\addr
+	ldr     r5, [r5]
+	str	r6, [r5, #0x50]
+
+	/*
+	 * SAW2_SPM_CTL (0x20)
+	 */
+	ldr     r5, =spm0_base_addr
+	ldr     r5, [r5]
+	ldr     r6, [r5, #0x20]
+	ldr     r5, =\addr
+	ldr     r5, [r5]
+	str     r6, [r5, #0x54]
+
+	/*
+	 * APPS_PWRDOWN
+	 */
+	ldr     r5, =apps_pwr_dwn
+	ldr     r5, [r5]
+	ldr     r6, [r5]
+	ldr     r5, =\addr
+	ldr     r5, [r5]
+	str     r6, [r5, #0x58]
+
+	b	 exit\@
+core1\@:
+	/*
+	 * SAW2_CFG (0x8)
+	 */
+	ldr	r5, =spm1_base_addr
+	ldr	r5, [r5]
+	ldr	r6, [r5, #0x8]
+	ldr	r5, =\addr
+	ldr     r5, [r5]
+	str	r6, [r5, #0x60]
+
+	/*
+	 * SAW2_SPM_CTL (0x20)
+	 */
+	ldr     r5, =spm1_base_addr
+	ldr     r5, [r5]
+	ldr     r6, [r5, #0x20]
+	ldr     r5, =\addr
+	ldr     r5, [r5]
+	str     r6, [r5, #0x64]
+	b	 exit\@
+
+core2\@:
+	/*
+	 * SAW2_CFG (0x8)
+	 */
+	ldr	r5, =spm2_base_addr
+	ldr	r5, [r5]
+	ldr	r6, [r5, #0x8]
+	ldr	r5, =\addr
+	ldr     r5, [r5]
+	str	r6, [r5, #0x70]
+
+	/*
+	 * SAW2_SPM_CTL (0x20)
+	 */
+	ldr     r5, =spm2_base_addr
+	ldr     r5, [r5]
+	ldr     r6, [r5, #0x20]
+	ldr     r5, =\addr
+	ldr     r5, [r5]
+	str     r6, [r5, #0x74]
+	b	 exit\@
+core3\@:
+	/*
+	 * SAW2_CFG (0x8)
+	 */
+	ldr	r5, =spm3_base_addr
+	ldr	r5, [r5]
+	ldr	r6, [r5, #0x8]
+	ldr	r5, =\addr
+	ldr     r5, [r5]
+	str	r6, [r5, #0x80]
+
+	/*
+	 * SAW2_SPM_CTL (0x20)
+	 */
+	ldr     r5, =spm3_base_addr
+	ldr     r5, [r5]
+	ldr     r6, [r5, #0x20]
+	ldr     r5, =\addr
+	ldr     r5, [r5]
+	str     r6, [r5, #0x84]
+	b	 exit\@
+exit\@:
+	ldmfd	sp!, {r5, r6}
+.endm

@@ -146,6 +146,7 @@ skip:
 	SUSPEND_8x25_L2
 	SET_SMP_COHERENCY OFF
 
+	DUMP_SPM_REG idle_v7_start_ptr
 	MARKER	idle_v7_start_ptr 0x4 0x7 0x1
 
 	wfi
@@ -337,6 +338,26 @@ l2x0_base_addr:
 	.globl	idle_v7_start_ptr
 idle_v7_start_ptr:
 	.long	0x0
+
+	.globl spm0_base_addr
+spm0_base_addr:
+	.long 0x0
+
+	.globl spm1_base_addr
+spm1_base_addr:
+	.long 0x0
+
+	.globl spm2_base_addr
+spm2_base_addr:
+	.long 0x0
+
+	.globl spm3_base_addr
+spm3_base_addr:
+	.long 0x0
+
+	.globl  apps_pwr_dwn
+apps_pwr_dwn:
+	.long   0x0
 
 /*
  * Default the l2 flush flag to 1 so that caches are flushed during power

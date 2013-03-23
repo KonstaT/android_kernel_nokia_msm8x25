@@ -44,6 +44,11 @@ extern unsigned long msm_pm_boot_vector[NR_CPUS];
 extern uint32_t target_type;
 extern uint32_t apps_power_collapse;
 extern uint32_t *l2x0_base_addr;
+extern uint32_t *spm0_base_addr;
+extern uint32_t *spm1_base_addr;
+extern uint32_t *spm2_base_addr;
+extern uint32_t *spm3_base_addr;
+extern uint32_t *apps_pwr_dwn;
 /* test code */
 extern uint32_t *idle_v7_start_ptr;
 /* test code */
