@@ -51,6 +51,7 @@ extern uint32_t *spm3_base_addr;
 extern uint32_t *apps_pwr_dwn;
 /* test code */
 extern uint32_t *idle_v7_start_ptr;
+extern uint32_t *pm_write_smem_data;
 /* test code */
 #else
 static inline void msm_pm_set_l2_flush_flag(unsigned int flag)
