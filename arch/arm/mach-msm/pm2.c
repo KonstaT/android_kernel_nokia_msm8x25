@@ -1977,6 +1977,7 @@ static int __init msm_pm_init(void)
 	}
 
 	idle_v7_start_ptr = virt_start_ptr;
+	pm_write_smem_data = (void *)msm_pm_smem_data;
 
 #ifdef CONFIG_MSM_MEMORY_LOW_POWER_MODE
 	/* The wakeup_reason field is overloaded during initialization time

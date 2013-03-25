@@ -147,7 +147,9 @@ skip:
 	SET_SMP_COHERENCY OFF
 
 	DUMP_SPM_REG idle_v7_start_ptr
+	WRITE_SMEM pm_write_smem_data 0xAA
 	MARKER	idle_v7_start_ptr 0x4 0x7 0x1
+	dsb
 
 	wfi
 	DELAY_8x25 300
@@ -359,6 +361,9 @@ spm3_base_addr:
 apps_pwr_dwn:
 	.long   0x0
 
+	.globl pm_write_smem_data
+pm_write_smem_data:
+	.long	0x0
 /*
  * Default the l2 flush flag to 1 so that caches are flushed during power
  * collapse unless the  L2 driver decides to flush them only during L2
