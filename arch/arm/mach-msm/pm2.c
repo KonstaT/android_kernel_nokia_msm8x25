@@ -910,6 +910,9 @@ static int msm_pm_power_collapse
 	 */
 	*(uint32_t *)(virt_start_ptr + 0x38) = (1 << from_idle);
 
+	/* Clear "reserved1" variable in msm_pm_smem_data */
+	msm_pm_smem_data->reserved1 = 0x0;
+
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND|MSM_PM_DEBUG_POWER_COLLAPSE,
 		KERN_INFO, "%s(): idle %d, delay %u, limit %u\n", __func__,
 		(int)from_idle, sleep_delay, sleep_limit);

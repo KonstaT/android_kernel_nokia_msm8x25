@@ -153,11 +153,16 @@ skip_resume\@:
 .endm
 
 .macro WRITE_SMEM, addr, val
+	ldr     r0, =apps_power_collapse
+	ldr	r0, [r0]
+	cmp     r0, #POWER_COLLAPSED
+	bne	dont_write_smem
 	ldr	r0, =\addr
 	ldr	r0, [r0]
 	mov	r1, #\val
 	/* write to "reserved1" field in "msm_pm_smem_t" structure */
 	str	r1, [r0, #0xC]
+dont_write_smem:
 .endm
 
 .macro MARKER, addr, spc_val, pc_val, on
