@@ -1902,13 +1902,6 @@ static void __init msm_cpr_init(void)
 			msm_cpr_pdata.max_quot = 1350;
 	}
 
-	/**
-	 * Bits 4:0 of pvs_fuse provide mapping to the safe boot up voltage.
-	 * Boot up mode is by default Turbo.
-	 */
-	msm_cpr_mode_data.calibrated_uV =
-				msm_c2_pmic_mv[cpr_info->pvs_fuse & 0x1F];
-
 	if (cpu_is_msm8625q()) {
 		msm_cpr_mode_data.nom_Vmin = 950000;
 		msm_cpr_mode_data.turbo_Vmin = 1100000;
@@ -1930,14 +1923,25 @@ static void __init msm_cpr_init(void)
 	pr_info("%s: cpr: turbo_quot: 0x%x\n", __func__, cpr_info->turbo_quot);
 	pr_info("%s: cpr: pvs_fuse: 0x%x\n", __func__, cpr_info->pvs_fuse);
 	pr_info("%s: cpr: floor_fuse: 0x%x\n", __func__, cpr_info->floor_fuse);
-	kfree(cpr_info);
 
 	if ((msm8625_cpu_id() == MSM8625A) || cpu_is_msm8625q())
 		msm_cpr_pdata.max_freq = 1209600;
 	else if (msm8625_cpu_id() == MSM8625) {
 		msm_cpr_pdata.max_freq = 1008000;
-		msm_cpr_mode_data.turbo_Vmin = 1175000;
+		if ((cpr_info->floor_fuse & 0x3) == 0x3) {
+			msm_cpr_mode_data.nom_Vmin = 1175000;
+			msm_cpr_mode_data.turbo_Vmin = 1200000;
+		}
 	}
+	/**
+	 * Bits 4:0 of pvs_fuse provide mapping to the safe boot up voltage.
+	 * Boot up mode is by default Turbo.
+	 */
+	msm_cpr_mode_data.calibrated_uV =
+		(msm_c2_pmic_mv[cpr_info->pvs_fuse & 0x1F]
+			> msm_cpr_mode_data.turbo_Vmin
+		? msm_c2_pmic_mv[cpr_info->pvs_fuse & 0x1F]
+		: msm_cpr_mode_data.turbo_Vmin);
 
 	pr_info("%s: cpr: nom_Vmin: %d, turbo_Vmin: %d\n", __func__,
 		msm_cpr_mode_data.nom_Vmin,
@@ -1945,6 +1949,10 @@ static void __init msm_cpr_init(void)
 	pr_info("%s: cpr: nom_Vmax: %d, turbo_Vmax: %d\n", __func__,
 		msm_cpr_mode_data.nom_Vmax,
 		msm_cpr_mode_data.turbo_Vmax);
+	pr_info("%s: cpr: calibrated_uV: %d\n", __func__,
+		msm_cpr_mode_data.calibrated_uV);
+
+	kfree(cpr_info);
 
 	if (cpu_is_msm8625())
 		platform_device_register(&msm8625_vp_device);
