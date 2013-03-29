@@ -636,6 +636,11 @@ static void msm_pm_timeout(void)
 #elif defined(CONFIG_MSM_PM_TIMEOUT_HALT)
 	printk(KERN_EMERG "%s(): halting\n", __func__);
 #endif
+	/* Sending modem reset signal */
+	*(uint32_t *)(virt_start_ptr + 0x170) = 0x1;
+	smsm_change_state(SMSM_APPS_STATE, 0, SMSM_RESET);
+	*(uint32_t *)(virt_start_ptr + 0x170) = 0x2;
+
 	for (;;)
 		;
 }
