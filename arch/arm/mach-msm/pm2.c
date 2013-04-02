@@ -1981,9 +1981,9 @@ static int __init msm_pm_init(void)
 		spm1_base_addr = MSM_SAW1_BASE;
 		spm2_base_addr = MSM_SAW2_BASE;
 		spm3_base_addr = MSM_SAW3_BASE;
-		apps_pwr_dwn   = APPS_PWRDOWN;
 	}
 
+	apps_pwr_dwn   = APPS_PWRDOWN;
 	idle_v7_start_ptr = virt_start_ptr;
 	pm_write_smem_data = (void *)msm_pm_smem_data;
 
