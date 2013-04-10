@@ -372,6 +372,16 @@ static int acpuclk_8625q_set_rate(int cpu, unsigned long rate,
 	if (strt_s->pll != ACPU_PLL_TCXO)
 		plls_enabled |= 1 << strt_s->pll;
 
+	/* Increase the AXI bus frequency if needed */
+	if (strt_s->axiclk_khz <= tgt_s->axiclk_khz) {
+		res = clk_set_rate(drv_state.ebi1_clk,
+				tgt_s->axiclk_khz * 1000);
+		pr_debug("AXI bus set freq %d\n",
+				tgt_s->axiclk_khz * 1000);
+		if (res < 0)
+			pr_warning("Setting AXI min rate failed (%d)\n", res);
+	}
+
 	if (reason == SETRATE_CPUFREQ) {
 		/* Increase VDD if needed. */
 		if (tgt_s->vdd > cur_s->vdd) {
@@ -452,8 +462,8 @@ static int acpuclk_8625q_set_rate(int cpu, unsigned long rate,
 	if (reason == SETRATE_SWFI)
 		goto out;
 
-	/* Change the AXI bus frequency if we can. */
-	if (strt_s->axiclk_khz != tgt_s->axiclk_khz) {
+	/* Decrease the AXI bus frequency if suitable */
+	if (strt_s->axiclk_khz > tgt_s->axiclk_khz) {
 		res = clk_set_rate(drv_state.ebi1_clk,
 				tgt_s->axiclk_khz * 1000);
 		pr_debug("AXI bus set freq %d\n",
