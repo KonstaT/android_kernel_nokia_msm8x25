@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -79,6 +79,7 @@ static int mipi_cmd_nt35590_720p_pt_init(void)
 	pinfo.mipi.stream = 0; /* dma_p */
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_SW;
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;
+	pinfo.mipi.frame_rate = 58;
 	pinfo.mipi.te_sel = 1; /* TE from vsync gpio */
 	pinfo.mipi.interleave_max = 1;
 	pinfo.mipi.insert_dcs_cmd = TRUE;

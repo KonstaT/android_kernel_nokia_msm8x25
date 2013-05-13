@@ -1380,10 +1380,16 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 		((PAGE_SIZE - remainder)/fix->line_length) * mfd->fb_page;
 	var->bits_per_pixel = bpp * 8;	/* FrameBuffer color depth */
 	if (mfd->dest == DISPLAY_LCD) {
-		if (panel_info->type == MDDI_PANEL && panel_info->mddi.is_type1)
+		if (panel_info->type == MDDI_PANEL && panel_info->mddi.is_type1) {
 			var->reserved[4] = panel_info->lcd.refx100 / (100 * 2);
-		else
-			var->reserved[4] = panel_info->lcd.refx100 / 100;
+		} else {
+			if (panel_info->mipi.frame_rate && mdp_rev == MDP_REV_303) {
+				var->reserved[4] = panel_info->mipi.frame_rate;
+			}
+			else {
+				var->reserved[4] = panel_info->lcd.refx100 / 100;
+			}
+		}
 	} else {
 		if (panel_info->type == MIPI_VIDEO_PANEL) {
 			var->reserved[4] = panel_info->mipi.frame_rate;
