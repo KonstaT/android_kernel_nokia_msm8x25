@@ -1811,6 +1811,13 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (ev->status == 0x06 && hdev->ssp_mode > 0 &&
 							conn->ssp_mode > 0) {
 			struct hci_cp_auth_requested cp;
+			struct link_key *key;
+			key = hci_find_link_key(hdev, &conn->dst);
+			if (key && key->key_type == 0x05) {
+				BT_INFO("Previous key was authenticated, "
+					"updating the auth type for outgoing connection");
+				conn->auth_type = HCI_AT_DEDICATED_BONDING_MITM;
+			}
 			hci_remove_link_key(hdev, &conn->dst);
 			cp.handle = cpu_to_le16(conn->handle);
 			/*Initiates dedicated bonding as pin or key is missing
