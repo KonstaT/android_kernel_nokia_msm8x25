@@ -90,6 +90,7 @@ struct msm_request {
 	unsigned busy:1;
 	unsigned live:1;
 	unsigned alloced:1;
+	unsigned completing:1;
 
 	dma_addr_t dma;
 	dma_addr_t item_dma;
@@ -151,6 +152,7 @@ static void usb_do_remote_wakeup(struct work_struct *w);
 #define REMOTE_WAKEUP_DELAY	msecs_to_jiffies(1000)
 #define PHY_STATUS_CHECK_DELAY	(jiffies + msecs_to_jiffies(1000))
 #define EPT_PRIME_CHECK_DELAY	(jiffies + msecs_to_jiffies(1000))
+#define EP_DEQUEUE_WAIT		100 /* wait 1ms */
 
 struct usb_info {
 	/* lock for register/queue/device state changes */
@@ -1228,12 +1230,14 @@ dequeue:
 		}
 		req->busy = 0;
 		req->live = 0;
+		req->completing = 1;
 
 		if (req->req.complete) {
 			spin_unlock_irqrestore(&ui->lock, flags);
 			req->req.complete(&ept->ep, &req->req);
 			spin_lock_irqsave(&ui->lock, flags);
 		}
+		req->completing = 0;
 	}
 	spin_unlock_irqrestore(&ui->lock, flags);
 }
@@ -2238,6 +2242,30 @@ static int msm72k_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	struct msm_request *temp_req;
 	unsigned long flags;
+	u8	iter = 0;
+
+	spin_lock_irqsave(&ui->lock, flags);
+
+	/*
+	 * Only ep0 IN is exposed to composite.  When a req is dequeued
+	 * on ep0, check both ep0 IN and ep0 OUT queues.
+	 */
+	if (req == NULL || ui == NULL || (ep->req == NULL
+		&& (ep->num != 0 || ui->ep0out.req == NULL))) {
+		spin_unlock_irqrestore(&ui->lock, flags);
+		return -EINVAL;
+	}
+
+	/* Synchronize handle_endpoint/msm72k_dequeue. Delay 1ms */
+	if (ep->num == 0) {
+		while ((iter < EP_DEQUEUE_WAIT) && req->completing) {
+			iter++;
+			spin_unlock_irqrestore(&ui->lock, flags);
+			udelay(10);
+			spin_lock_irqsave(&ui->lock, flags);
+		}
+	}
+	spin_unlock_irqrestore(&ui->lock, flags);
 
 	if (ep->num == 0) {
 		/* Flush both out and in control endpoints */
@@ -2246,10 +2274,8 @@ static int msm72k_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		return 0;
 	}
 
-	if (!(ui && req && ep->req))
-		return -EINVAL;
-
 	spin_lock_irqsave(&ui->lock, flags);
+
 	if (!req->busy) {
 		dev_dbg(&ui->pdev->dev, "%s: !req->busy\n", __func__);
 		spin_unlock_irqrestore(&ui->lock, flags);
