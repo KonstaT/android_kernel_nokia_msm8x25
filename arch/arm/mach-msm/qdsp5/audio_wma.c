@@ -1,6 +1,6 @@
 /* audio_wma.c - wma audio decoder driver
  *
- * Copyright (c) 2009, 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009, 2011-2013, The Linux Foundation. All rights reserved.
  *
  * Based on the mp3 native driver in arch/arm/mach-msm/qdsp5/audio_mp3.c
  *
@@ -1329,7 +1329,10 @@ static int audwma_process_eos(struct audio *audio,
 		rc = -EBUSY;
 		goto done;
 	}
-
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1383,6 +1386,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("audio_write: mf offset_val %x\n",
 						mfield_size);
 				if (copy_from_user(cpy_ptr, buf, mfield_size)) {
@@ -1417,6 +1424,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 		if (audio->reserved) {
 			MM_DBG("append reserved byte %x\n", audio->rsv_byte);
 			*cpy_ptr = audio->rsv_byte;
+			if (mfield_size > frame->size) {
+				rc = -EINVAL;
+				break;
+			}
 			xfer = (count > ((frame->size - mfield_size) - 1)) ?
 				(frame->size - mfield_size) - 1 : count;
 			cpy_ptr++;
