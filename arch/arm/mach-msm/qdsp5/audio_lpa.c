@@ -1,7 +1,7 @@
 
 /* audio_lpa.c - low power audio driver
  *
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, The Linux Foundation. All rights reserved.
  *
  * Based on the PCM decoder driver in arch/arm/mach-msm/qdsp5/audio_pcm.c
  *
@@ -929,6 +929,7 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (cmd == AUDIO_GET_STATS) {
 		struct msm_audio_stats stats;
+		memset(&stats, 0, sizeof(stats));
 		stats.byte_count = audpp_avsync_byte_count(audio->dec_id);
 		stats.sample_count = audpp_avsync_sample_count(audio->dec_id);
 		if (copy_to_user((void *) arg, &stats, sizeof(stats)))
@@ -1040,6 +1041,7 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case AUDIO_GET_CONFIG: {
 		struct msm_audio_config config;
+		memset(&config, 0, sizeof(config));
 		config.buffer_count = audio->buffer_count;
 		config.buffer_size = audio->buffer_size;
 		config.sample_rate = audio->out_sample_rate;

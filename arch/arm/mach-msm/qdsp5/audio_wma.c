@@ -1,6 +1,6 @@
 /* audio_wma.c - wma audio decoder driver
  *
- * Copyright (c) 2009, 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009, 2011-2013, The Linux Foundation. All rights reserved.
  *
  * Based on the mp3 native driver in arch/arm/mach-msm/qdsp5/audio_mp3.c
  *
@@ -833,6 +833,7 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (cmd == AUDIO_GET_STATS) {
 		struct msm_audio_stats stats;
+		memset(&stats, 0, sizeof(stats));
 		stats.byte_count = audpp_avsync_byte_count(audio->dec_id);
 		stats.sample_count = audpp_avsync_sample_count(audio->dec_id);
 		if (copy_to_user((void *)arg, &stats, sizeof(stats)))
