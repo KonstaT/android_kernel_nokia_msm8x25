@@ -1880,7 +1880,10 @@ static int audmp3_process_eos(struct audio *audio,
 		rc = -EBUSY;
 		goto done;
 	}
-
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1937,6 +1940,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("mf offset_val %x\n", mfield_size);
 				if (copy_from_user(cpy_ptr, buf, mfield_size)) {
 					rc = -EFAULT;
@@ -1970,6 +1977,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 		if (audio->reserved) {
 			MM_DBG("append reserved byte %x\n", audio->rsv_byte);
 			*cpy_ptr = audio->rsv_byte;
+			if (mfield_size > frame->size) {
+				rc = -EINVAL;
+				break;
+			}
 			xfer = (count > ((frame->size - mfield_size) - 1)) ?
 				(frame->size - mfield_size) - 1 : count;
 			cpy_ptr++;
