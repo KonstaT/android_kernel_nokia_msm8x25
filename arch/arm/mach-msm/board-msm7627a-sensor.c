@@ -15,7 +15,7 @@
 #include <linux/gpio.h>
 #include <asm/mach-types.h>
 #include <linux/i2c.h>
-#include <devices-msm7x2xa.h>
+#include "devices-msm7x2xa.h"
 
 #ifdef CONFIG_AVAGO_APDS990X
 #include <linux/input/apds990x.h>
