@@ -862,16 +862,23 @@ fail:
 static void
 gser_unbind(struct usb_configuration *c, struct usb_function *f)
 {
-#ifdef CONFIG_MODEM_SUPPORT
 	struct f_gser *gser = func_to_gser(f);
-#endif
+
 	if (gadget_is_dualspeed(c->cdev->gadget))
 		usb_free_descriptors(f->hs_descriptors);
 	if (gadget_is_superspeed(c->cdev->gadget))
 		usb_free_descriptors(f->ss_descriptors);
 	usb_free_descriptors(f->descriptors);
+	if (gser->port.out)
+		gser->port.out->driver_data = NULL;
+	if (gser->port.in)
+		gser->port.in->driver_data = NULL;
+
 #ifdef CONFIG_MODEM_SUPPORT
-	gs_free_req(gser->notify, gser->notify_req);
+	if (gser->notify) {
+		gs_free_req(gser->notify, gser->notify_req);
+		gser->notify->driver_data = NULL;
+	}
 #endif
 	kfree(func_to_gser(f));
 }
@@ -923,7 +930,7 @@ int gser_bind_config(struct usb_configuration *c, u8 port_num)
 	gser->port.func.disable = gser_disable;
 	gser->transport		= gserial_ports[port_num].transport;
 #ifdef CONFIG_MODEM_SUPPORT
-	/* We support only three ports for now */
+	/* FIXME: hardcode. We support only three ports for now */
 	if (port_num == 0)
 		gser->port.func.name = "modem";
 	else if (port_num == 1)
@@ -940,6 +947,9 @@ int gser_bind_config(struct usb_configuration *c, u8 port_num)
 	gser->port.disconnect = gser_disconnect;
 	gser->port.send_break = gser_send_break;
 #endif
+	if (gser->transport == USB_GADGET_XPORT_SMD) {
+		gsmd_set_smd_port(&gser->port);
+	}
 
 	status = usb_add_function(c, &gser->port.func);
 	if (status)

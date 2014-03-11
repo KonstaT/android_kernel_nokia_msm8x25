@@ -2,7 +2,7 @@
  *
  * MSM MDDI Hardware Registers and Structures
  *
- * Copyright (C) 2007 QUALCOMM Incorporated
+ * Copyright (C) 2007 Qualcomm Technologies, Inc.
  * Copyright (C) 2007 Google Incorporated
  *
  * This software is licensed under the terms of the GNU General Public

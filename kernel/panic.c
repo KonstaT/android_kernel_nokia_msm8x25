@@ -23,6 +23,8 @@
 #include <linux/init.h>
 #include <linux/nmi.h>
 #include <linux/dmi.h>
+#include <asm/memory.h>
+#include <asm/cacheflush.h>
 
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
@@ -63,6 +65,14 @@ void __weak panic_smp_self_stop(void)
 	while (1)
 		cpu_relax();
 }
+#ifdef CONFIG_ARCH_MSM
+#define __LOG_BUF_LEN   (1 << CONFIG_LOG_BUF_SHIFT)
+extern char __log_buf[];
+void flush_log_buf(void *ignored)
+{
+	dmac_clean_range(__log_buf, __log_buf + __LOG_BUF_LEN);
+}
+#endif
 
 /**
  *	panic - halt the system
@@ -79,6 +89,9 @@ void panic(const char *fmt, ...)
 	va_list args;
 	long i, i_next = 0;
 	int state = 0;
+#if defined(CONFIG_ARCH_MSM) && defined(CONFIG_OUTER_CACHE)
+	unsigned long paddr;
+#endif
 
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
@@ -115,6 +128,22 @@ void panic(const char *fmt, ...)
 		dump_stack();
 #endif
 
+#ifdef CONFIG_ARCH_MSM
+	/* XXX: on_each_cpu "should" work in UP case, but the UP
+	 * version is wrapped with local_irq_disable/enable,
+	 * other than local_irq_save/restore. The previous will
+	 * corrupt the environment, so use "ifdef" here.
+	 */
+#ifdef CONFIG_SMP
+	on_each_cpu(flush_log_buf, NULL, 1);
+#else
+	flush_log_buf(NULL);
+#endif
+#ifdef CONFIG_OUTER_CACHE
+	paddr = (unsigned long)__virt_to_phys((unsigned long)__log_buf);
+	outer_clean_range(paddr, paddr + __LOG_BUF_LEN);
+#endif
+#endif
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle
 	 * everything else.
@@ -419,6 +448,9 @@ static void warn_slowpath_common(const char *file, int line, void *caller,
 				 unsigned taint, struct slowpath_args *args)
 {
 	const char *board;
+#if defined(CONFIG_ARCH_MSM) && defined(CONFIG_OUTER_CACHE)
+	unsigned long paddr;
+#endif
 
 	printk(KERN_WARNING "------------[ cut here ]------------\n");
 	printk(KERN_WARNING "WARNING: at %s:%d %pS()\n", file, line, caller);
@@ -433,6 +465,19 @@ static void warn_slowpath_common(const char *file, int line, void *caller,
 	dump_stack();
 	print_oops_end_marker();
 	add_taint(taint);
+#ifdef CONFIG_ARCH_MSM
+	/* XXX: we can not flush it in every online CPU by calling
+	 * on_each_cpu here in case of the endless recursion, due
+	 * to WARN_ON_ONCE(cpu_online(this_cpu) && irqs_disabled() \
+	 * && !oops_in_progress && !early_boot_irqs_disabled) in
+	 * smp_call_function_many() function.
+	 */
+	flush_log_buf(NULL);
+#ifdef CONFIG_OUTER_CACHE
+	paddr = (unsigned long)__virt_to_phys((unsigned long)__log_buf);
+	outer_clean_range(paddr, paddr + __LOG_BUF_LEN);
+#endif
+#endif
 }
 
 void warn_slowpath_fmt(const char *file, int line, const char *fmt, ...)

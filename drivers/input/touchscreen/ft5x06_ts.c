@@ -197,7 +197,7 @@ static void ft5x06_report_value(struct ft5x06_ts_data *data)
 		} else {
 			event->pressure = 0;
 		}
-		input_mt_slot(data->input_dev, i);
+		input_mt_slot(data->input_dev, event->finger_id[i]);
 		input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER,
 						!!event->pressure);
 		if (event->pressure == FT_PRESS) {
@@ -407,7 +407,6 @@ static int ft5x06_ts_resume(struct device *dev)
 		msleep(FT_RESET_DLY);
 		gpio_set_value_cansleep(data->pdata->reset_gpio, 1);
 	}
-	msleep(FT_STARTUP_DLY);
 	enable_irq(data->client->irq);
 
 	return 0;

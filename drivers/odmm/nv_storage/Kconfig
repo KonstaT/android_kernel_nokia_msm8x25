@@ -1,0 +1,7 @@
+
+menu "NVBK share memory "
+
+config NVBK_SHARE_MEM
+	default y
+endmenu
+

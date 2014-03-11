@@ -63,6 +63,37 @@ static struct platform_driver mipi_dsi_driver = {
 
 struct device dsi_dev;
 
+void mipi_dsi_te_ctrl(struct msm_fb_data_type *mfd, bool flag)
+{
+	int ret =0;
+
+	if (flag){		 //normal mode
+		ret = gpio_tlmm_config(
+				GPIO_CFG(
+				vsync_gpio, 1,
+				GPIO_CFG_INPUT,
+				GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_2MA),
+				GPIO_CFG_ENABLE);
+		if (ret) {
+		printk("[DISPLAY]%s: faile to config vsync_gpio = %d\n", __func__, vsync_gpio);
+		}
+		gpio_direction_input(vsync_gpio);
+		mipi_dsi_set_tear_on(mfd);
+
+	}else{		//idle mode
+		mipi_dsi_set_tear_off(mfd);	//must turn off panel TE before disable platform TD func
+		gpio_tlmm_config(
+			GPIO_CFG(
+				vsync_gpio, 0,
+				GPIO_CFG_OUTPUT,
+				GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_2MA),
+				GPIO_CFG_DISABLE);
+		gpio_direction_output(vsync_gpio, 0);
+	}
+}
+
 static int mipi_dsi_off(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -99,7 +130,8 @@ static int mipi_dsi_off(struct platform_device *pdev)
 				if (MDP_REV_303 != mdp_rev)
 					gpio_free(vsync_gpio);
 			}
-			mipi_dsi_set_tear_off(mfd);
+			//ensure platform TE off modify TE IRQ GPIO to output 0
+			//mipi_dsi_set_tear_off(mfd);
 		}
 	}
 
@@ -258,7 +290,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 		mutex_lock(&mfd->dma->ov_mutex);
 	else
 		down(&mfd->dma->mutex);
-
+		
 	ret = panel_next_on(pdev);
 
 	mipi_dsi_op_mode_config(mipi->mode);
@@ -293,9 +325,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 							__func__, vsync_gpio);
 						}
 						tlmm_settings = TRUE;
-
-						gpio_direction_input(
-							vsync_gpio);
+						gpio_direction_input(vsync_gpio);
 					} else {
 						if (!tlmm_settings) {
 							pr_err(
@@ -306,7 +336,9 @@ static int mipi_dsi_on(struct platform_device *pdev)
 					}
 				}
 			}
-			mipi_dsi_set_tear_on(mfd);
+			//this is the platform base logic, the tear will turn on every wake up
+			//LCM driver will do this so skip it here
+			//mipi_dsi_set_tear_on(mfd);
 		}
 	}
 

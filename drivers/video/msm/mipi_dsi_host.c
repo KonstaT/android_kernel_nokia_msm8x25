@@ -428,7 +428,7 @@ static int mipi_dsi_generic_read(struct dsi_buf *dp, struct dsi_cmd_desc *cm)
 		*hp |= DSI_HDR_LAST;
 
 	len = (cm->dlen > 2) ? 2 : cm->dlen;
-
+	
 	if (len == 1) {
 		*hp |= DSI_HDR_DTYPE(DTYPE_GEN_READ1);
 		*hp |= DSI_HDR_DATA1(cm->payload[0]);
@@ -1099,6 +1099,18 @@ void mipi_dsi_set_tear_off(struct msm_fb_data_type *mfd)
 	mipi_dsi_cmds_tx(&dsi_tx_buf, &dsi_tear_off_cmd, 1);
 }
 
+//pjn add to set column address 
+static char set_column_addr[5] = {0x2a, 0x00, 0x00, 0x01, 0xdf};
+static struct dsi_cmd_desc dsi_column_addr_cmd = {
+	DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(set_column_addr), set_column_addr};
+	
+void mipi_dsi_set_column_addr(struct msm_fb_data_type *mfd)
+{
+	mipi_dsi_buf_init(&dsi_tx_buf);
+	mipi_dsi_cmds_tx(&dsi_tx_buf, &dsi_column_addr_cmd, 1);
+}
+//end
+
 int mipi_dsi_cmd_reg_tx(uint32 data)
 {
 #ifdef DSI_HOST_DEBUG
@@ -1165,6 +1177,7 @@ int mipi_dsi_cmds_tx(struct dsi_buf *tp, struct dsi_cmd_desc *cmds, int cnt)
 		if (cm->wait)
 			msleep(cm->wait);
 		cm++;
+		MSM_DRM_DEBUG("i = %d\n", i);
 	}
 
 	if (video_mode)
@@ -1445,7 +1458,8 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 {
 
 	unsigned long flags;
-
+	unsigned long timeout;
+	
 #ifdef DSI_HOST_DEBUG
 	int i;
 	char *bp;
@@ -1481,7 +1495,10 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 	wmb();
 	spin_unlock_irqrestore(&dsi_mdp_lock, flags);
 
-	wait_for_completion(&dsi_dma_comp);
+	//wait_for_completion(&dsi_dma_comp);
+	timeout = wait_for_completion_timeout(&dsi_dma_comp, msecs_to_jiffies(200));
+	if(!timeout)
+		printk(KERN_INFO "%s[MIPI]dsi send data timeout!\n", __func__);
 
 	dma_unmap_single(&dsi_dev, tp->dmap, tp->len, DMA_TO_DEVICE);
 	tp->dmap = 0;
@@ -1531,8 +1548,12 @@ void mipi_dsi_cmd_mdp_busy(void)
 	}
 	spin_unlock_irqrestore(&dsi_mdp_lock, flags);
 
-	if (need_wait)
-		wait_for_completion(&dsi_mdp_comp);
+	if (need_wait){
+//		wait_for_completion(&dsi_mdp_comp);
+		if (!wait_for_completion_timeout(&dsi_mdp_comp, msecs_to_jiffies(200))) {
+			pr_err("%s: dma timeout error\n", __func__);
+		}
+	}
 }
 
 /*
@@ -1750,6 +1771,7 @@ irqreturn_t mipi_dsi_isr(int irq, void *ptr)
 	}
 
 	if (isr & DSI_INTR_CMD_DMA_DONE) {
+		//printk("%s():isr:0x%x,interrupt dma done\n",__func__,isr);
 		mipi_dsi_mdp_stat_inc(STAT_DSI_CMD);
 		spin_lock(&dsi_mdp_lock);
 		complete(&dsi_dma_comp);
@@ -1759,6 +1781,7 @@ irqreturn_t mipi_dsi_isr(int irq, void *ptr)
 	}
 
 	if (isr & DSI_INTR_CMD_MDP_DONE) {
+		//printk("%s():isr:0x%x,interrupt mdp done\n",__func__,isr);
 		mipi_dsi_mdp_stat_inc(STAT_DSI_MDP);
 		spin_lock(&dsi_mdp_lock);
 		dsi_ctrl_lock = FALSE;

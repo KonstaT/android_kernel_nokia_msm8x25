@@ -94,7 +94,8 @@ enum chg_type {
 	USB_CHG_TYPE__SDP,
 	USB_CHG_TYPE__CARKIT,
 	USB_CHG_TYPE__WALLCHARGER,
-	USB_CHG_TYPE__INVALID
+	USB_CHG_TYPE__UNKNOWN,
+	USB_CHG_TYPE__INVALID,
 };
 
 enum pre_emphasis_level {

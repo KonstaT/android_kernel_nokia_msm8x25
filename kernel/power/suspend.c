@@ -4,6 +4,7 @@
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
  * Copyright (c) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * This file is released under the GPLv2.
  */
@@ -26,6 +27,11 @@
 #include <linux/syscore_ops.h>
 #include <linux/rtc.h>
 #include <trace/events/power.h>
+
+#ifdef CONFIG_MSM_SM_EVENT
+#include <linux/sm_event_log.h>
+#include <linux/sm_event.h>
+#endif
 
 #include "power.h"
 
@@ -279,6 +285,10 @@ static int enter_state(suspend_state_t state)
 	if (!mutex_trylock(&pm_mutex))
 		return -EBUSY;
 
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_set_system_state (SM_STATE_SUSPEND);
+	sm_add_event(SM_POWER_EVENT | SM_POWER_EVENT_SUSPEND, SM_EVENT_START, 0, NULL, 0);
+#endif
 	suspend_sys_sync_queue();
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
 	error = suspend_prepare();
@@ -298,6 +308,10 @@ static int enter_state(suspend_state_t state)
 	suspend_finish();
  Unlock:
 	mutex_unlock(&pm_mutex);
+
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_add_event(SM_POWER_EVENT | SM_POWER_EVENT_RESUME, SM_EVENT_END, 0, NULL, 0);
+#endif
 	return error;
 }
 

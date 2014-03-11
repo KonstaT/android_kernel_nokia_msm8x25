@@ -100,10 +100,10 @@ static int msm_chg_init_rpc(unsigned long vers)
 		if (IS_ERR(chg_ep))
 			return -ENODATA;
 		chg_rpc_ids.vers_comp				= vers;
-		chg_rpc_ids.chg_usb_charger_connected_proc 	= 7;
-		chg_rpc_ids.chg_usb_charger_disconnected_proc 	= 8;
-		chg_rpc_ids.chg_usb_i_is_available_proc 	= 9;
-		chg_rpc_ids.chg_usb_i_is_not_available_proc 	= 10;
+		chg_rpc_ids.chg_usb_charger_connected_proc 	= 3;
+		chg_rpc_ids.chg_usb_charger_disconnected_proc 	= 4;
+		chg_rpc_ids.chg_usb_i_is_available_proc 	= 5;
+		chg_rpc_ids.chg_usb_i_is_not_available_proc 	= 6;
 		return 0;
 	} else
 		return -ENODATA;
@@ -644,7 +644,9 @@ void hsusb_chg_connected(enum chg_type chgtype)
 	char *chg_types[] = {"STD DOWNSTREAM PORT",
 			"CARKIT",
 			"DEDICATED CHARGER",
-			"INVALID"};
+			"UNKNOWN",
+			"INVALID",
+	};
 
 	if (chgtype == USB_CHG_TYPE__INVALID) {
 		msm_chg_usb_i_is_not_available();

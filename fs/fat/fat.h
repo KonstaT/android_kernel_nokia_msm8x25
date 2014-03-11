@@ -342,7 +342,7 @@ extern void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,
 extern void fat_time_unix2fat(struct msdos_sb_info *sbi, struct timespec *ts,
 			      __le16 *time, __le16 *date, u8 *time_cs);
 extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
-
+void fat_fs_error_dump(struct super_block *sb);
 int fat_cache_init(void);
 void fat_cache_destroy(void);
 

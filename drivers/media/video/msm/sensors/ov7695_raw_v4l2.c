@@ -630,6 +630,7 @@ int32_t ov7695_raw_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
 	struct msm_camera_sensor_info *info = s_ctrl->sensordata;
+	struct msm_camera_pip_ctl pip_ctl;
 	CDBG("%s IN\r\n", __func__);
 
 	CDBG("%s, sensor_pwd:%d\r\n",__func__, info->sensor_pwd);
@@ -654,34 +655,40 @@ int32_t ov7695_raw_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	//if (info->pmic_gpio_enable) {
 	//  lcd_camera_power_onoff(1);
 	//}
-	usleep_range(5000, 6000);
 	rc = msm_sensor_power_up(s_ctrl);
 	if (rc < 0) {
 	CDBG("%s: msm_sensor_power_up failed\n", __func__);
 	return rc;
 	}
-
-	/* turn on ldo and vreg */
 	usleep_range(1000, 1100);
+	pip_ctl.sensor_i2c_client = s_ctrl->sensor_i2c_client;
+	/*OV7695 powerup and software reset*/
+	pip_ov5648_ctrl(PIP_CRL_POWERUP, &pip_ctl);
+	usleep_range(1000, 1100);
+	pip_ov5648_ctrl(PIP_CTL_RESET_HW_PULSE, &pip_ctl);
+	/* turn on ldo and vreg */
+	usleep_range(5000, 5100);
 	gpio_direction_output(info->sensor_pwd, 1);
-	msleep(10);
+	msleep(15);
 	return rc;
 }
 
 int32_t ov7695_raw_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 {
-	struct msm_camera_sensor_info *info = s_ctrl->sensordata;;
-	CDBG("%s IN\r\n", __func__);
+	struct msm_camera_sensor_info *info = s_ctrl->sensordata;
+	struct msm_camera_pip_ctl pip_ctl;
 
-	gpio_direction_output(info->sensor_pwd, 0);
-	usleep_range(5000, 5100);
-	pip_ov5648_ctrl(PIP_CRL_POWERDOWN, NULL);
-	usleep_range(5000, 5100);
-	msm_sensor_power_down(s_ctrl);
+	CDBG("%s IN\r\n", __func__);
+	pip_ctl.sensor_i2c_client = s_ctrl->sensor_i2c_client;
+	pip_ov5648_ctrl(PIP_CTL_STREAM_OFF, &pip_ctl);
+	msleep(67);
+	pip_ov5648_ctrl(PIP_CTL_MIPI_DOWN, &pip_ctl);
 	msleep(40);
-	//if (s_ctrl->sensordata->pmic_gpio_enable){
-	//  lcd_camera_power_onoff(0);
-	//}
+	pip_ov5648_ctrl(PIP_CRL_POWERDOWN, NULL);
+	gpio_direction_output(info->sensor_pwd, 0);
+	pip_ov5648_ctrl(PIP_CTL_RESET_HW_DOWN, NULL);
+	usleep_range(1000, 1100);
+	msm_sensor_power_down(s_ctrl);
 	return 0;
 }
 
@@ -733,62 +740,38 @@ int32_t ov7695_raw_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 	static int csi_config;
 	struct msm_camera_pip_ctl pip_ctl;
 
-//	s_ctrl->func_tbl->sensor_stop_stream(s_ctrl);
-	msleep(30);
 	if (update_type == MSM_SENSOR_REG_INIT) {
 		CDBG("Register INIT\n");
 		pip_ctl.sensor_i2c_client = s_ctrl->sensor_i2c_client;
 		/*OV7695 powerup and software reset*/
-		pip_ov5648_ctrl(PIP_CRL_POWERUP, &pip_ctl);
-		usleep_range(2000, 3000);
-		pip_ov5648_ctrl(PIP_CTL_RESET_HW_PULSE, &pip_ctl);
-		msleep(10);
-
 		msm_camera_i2c_write(
 				s_ctrl->sensor_i2c_client,
 				0x103, 0x1,
 				MSM_CAMERA_I2C_BYTE_DATA);
 
-		usleep_range(2000, 3000);
-
-		s_ctrl->curr_csi_params = NULL;
-		msm_sensor_enable_debugfs(s_ctrl);
-		msm_sensor_write_init_settings(s_ctrl);
-
-		usleep_range(2000, 3000);
-		pip_ov5648_ctrl(PIP_CTL_RESET_SW, &pip_ctl);
-
-		usleep_range(2000, 3000);
+		usleep_range(5000, 5100);
 		/*OV5648 init settings*/
 		/*writing to OV5648, open lanes*/
 		pip_ctl.write_ctl = PIP_REG_SETTINGS_INIT;
 		pip_ov5648_ctrl(PIP_CRL_WRITE_SETTINGS, &pip_ctl);
-		msleep(60);
+		/*OV7695 init settings*/
+		s_ctrl->curr_csi_params = NULL;
+		msm_sensor_enable_debugfs(s_ctrl);
+		msm_sensor_write_init_settings(s_ctrl);
+		pip_ov5648_ctrl(PIP_CTL_STANDBY_EXIT, &pip_ctl);
 		csi_config = 0;
 	} else if (update_type == MSM_SENSOR_UPDATE_PERIODIC) {
 		CDBG("PERIODIC : %d\n", res);
-
 		if (!csi_config) {
 			pip_ctl.sensor_i2c_client = s_ctrl->sensor_i2c_client;
 			pip_ov5648_ctrl(PIP_CTL_STREAM_OFF, &pip_ctl);
-			msleep(70);
-			pip_ov5648_ctrl(PIP_CTL_STANDBY_SW, &pip_ctl);
-			msleep(10);
-
+			msleep(30);
 			msm_sensor_write_all_conf_array(
 				s_ctrl->sensor_i2c_client, &ov7695_raw_confs[0],
 				ARRAY_SIZE(ov7695_raw_confs));
-
-//			msm_camera_i2c_write(
-//					s_ctrl->sensor_i2c_client,
-//					0x100, 0x1,
-//					MSM_CAMERA_I2C_BYTE_DATA);
-			msleep(60);
-
 			pip_ctl.write_ctl = res;
 			pip_ov5648_ctrl(PIP_CRL_WRITE_SETTINGS, &pip_ctl);
-			msleep(30);
-
+			msleep(5);
 			s_ctrl->curr_csic_params = s_ctrl->csic_params[res];
 			CDBG("CSI config in progress\n");
 			v4l2_subdev_notify(&s_ctrl->sensor_v4l2_subdev,
@@ -802,13 +785,8 @@ int32_t ov7695_raw_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 			v4l2_subdev_notify(&s_ctrl->sensor_v4l2_subdev,
 				NOTIFY_PCLK_CHANGE,
 				&s_ctrl->sensordata->pdata->ioclk.vfe_clk_rate);
-
-//			s_ctrl->func_tbl->sensor_start_stream(s_ctrl);
-			msleep(50);
-			pip_ov5648_ctrl(PIP_CTL_STANDBY_EXIT, &pip_ctl);
-			msleep(50);
+			CDBG("==ov7695 stream on==\n");
 			pip_ov5648_ctrl(PIP_CTL_STREAM_ON, &pip_ctl);
-			msleep(50);
 		}
 	}
 	return rc;

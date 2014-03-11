@@ -231,9 +231,14 @@ static uint32_t msm_read_timer_count(struct msm_clock *clock, int global)
 		if ((t2 >= t1) && (t3 >= t2))
 			return t2;
 		if (++loop_count == 5) {
-			pr_err("msm_read_timer_count timer %s did not "
-			       "stabilize: %u -> %u -> %u\n",
-			       clock->clockevent.name, t1, t2, t3);
+			/* FIXME: this "printk_rtc" has the race condition in SMP case */
+			/*
+			extern bool printk_rtc;
+			if (!printk_rtc)
+				pr_err("msm_read_timer_count timer %s did not "
+				       "stabilize: %u -> %u -> %u\n",
+				       clock->clockevent.name, t1, t2, t3);
+			*/
 			return t3;
 		}
 	}
@@ -1021,7 +1026,7 @@ static void __init msm_timer_init(void)
 	if (cpu_is_msm7x01() || cpu_is_msm7x25() || cpu_is_msm7x27() ||
 	    cpu_is_msm7x25a() || cpu_is_msm7x27a() || cpu_is_msm7x25aa() ||
 	    cpu_is_msm7x27aa() || cpu_is_msm8625() || cpu_is_msm7x25ab() ||
-	    cpu_is_msm8625q()) {
+						cpu_is_msm8625q()) {
 		dgt->shift = MSM_DGT_SHIFT;
 		dgt->freq = 19200000 >> MSM_DGT_SHIFT;
 		dgt->clockevent.shift = 32 + MSM_DGT_SHIFT;
@@ -1125,8 +1130,8 @@ static void __init msm_timer_init(void)
 		ce->irq = clock->irq;
 		if (cpu_is_msm8x60() || cpu_is_msm8960() || cpu_is_apq8064() ||
 		    cpu_is_msm8930() || cpu_is_msm8930aa() ||
-		    cpu_is_msm9615() || cpu_is_msm8625() || cpu_is_msm8627() ||
-			cpu_is_msm8625q()) {
+		    cpu_is_msm9615() || cpu_is_msm8625() || cpu_is_msm8627()
+					|| cpu_is_msm8625q()) {
 			clock->percpu_evt = alloc_percpu(struct clock_event_device *);
 			if (!clock->percpu_evt) {
 				pr_err("msm_timer_init: memory allocation "

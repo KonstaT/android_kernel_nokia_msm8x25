@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/capability.h>
 #include <linux/compat.h>
+#include <linux/jiffies.h>
 
 #include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
@@ -954,10 +955,11 @@ retry:
 		if (err)
 			goto out;
 	}
-
+#if 0 //[du.yichun, 20131028, fix timeout on erase/trim command due to sanitize]
 	if (mmc_can_sanitize(card))
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_SANITIZE_START, 1, 0);
+#endif
 out_retry:
 	if (err && !mmc_blk_reset(md, card->host, type))
 		goto retry;
@@ -1062,6 +1064,7 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	struct mmc_blk_request *brq = &mq_mrq->brq;
 	struct request *req = mq_mrq->req;
 	int ecc_err = 0;
+	unsigned long now;
 
 	/*
 	 * sbc.error indicates a problem with the set block count
@@ -1105,11 +1108,21 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	 */
 	if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
 		u32 status;
+		now = jiffies;
 		do {
 			int err = get_card_status(card, &status, 5);
 			if (err) {
 				pr_err("%s: error %d requesting status\n",
 				       req->rq_disk->disk_name, err);
+				return MMC_BLK_CMD_ERR;
+			}
+			/*
+			 *some cases of very bad card
+			 *even request done in driver layer ,but still in R1_STATE_PRG status here
+			 *lead into dead loop here .set 3 seconds time-out
+			 */
+			if(time_after(jiffies,(now + 3*HZ))){
+				pr_err("%s:time out error\n",__func__);
 				return MMC_BLK_CMD_ERR;
 			}
 			/*

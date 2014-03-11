@@ -1,4 +1,6 @@
-/*
+/* 
+ *  Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *  
  *  linux/arch/arm/kernel/traps.c
  *
  *  Copyright (C) 1995-2009 Russell King
@@ -165,6 +167,9 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 #ifdef CONFIG_ARM_UNWIND
 static inline void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 {
+#ifdef CONFIG_ARCH_MSM
+	flush_cache_all();
+#endif
 	unwind_backtrace(regs, tsk);
 }
 #else
@@ -233,11 +238,20 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 #define S_ISA " ARM"
 #endif
 
+#ifdef CONFIG_ARCH_MSM
+#define __LOG_BUF_LEN   (1 << CONFIG_LOG_BUF_SHIFT)
+extern char __log_buf[];
+extern void flush_log_buf(void *ignored);
+#endif
+
 static int __die(const char *str, int err, struct thread_info *thread, struct pt_regs *regs)
 {
 	struct task_struct *tsk = thread->task;
 	static int die_counter;
 	int ret;
+#if defined(CONFIG_ARCH_MSM) && defined(CONFIG_OUTER_CACHE)
+	unsigned long paddr;
+#endif
 
 	printk(KERN_EMERG "Internal error: %s: %x [#%d]" S_PREEMPT S_SMP
 	       S_ISA "\n", str, err, ++die_counter);
@@ -258,6 +272,14 @@ static int __die(const char *str, int err, struct thread_info *thread, struct pt
 		dump_backtrace(regs, tsk);
 		dump_instr(KERN_EMERG, regs);
 	}
+
+#ifdef CONFIG_ARCH_MSM
+	flush_log_buf(NULL);
+#ifdef CONFIG_OUTER_CACHE
+	paddr = (unsigned long)__virt_to_phys((unsigned long)__log_buf);
+	outer_clean_range(paddr, paddr + __LOG_BUF_LEN);
+#endif
+#endif
 
 	return ret;
 }

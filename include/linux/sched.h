@@ -1397,6 +1397,9 @@ struct task_struct {
 	unsigned long nvcsw, nivcsw; /* context switch counts */
 	struct timespec start_time; 		/* monotonic time */
 	struct timespec real_start_time;	/* boot based time */
+#ifdef CONFIG_MSM_SM_EVENT
+	volatile struct timespec last_sched_time;	/* last sched time */
+#endif
 /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
 	unsigned long min_flt, maj_flt;
 
@@ -2292,7 +2295,8 @@ static inline void mmdrop(struct mm_struct * mm)
 }
 
 /* mmput gets rid of the mappings and all user-space */
-extern void mmput(struct mm_struct *);
+//extern void mmput(struct mm_struct *);
+extern int mmput(struct mm_struct *);
 /* Grab a reference to a task's mm, if it is not already going away */
 extern struct mm_struct *get_task_mm(struct task_struct *task);
 /*

@@ -947,6 +947,12 @@ static int diagchar_write(struct file *file, const char __user *buf,
 		return 0;
 	}
 
+	if(pkt_type == DIAG_NV_WRITE){
+	err = copy_from_user(driver->user_space_data,buf + 4,payload_size);
+	diag_process_hdlc((void *)(driver->user_space_data),payload_size);
+
+	return 0;
+	}
 	if (payload_size > itemsize) {
 		pr_err("diag: Dropping packet, packet payload size crosses"
 				"4KB limit. Current payload size %d\n",

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,6 +24,7 @@
 #include <linux/bootmem.h>
 #include <linux/mfd/marimba.h>
 #include <linux/power_supply.h>
+//#include <linux/leds-pmic8029.h>
 #include <linux/input/rmi_platformdata.h>
 #include <linux/input/rmi_i2c.h>
 #include <linux/i2c/atmel_mxt_ts.h>
@@ -43,6 +44,7 @@
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 #include <mach/board.h>
+#include <mach/gpiomux.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_hsusb.h>
 #include <mach/rpc_hsusb.h>
@@ -50,7 +52,6 @@
 #include <mach/usbdiag.h>
 #include <mach/msm_memtypes.h>
 #include <mach/msm_serial_hs.h>
-#include <mach/msm_serial_pdata.h>
 #include <mach/pmic.h>
 #include <mach/socinfo.h>
 #include <mach/vreg.h>
@@ -58,6 +59,7 @@
 #include <mach/msm_battery.h>
 #include <mach/rpc_server_handset.h>
 #include <mach/socinfo.h>
+#include <mach/oem_rapi_client.h>
 #include "board-msm7x27a-regulator.h"
 #include "devices.h"
 #include "devices-msm7x2xa.h"
@@ -66,6 +68,7 @@
 #include "pm-boot.h"
 #include "board-msm7x27a-regulator.h"
 #include "board-msm7627a.h"
+#include "board-msm7627a-sensor.h"
 
 #define PMEM_KERNEL_EBI1_SIZE	0x3A000
 #define MSM_PMEM_AUDIO_SIZE	0xF0000
@@ -82,15 +85,6 @@
 #define I2C_PIN_CTL       0x15
 #define I2C_NORMAL        0x40
 
-
-static struct platform_device msm_wlan_ar6000_pm_device = {
-	.name           = "wlan_ar6000_pm_dev",
-	.id             = -1,
-};
-
-static struct msm_serial_platform_data msm_8625_uart1_pdata = {
-	.userid		= 10,
-};
 
 static struct msm_gpio qup_i2c_gpios_io[] = {
 	{ GPIO_CFG(60, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
@@ -114,6 +108,32 @@ static struct msm_gpio qup_i2c_gpios_hw[] = {
 		"qup_sda" },
 };
 
+static int qrd_gpios_request_enable(const struct msm_gpio *table, int size)
+{
+	int i;
+	const struct msm_gpio *g;
+	struct gpiomux_setting setting;
+
+	int rc = msm_gpios_request(table, size);
+
+	if (!rc){
+		for (i = 0; i < size; i++) {
+			g = table + i;
+			/* use msm_gpiomux_write which can save old configuration */
+			setting.func = GPIO_FUNC(g->gpio_cfg);
+			setting.dir = GPIO_DIR(g->gpio_cfg);
+			setting.pull = GPIO_PULL(g->gpio_cfg);
+			setting.drv = GPIO_DRVSTR(g->gpio_cfg);
+			msm_gpiomux_write(GPIO_PIN(g->gpio_cfg), GPIOMUX_ACTIVE, &setting, NULL);
+			pr_debug("I2C pin %d func %d dir %d pull %d drvstr %d\n",
+				GPIO_PIN(g->gpio_cfg), GPIO_FUNC(g->gpio_cfg),
+				GPIO_DIR(g->gpio_cfg), GPIO_PULL(g->gpio_cfg),
+				GPIO_DRVSTR(g->gpio_cfg));
+		}
+	}
+	return rc;
+}
+
 static void gsbi_qup_i2c_gpio_config(int adap_id, int config_type)
 {
 	int rc;
@@ -123,9 +143,9 @@ static void gsbi_qup_i2c_gpio_config(int adap_id, int config_type)
 
 	/* Each adapter gets 2 lines from the table */
 	if (config_type)
-		rc = msm_gpios_request_enable(&qup_i2c_gpios_hw[adap_id*2], 2);
+		rc = qrd_gpios_request_enable(&qup_i2c_gpios_hw[adap_id*2], 2);
 	else
-		rc = msm_gpios_request_enable(&qup_i2c_gpios_io[adap_id*2], 2);
+		rc = qrd_gpios_request_enable(&qup_i2c_gpios_io[adap_id*2], 2);
 	if (rc < 0)
 		pr_err("QUP GPIO request/enable failed: %d\n", rc);
 }
@@ -392,7 +412,7 @@ static struct msm_pm_platform_data
 					.idle_supported = 1,
 					.suspend_supported = 1,
 					.idle_enabled = 0,
-					.suspend_enabled = 0,
+					.suspend_enabled = 1,
 					.latency = 500,
 					.residency = 500,
 	},
@@ -411,7 +431,7 @@ static struct msm_pm_platform_data
 					.idle_supported = 1,
 					.suspend_supported = 1,
 					.idle_enabled = 0,
-					.suspend_enabled = 0,
+					.suspend_enabled = 1,
 					.latency = 500,
 					.residency = 500,
 	},
@@ -430,7 +450,7 @@ static struct msm_pm_platform_data
 					.idle_supported = 1,
 					.suspend_supported = 1,
 					.idle_enabled = 0,
-					.suspend_enabled = 0,
+					.suspend_enabled = 1,
 					.latency = 500,
 					.residency = 500,
 	},
@@ -449,7 +469,7 @@ static struct msm_pm_platform_data
 					.idle_supported = 1,
 					.suspend_supported = 1,
 					.idle_enabled = 0,
-					.suspend_enabled = 0,
+					.suspend_enabled = 1,
 					.latency = 500,
 					.residency = 500,
 	},
@@ -529,10 +549,9 @@ static struct platform_device android_pmem_device = {
 static u32 msm_calculate_batt_capacity(u32 current_voltage);
 
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
-	.voltage_min_design     = 3500,
-	.voltage_max_design     = 4200,
-	.voltage_fail_safe      = 3598,
-	.avail_chg_sources      = AC_CHG | USB_CHG ,
+	.voltage_min_design     = 2800,
+	.voltage_max_design     = 4300,
+	.avail_chg_sources      = AC_CHG | USB_CHG | UNKNOWN_CHG,
 	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
 	.calculate_capacity     = &msm_calculate_batt_capacity,
 };
@@ -550,6 +569,11 @@ static u32 msm_calculate_batt_capacity(u32 current_voltage)
 		return (current_voltage - low_voltage) * 100
 			/ (high_voltage - low_voltage);
 }
+
+static struct platform_device msm_fastboot_device = {
+	.name               = "fastboot",
+	.id                 = -1,
+};
 
 static struct platform_device msm_batt_device = {
 	.name               = "msm-battery",
@@ -593,21 +617,43 @@ static struct platform_device msm_adc_device = {
 
 #define GPIO_VREG_ID_EXT_2P85V	0
 #define GPIO_VREG_ID_EXT_1P8V	1
-#define GPIO_VREG_ID_EXT_2P85V_EVBD	2
-#define GPIO_VREG_ID_EXT_1P8V_EVBD	3
+#define GPIO_VREG_ID_EXT_2P85V_EVBD    2
+#define GPIO_VREG_ID_EXT_1P8V_EVBD     3
 
 static struct regulator_consumer_supply vreg_consumers_EXT_2P85V[] = {
 	REGULATOR_SUPPLY("cam_ov5647_avdd", "0-006c"),
+	REGULATOR_SUPPLY("cam_ov5647_truly_cm6868_avdd", "0-006c"),
 	REGULATOR_SUPPLY("cam_ov7692_avdd", "0-0078"),
 	REGULATOR_SUPPLY("cam_ov8825_avdd", "0-000d"),
 	REGULATOR_SUPPLY("lcd_vdd", "mipi_dsi.1"),
+#ifdef CONFIG_AR0543
+	REGULATOR_SUPPLY("cam_ar0543_avdd", "0-0064"),
+#endif
+#ifdef CONFIG_A8140
+	REGULATOR_SUPPLY("cam_a8140_avdd", "0-0062"),
+#endif
+#ifdef CONFIG_S5K3H2_SUNNY_Q8S02E
+	REGULATOR_SUPPLY("cam_s5k3h2_sunny_q8s02e_avdd", "0-0032"),
+#endif
+	REGULATOR_SUPPLY("cam_ar0542_avdd", "0-0064"),
 };
 
 static struct regulator_consumer_supply vreg_consumers_EXT_1P8V[] = {
 	REGULATOR_SUPPLY("cam_ov5647_vdd", "0-006c"),
+	REGULATOR_SUPPLY("cam_ov5647_truly_cm6868_vdd", "0-006c"),
 	REGULATOR_SUPPLY("cam_ov7692_vdd", "0-0078"),
 	REGULATOR_SUPPLY("cam_ov8825_vdd", "0-000d"),
 	REGULATOR_SUPPLY("lcd_vddi", "mipi_dsi.1"),
+#ifdef CONFIG_AR0543
+	REGULATOR_SUPPLY("cam_ar0543_vdd", "0-0064"),
+#endif
+#ifdef CONFIG_A8140
+	REGULATOR_SUPPLY("cam_a8140_vdd", "0-0062"),
+#endif
+#ifdef CONFIG_S5K3H2_SUNNY_Q8S02E
+	REGULATOR_SUPPLY("cam_s5k3h2_sunny_q8s02e_vdd", "0-0032"),
+#endif
+	REGULATOR_SUPPLY("cam_ar0542_vdd", "0-0064"),
 };
 
 static struct regulator_consumer_supply vreg_consumers_EXT_2P85V_EVBD[] = {
@@ -628,10 +674,8 @@ static struct regulator_consumer_supply vreg_consumers_EXT_1P8V_EVBD[] = {
 static struct gpio_regulator_platform_data msm_gpio_regulator_pdata[] = {
 	GPIO_VREG_INIT(EXT_2P85V, "ext_2p85v", "ext_2p85v_en", 35, 0),
 	GPIO_VREG_INIT(EXT_1P8V, "ext_1p8v", "ext_1p8v_en", 40, 0),
-	GPIO_VREG_INIT(EXT_2P85V_EVBD, "ext_2p85v_evbd",
-						"ext_2p85v_evbd_en", 5, 0),
-	GPIO_VREG_INIT(EXT_1P8V_EVBD, "ext_1p8v_evbd",
-						"ext_1p8v_evbd_en", 6, 0),
+        GPIO_VREG_INIT(EXT_2P85V_EVBD, "ext_2p85v_evbd", "ext_2p85v_evbd_en", 5, 0),
+        GPIO_VREG_INIT(EXT_1P8V_EVBD, "ext_1p8v_evbd", "ext_1p8v_evbd_en", 6, 0),
 };
 
 /* GPIO regulator */
@@ -654,21 +698,21 @@ static struct platform_device qrd_vreg_gpio_ext_1p8v __devinitdata = {
 };
 
 static struct platform_device evbd_vreg_gpio_ext_2p85v __devinitdata = {
-	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= 5,
-	.dev	= {
-		.platform_data =
-			&msm_gpio_regulator_pdata[GPIO_VREG_ID_EXT_2P85V_EVBD],
-	},
+        .name   = GPIO_REGULATOR_DEV_NAME,
+        .id     = 5,
+        .dev    = {
+                .platform_data =
+                        &msm_gpio_regulator_pdata[GPIO_VREG_ID_EXT_2P85V_EVBD],
+        },
 };
 
 static struct platform_device evbd_vreg_gpio_ext_1p8v __devinitdata = {
-	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= 6,
-	.dev	= {
-		.platform_data =
-			&msm_gpio_regulator_pdata[GPIO_VREG_ID_EXT_1P8V_EVBD],
-	},
+        .name   = GPIO_REGULATOR_DEV_NAME,
+        .id     = 6,
+        .dev    = {
+                .platform_data =
+                        &msm_gpio_regulator_pdata[GPIO_VREG_ID_EXT_1P8V_EVBD],
+        },
 };
 /* Regulator configuration for the NCP6335D buck */
 struct regulator_consumer_supply ncp6335d_consumer_supplies[] = {
@@ -762,6 +806,15 @@ static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_ION_MSM
 	&ion_dev,
 #endif
+	&msm_fastboot_device,
+};
+
+
+static struct platform_device msm_wlan_ar6000_pm_device = {
+	.name           = "wlan_ar6000_pm_dev",
+	.id             = 1,
+	.num_resources  =       0,
+        .resource       =       NULL,
 };
 
 static struct platform_device *qrd7627a_devices[] __initdata = {
@@ -795,13 +848,13 @@ static struct platform_device *msm8625_evb_devices[] __initdata = {
 };
 
 static struct platform_device *msm8625_lcd_camera_devices[] __initdata = {
-	&qrd_vreg_gpio_ext_2p85v,
-	&qrd_vreg_gpio_ext_1p8v,
+        &qrd_vreg_gpio_ext_2p85v,
+        &qrd_vreg_gpio_ext_1p8v,
 };
 
 static struct platform_device *msm8625q_lcd_camera_devices[] __initdata = {
-	&evbd_vreg_gpio_ext_2p85v,
-	&evbd_vreg_gpio_ext_1p8v,
+        &evbd_vreg_gpio_ext_2p85v,
+        &evbd_vreg_gpio_ext_1p8v,
 };
 
 static unsigned pmem_kernel_ebi1_size = PMEM_KERNEL_EBI1_SIZE;
@@ -825,7 +878,7 @@ static void fix_sizes(void)
 	if (get_ddr_size() > SZ_512M)
 		pmem_adsp_size = CAMERA_ZSL_SIZE;
 	else {
-		if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+		if (machine_is_msm8625q_skue() || machine_is_msm8625q_evbd()
 					|| machine_is_msm8625q_skud())
 			pmem_mdp_size = 0;
 	}
@@ -1084,7 +1137,8 @@ static void __init msm8625_device_i2c_init(void)
 					= &msm_gsbi0_qup_i2c_pdata;
 	msm8625_gsbi1_qup_i2c_device.dev.platform_data
 					= &msm_gsbi1_qup_i2c_pdata;
-	if (machine_is_qrd_skud_prime() || cpu_is_msm8625q()) {
+	if ( machine_is_msm8625q_skud() ||
+	     machine_is_msm8625q_skue() || cpu_is_msm8625q()) {
 		for (i = 0 ; i < ARRAY_SIZE(msm8625q_i2c_gpio_config); i++) {
 			rc = gpio_tlmm_config(
 					msm8625q_i2c_gpio_config[i].gpio_cfg,
@@ -1115,6 +1169,8 @@ static void __init msm7627a_init_regulators(void)
 				__func__, rc);
 }
 
+
+
 static int __init msm_qrd_init_ar6000pm(void)
 {
 	msm_wlan_ar6000_pm_device.dev.platform_data = &ar600x_wlan_power;
@@ -1130,31 +1186,30 @@ static void __init msm_add_footswitch_devices(void)
 static void __init add_platform_devices(void)
 {
 	if (machine_is_msm8625_evb() || machine_is_msm8625_qrd7()
-				|| machine_is_msm8625_evt()
+				|| machine_is_msm8625_qrd5()
 				|| machine_is_msm8625q_evbd()
 				|| machine_is_msm8625q_skud()
-				|| machine_is_qrd_skud_prime()) {
-		msm8625_device_uart1.dev.platform_data = &msm_8625_uart1_pdata;
+				|| machine_is_msm8625q_skue()) {
 		platform_add_devices(msm8625_evb_devices,
 				ARRAY_SIZE(msm8625_evb_devices));
 		platform_add_devices(qrd3_devices,
 				ARRAY_SIZE(qrd3_devices));
-	} else {
+	}
+	else {
 		platform_add_devices(qrd7627a_devices,
 				ARRAY_SIZE(qrd7627a_devices));
 	}
 
-	if (machine_is_msm8625_evb() || machine_is_msm8625_evt())
-		platform_add_devices(msm8625_lcd_camera_devices,
-				ARRAY_SIZE(msm8625_lcd_camera_devices));
-	else if (machine_is_msm8625q_evbd())
-		platform_add_devices(msm8625q_lcd_camera_devices,
-				ARRAY_SIZE(msm8625q_lcd_camera_devices));
+        if (machine_is_msm8625_evb() || machine_is_msm8625_qrd5())
+                platform_add_devices(msm8625_lcd_camera_devices,
+                        ARRAY_SIZE(msm8625_lcd_camera_devices));
+        else if (machine_is_msm8625q_evbd())
+                platform_add_devices(msm8625q_lcd_camera_devices,
+                        ARRAY_SIZE(msm8625q_lcd_camera_devices));
 
 	if (machine_is_msm7627a_qrd3() || machine_is_msm7627a_evb())
 		platform_add_devices(qrd3_devices,
 				ARRAY_SIZE(qrd3_devices));
-
 	platform_add_devices(common_devices,
 			ARRAY_SIZE(common_devices));
 }
@@ -1235,15 +1290,15 @@ static void __init msm_qrd_init(void)
 	msm_pm_register_irqs();
 	msm_fb_add_devices();
 
-	if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
-					|| machine_is_msm8625q_skud())
+	if (machine_is_msm8625q_evbd() || machine_is_msm8625q_skud()
+				       || machine_is_msm8625q_skue())
 		i2c_register_board_info(2, i2c2_info,
 				ARRAY_SIZE(i2c2_info));
 
 #if defined(CONFIG_BT) && defined(CONFIG_MARIMBA_CORE)
 	msm7627a_bt_power_init();
 #endif
-
+	msm7627a_sensor_init();
 	msm7627a_camera_init();
 	qrd7627a_add_io_devices();
 	msm7x25a_kgsl_3d0_init();
@@ -1254,6 +1309,68 @@ static void __init qrd7627a_init_early(void)
 {
 	msm_msm7627a_allocate_memory_regions();
 }
+
+#ifdef CONFIG_MSM_AMSS_ENHANCE_DEBUG
+#define TASK_OFFSET_SEND(member, name)		\
+	do {					\
+		input.extension.len = 2;	\
+		input.extension.data[0] = (uint32_t)TASK_STRUCT_TAG; \
+		input.extension.data[1] = offsetof(struct task_struct, member); \
+		input.address = (uint32_t)__virt_to_phys((unsigned long)&init_task); \
+		input.size = sizeof(struct task_struct); \
+		strncpy(input.file_name, name, NZI_ITEM_FILE_NAME_LENGTH); \
+		input.file_name[NZI_ITEM_FILE_NAME_LENGTH - 1] = 0; \
+		send_modem_logaddr(&input); \
+	} while (0)
+
+static int __init qrd7627a_logbuf_init(void)
+{
+	nzi_buf_item_type input;
+	extern char __log_buf[];
+	extern unsigned long totalram_pages;
+	extern atomic_long_t vm_stat[];
+
+#ifdef CONFIG_PRINTK
+	/* send the kernel log address */
+	input.extension.len = 0;
+	input.address = (uint32_t)__virt_to_phys((unsigned long)__log_buf);
+	input.size = (1 << CONFIG_LOG_BUF_SHIFT);
+	strncpy(input.file_name, "dmesg", NZI_ITEM_FILE_NAME_LENGTH);
+	input.file_name[NZI_ITEM_FILE_NAME_LENGTH - 1] = 0;
+	send_modem_logaddr(&input);
+#endif
+
+	/* ******struct task_struct part ******/
+	TASK_OFFSET_SEND(tasks, "tasks_of");
+	TASK_OFFSET_SEND(thread_group, "tg_of");
+	TASK_OFFSET_SEND(mm, "mm_of");
+	TASK_OFFSET_SEND(comm, "comm_of");
+	TASK_OFFSET_SEND(pid, "pid_of");
+	TASK_OFFSET_SEND(tgid, "tgid_of");
+	/* ******struct task_struct end ******/
+
+	/* totalram_pages */
+	input.extension.len = 1;
+	input.extension.data[0] = (uint32_t)MEM_INFO_TAG;
+	input.address = (uint32_t)__virt_to_phys((unsigned long)&totalram_pages);
+	input.size = sizeof(totalram_pages);
+	strncpy(input.file_name, "totalram", NZI_ITEM_FILE_NAME_LENGTH);
+	input.file_name[NZI_ITEM_FILE_NAME_LENGTH - 1] = 0;
+	send_modem_logaddr(&input);
+
+	/* vm_stat[vm_stat[NR_VM_ZONE_STAT_ITEMS]; */
+	input.extension.len = 1;
+	input.extension.data[0] = (uint32_t)MEM_INFO_TAG;
+	input.address = (uint32_t)__virt_to_phys((unsigned long)vm_stat);
+	input.size = sizeof(vm_stat);
+	strncpy(input.file_name, "vm_stat", NZI_ITEM_FILE_NAME_LENGTH);
+	input.file_name[NZI_ITEM_FILE_NAME_LENGTH - 1] = 0;
+	send_modem_logaddr(&input);
+
+	return 0;
+}
+late_initcall(qrd7627a_logbuf_init);
+#endif
 
 MACHINE_START(MSM7627A_QRD1, "QRD MSM7627a QRD1")
 	.atag_offset	= 0x100,
@@ -1295,6 +1412,18 @@ MACHINE_START(MSM8625_EVB, "QRD MSM8625 EVB")
 	.init_early	= qrd7627a_init_early,
 	.handle_irq	= gic_handle_irq,
 MACHINE_END
+
+MACHINE_START(MSM7X27A_QRD5A, "QRD MSM7x27A QRD5A")
+	.atag_offset	= 0x100,
+	.map_io		= msm_common_io_init,
+	.reserve	= msm7627a_reserve,
+	.init_irq	= msm_init_irq,
+	.init_machine	= msm_qrd_init,
+	.timer		= &msm_timer,
+	.init_early	= qrd7627a_init_early,
+	.handle_irq	= vic_handle_irq,
+MACHINE_END
+
 MACHINE_START(MSM8625_QRD7, "QRD MSM8625 QRD7")
 	.atag_offset	= 0x100,
 	.map_io		= msm8625_map_io,
@@ -1305,7 +1434,7 @@ MACHINE_START(MSM8625_QRD7, "QRD MSM8625 QRD7")
 	.init_early	= qrd7627a_init_early,
 	.handle_irq	= gic_handle_irq,
 MACHINE_END
-MACHINE_START(MSM8625_EVT, "QRD MSM8625 EVT")
+MACHINE_START(MSM8625_QRD5, "QRD MSM8625 QRD5")
 	.atag_offset	= 0x100,
 	.map_io		= msm8625_map_io,
 	.reserve	= msm8625_reserve,
@@ -1315,16 +1444,7 @@ MACHINE_START(MSM8625_EVT, "QRD MSM8625 EVT")
 	.init_early	= qrd7627a_init_early,
 	.handle_irq	= gic_handle_irq,
 MACHINE_END
-MACHINE_START(QRD_SKUD_PRIME, "QRD MSM8625 SKUD PRIME")
-	.atag_offset	= 0x100,
-	.map_io		= msm8625_map_io,
-	.reserve	= msm8625_reserve,
-	.init_irq	= msm8625_init_irq,
-	.init_machine	= msm_qrd_init,
-	.timer		= &msm_timer,
-	.init_early	= qrd7627a_init_early,
-	.handle_irq	= gic_handle_irq,
-MACHINE_END
+
 MACHINE_START(MSM8625Q_EVBD, "QRD MSM8625Q EVBD")
 	.atag_offset	= 0x100,
 	.map_io		= msm8625_map_io,
@@ -1336,6 +1456,17 @@ MACHINE_START(MSM8625Q_EVBD, "QRD MSM8625Q EVBD")
 	.handle_irq	= gic_handle_irq,
 MACHINE_END
 MACHINE_START(MSM8625Q_SKUD, "QRD MSM8625Q SKUD")
+	.atag_offset	= 0x100,
+	.map_io		= msm8625_map_io,
+	.reserve	= msm8625_reserve,
+	.init_irq	= msm8625_init_irq,
+	.init_machine	= msm_qrd_init,
+	.timer		= &msm_timer,
+	.init_early	= qrd7627a_init_early,
+	.handle_irq	= gic_handle_irq,
+MACHINE_END
+
+MACHINE_START(MSM8625Q_SKUE, "QRD MSM8625Q SKUE")
 	.atag_offset	= 0x100,
 	.map_io		= msm8625_map_io,
 	.reserve	= msm8625_reserve,

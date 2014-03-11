@@ -21,6 +21,7 @@
 #include <mach/socinfo.h>
 
 #include "smd_private.h"
+#include <mach/proc_comm.h>
 
 #define BUILD_ID_LENGTH 32
 
@@ -35,7 +36,14 @@ enum {
 	HW_PLATFORM_LIQUID  = 9,
 	/* Dragonboard platform id is assigned as 10 in CDT */
 	HW_PLATFORM_DRAGON	= 10,
+	HW_PLATFORM_8X25_EVB = 0xC,
 	HW_PLATFORM_EVBD	= 13,
+	HW_PLATFORM_SKU7  = 0xF,
+	HW_PLATFORM_ALASKA  = 0xA0,
+	HW_PLATFORM_8X25_QRD5 = 0xA2,
+	HW_PLATFORM_7X27_QRD5A = 0xA3,
+	HW_PLATFORM_8X25Q_SKUD = 0xA7,
+	HW_PLATFORM_8X25Q_SKUE = 0xA8,
 	HW_PLATFORM_INVALID
 };
 
@@ -49,9 +57,27 @@ const char *hw_platform[] = {
 	[HW_PLATFORM_MTP] = "MTP",
 	[HW_PLATFORM_LIQUID] = "Liquid",
 	[HW_PLATFORM_EVBD]	= "EVBD",
-	[HW_PLATFORM_DRAGON] = "Dragon"
+	[HW_PLATFORM_DRAGON] = "Dragon",
+	[HW_PLATFORM_8X25_EVB] = "msm8x25_evb",
+	[HW_PLATFORM_SKU7] = "msm7627a_sku7",
+	[HW_PLATFORM_ALASKA] = "msm7627a_skua",
+	[HW_PLATFORM_8X25_QRD5] = "msm8x25_sku5",
+	[HW_PLATFORM_7X27_QRD5A] = "msm7x27_sku5a",
+	[HW_PLATFORM_8X25Q_SKUD] = "msm8x25q_skud",
+	[HW_PLATFORM_8X25Q_SKUE] = "msm8x25q_skue"
 };
 
+enum {
+	MULTI_NO_DSDS = 0,
+	MULTI = 1,
+	UMTS = 2
+};
+
+const char *modem_type[] = {
+	[MULTI_NO_DSDS] = "MULTI_NO_DSDS",
+	[MULTI] = "MULTI",
+	[UMTS] = "UMTS"
+};
 enum {
 	ACCESSORY_CHIP_UNKNOWN = 0,
 	ACCESSORY_CHIP_CHARM = 58,
@@ -414,6 +440,26 @@ socinfo_show_version(struct sys_device *dev,
 }
 
 static ssize_t
+socinfo_show_modem_type(struct sys_device *dev,
+		      struct sysdev_attribute *attr,
+		      char *buf)
+{
+	uint32_t version;
+	int ret;
+
+	if (!socinfo) {
+		pr_err("%s: No socinfo found!\n", __func__);
+		return 0;
+	}
+
+	ret = msm_proc_comm(PCOM_GET_MODEM_VERSION, &version, NULL);
+	if ((ret >= 0) && (version <= UMTS))
+		return snprintf(buf, PAGE_SIZE, "%s\n", modem_type[version]);
+	else
+		return 0;
+}
+
+static ssize_t
 socinfo_show_build_id(struct sys_device *dev,
 		      struct sysdev_attribute *attr,
 		      char *buf)
@@ -588,6 +634,7 @@ static struct sysdev_attribute socinfo_v1_files[] = {
 	_SYSDEV_ATTR(id, 0444, socinfo_show_id, NULL),
 	_SYSDEV_ATTR(version, 0444, socinfo_show_version, NULL),
 	_SYSDEV_ATTR(build_id, 0444, socinfo_show_build_id, NULL),
+	_SYSDEV_ATTR(modem_type, 0444, socinfo_show_modem_type, NULL),
 };
 
 static struct sysdev_attribute socinfo_v2_files[] = {
@@ -731,8 +778,11 @@ static void * __init setup_dummy_socinfo(void)
 	return (void *) &dummy_socinfo;
 }
 
+char socinfo_buf[200];
 int __init socinfo_init(void)
 {
+	char *s = socinfo_buf;
+	memset(socinfo_buf, 0 , 200);
 	socinfo = smem_alloc(SMEM_HW_SW_BUILD_ID, sizeof(struct socinfo_v7));
 
 	if (!socinfo)
@@ -774,52 +824,57 @@ int __init socinfo_init(void)
 
 	switch (socinfo->v1.format) {
 	case 1:
-		pr_info("%s: v%u, id=%u, ver=%u.%u\n",
-			__func__, socinfo->v1.format, socinfo->v1.id,
+		sprintf(s, "v%u, id=%u, ver=%u.%u ",
+			socinfo->v1.format, socinfo->v1.id,
 			SOCINFO_VERSION_MAJOR(socinfo->v1.version),
 			SOCINFO_VERSION_MINOR(socinfo->v1.version));
+		pr_info("%s %s\n", __func__, socinfo_buf);
 		break;
 	case 2:
-		pr_info("%s: v%u, id=%u, ver=%u.%u, "
-			 "raw_id=%u, raw_ver=%u\n",
-			__func__, socinfo->v1.format, socinfo->v1.id,
+		sprintf(s,"v%u, id=%u, ver=%u.%u, "
+			 "raw_id=%u, raw_ver=%u",
+			socinfo->v1.format, socinfo->v1.id,
 			SOCINFO_VERSION_MAJOR(socinfo->v1.version),
 			SOCINFO_VERSION_MINOR(socinfo->v1.version),
 			socinfo->v2.raw_id, socinfo->v2.raw_version);
+		pr_info("%s %s\n", __func__, socinfo_buf);
 		break;
 	case 3:
-		pr_info("%s: v%u, id=%u, ver=%u.%u, "
-			 "raw_id=%u, raw_ver=%u, hw_plat=%u\n",
-			__func__, socinfo->v1.format, socinfo->v1.id,
+		sprintf(s,"v%u, id=%u, ver=%u.%u, "
+			 "raw_id=%u, raw_ver=%u, hw_plat=%u ",
+			socinfo->v1.format, socinfo->v1.id,
 			SOCINFO_VERSION_MAJOR(socinfo->v1.version),
 			SOCINFO_VERSION_MINOR(socinfo->v1.version),
 			socinfo->v2.raw_id, socinfo->v2.raw_version,
 			socinfo->v3.hw_platform);
+		pr_info("%s %s\n", __func__, socinfo_buf);
 		break;
 	case 4:
-		pr_info("%s: v%u, id=%u, ver=%u.%u, "
-			 "raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n",
-			__func__, socinfo->v1.format, socinfo->v1.id,
+		sprintf(s,"v%u, id=%u, ver=%u.%u, "
+			 "raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u",
+			socinfo->v1.format, socinfo->v1.id,
 			SOCINFO_VERSION_MAJOR(socinfo->v1.version),
 			SOCINFO_VERSION_MINOR(socinfo->v1.version),
 			socinfo->v2.raw_id, socinfo->v2.raw_version,
 			socinfo->v3.hw_platform, socinfo->v4.platform_version);
+		pr_info("%s %s\n", __func__, socinfo_buf);
 		break;
 	case 5:
-		pr_info("%s: v%u, id=%u, ver=%u.%u, "
-			 "raw_id=%u, raw_ver=%u, hw_plat=%u,  hw_plat_ver=%u\n"
-			" accessory_chip=%u\n", __func__, socinfo->v1.format,
+		sprintf(s,"v%u, id=%u, ver=%u.%u, "
+			 "raw_id=%u, raw_ver=%u, hw_plat=%u,  hw_plat_ver=%u"
+			" accessory_chip=%u\n", socinfo->v1.format,
 			socinfo->v1.id,
 			SOCINFO_VERSION_MAJOR(socinfo->v1.version),
 			SOCINFO_VERSION_MINOR(socinfo->v1.version),
 			socinfo->v2.raw_id, socinfo->v2.raw_version,
 			socinfo->v3.hw_platform, socinfo->v4.platform_version,
 			socinfo->v5.accessory_chip);
+		pr_info("%s %s\n", __func__, socinfo_buf);
 		break;
 	case 6:
-		pr_info("%s: v%u, id=%u, ver=%u.%u, "
-			 "raw_id=%u, raw_ver=%u, hw_plat=%u,  hw_plat_ver=%u\n"
-			" accessory_chip=%u hw_plat_subtype=%u\n", __func__,
+		sprintf(s,"v%u, id=%u, ver=%u.%u, "
+			 "raw_id=%u, raw_ver=%u, hw_plat=%u,  hw_plat_ver=%u"
+			" accessory_chip=%u hw_plat_subtype=%u\n",
 			socinfo->v1.format,
 			socinfo->v1.id,
 			SOCINFO_VERSION_MAJOR(socinfo->v1.version),
@@ -828,10 +883,10 @@ int __init socinfo_init(void)
 			socinfo->v3.hw_platform, socinfo->v4.platform_version,
 			socinfo->v5.accessory_chip,
 			socinfo->v6.hw_platform_subtype);
+		pr_info("%s %s\n", __func__, socinfo_buf);
 		break;
 	case 7:
-		pr_info("%s: v%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u\n",
-			__func__,
+		sprintf(s,"v%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u",
 			socinfo->v1.format,
 			socinfo->v1.id,
 			SOCINFO_VERSION_MAJOR(socinfo->v1.version),
@@ -842,12 +897,12 @@ int __init socinfo_init(void)
 			socinfo->v6.hw_platform_subtype,
 			socinfo->v7.pmic_model,
 			socinfo->v7.pmic_die_revision);
+		pr_info("%s %s\n", __func__, socinfo_buf);
 		break;
 	default:
 		pr_err("%s: Unknown format found\n", __func__);
 		break;
 	}
-
 	return 0;
 }
 

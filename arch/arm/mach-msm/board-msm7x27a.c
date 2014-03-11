@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -61,10 +61,22 @@
 #include <mach/socinfo.h>
 #include "pm-boot.h"
 #include "board-msm7627a.h"
+#include "board-msm7627a-sensor.h"
+
+#include <linux/delay.h>
+/*add QC pathc for MTBF test I2C time */
+#include <mach/gpiomux.h>
+
 
 #define PMEM_KERNEL_EBI1_SIZE	0x3A000
 #define MSM_PMEM_AUDIO_SIZE	0xF0000
 #define BOOTLOADER_BASE_ADDR	0x10000
+
+//start yang.chenglei@byd added for smem_kpanic
+#ifdef  CONFIG_MMC_MSM_RAW
+extern void __init msm_init_apanic(void);
+#endif /* CONFIG_MMC_MSM_RAW */
+//end   yang.chenglei@byd added for smem_kpanic
 
 #if defined(CONFIG_GPIO_SX150X)
 enum {
@@ -118,9 +130,9 @@ static struct msm_gpio qup_i2c_gpios_io[] = {
 		"qup_scl" },
 	{ GPIO_CFG(61, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
 		"qup_sda" },
-	{ GPIO_CFG(131, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
+	{ GPIO_CFG(131, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),
 		"qup_scl" },
-	{ GPIO_CFG(132, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
+	{ GPIO_CFG(132, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),
 		"qup_sda" },
 };
 
@@ -129,12 +141,36 @@ static struct msm_gpio qup_i2c_gpios_hw[] = {
 		"qup_scl" },
 	{ GPIO_CFG(61, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
 		"qup_sda" },
-	{ GPIO_CFG(131, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
+	{ GPIO_CFG(131, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),
 		"qup_scl" },
-	{ GPIO_CFG(132, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
+	{ GPIO_CFG(132, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),
 		"qup_sda" },
 };
-
+/*add QC pathc for MTBF test I2C time start*/
+static int qrd_gpios_request_enable(const struct msm_gpio *table, int size)
+{
+	int i;
+	const struct msm_gpio *g;	
+	struct gpiomux_setting setting;
+	int rc = msm_gpios_request(table, size);
+	if (!rc){
+		for (i = 0; i < size; i++) {
+			g = table + i;
+			/* use msm_gpiomux_write which can save old configuration */
+			setting.func = GPIO_FUNC(g->gpio_cfg);
+			setting.dir = GPIO_DIR(g->gpio_cfg);
+			setting.pull = GPIO_PULL(g->gpio_cfg);
+			setting.drv = GPIO_DRVSTR(g->gpio_cfg);
+			msm_gpiomux_write(GPIO_PIN(g->gpio_cfg), GPIOMUX_ACTIVE, &setting, NULL);
+			pr_debug("I2C pin %d func %d dir %d pull %d drvstr %d\n",
+				GPIO_PIN(g->gpio_cfg), GPIO_FUNC(g->gpio_cfg),
+				GPIO_DIR(g->gpio_cfg), GPIO_PULL(g->gpio_cfg),
+				GPIO_DRVSTR(g->gpio_cfg));
+		}
+	}
+	return rc;
+}
+/*add QC pathc for MTBF test I2C time end*/
 static void gsbi_qup_i2c_gpio_config(int adap_id, int config_type)
 {
 	int rc;
@@ -143,26 +179,38 @@ static void gsbi_qup_i2c_gpio_config(int adap_id, int config_type)
 		return;
 
 	/* Each adapter gets 2 lines from the table */
+        /*ad QC pathc for MTBF test I2C time */
 	if (config_type)
-		rc = msm_gpios_request_enable(&qup_i2c_gpios_hw[adap_id*2], 2);
+		rc = qrd_gpios_request_enable(&qup_i2c_gpios_hw[adap_id*2], 2);
 	else
-		rc = msm_gpios_request_enable(&qup_i2c_gpios_io[adap_id*2], 2);
+		rc = qrd_gpios_request_enable(&qup_i2c_gpios_io[adap_id*2], 2);
 	if (rc < 0)
 		pr_err("QUP GPIO request/enable failed: %d\n", rc);
 }
 
 static struct msm_i2c_platform_data msm_gsbi0_qup_i2c_pdata = {
-	.clk_freq		= 100000,
+	.clk_freq		= 400000,//100000,
 	.msm_i2c_config_gpio	= gsbi_qup_i2c_gpio_config,
+         /*add QC pathc for MTBF test I2C time */
+	.rsl_id = "gsbi0",
+	.pri_clk=60,
+	.pri_dat=61,	
 };
 
 static struct msm_i2c_platform_data msm_gsbi1_qup_i2c_pdata = {
 	.clk_freq		= 100000,
 	.msm_i2c_config_gpio	= gsbi_qup_i2c_gpio_config,
+         /*add QC pathc for MTBF test I2C time */
+	.rsl_id = "gsbi1",
+	.pri_clk=131,
+	.pri_dat=132,
 };
 
 #ifdef CONFIG_ARCH_MSM7X27A
+//lwl modify
 #define MSM_PMEM_MDP_SIZE       0x2300000
+//#define MSM_PMEM_MDP_SIZE       0
+//end
 #define MSM7x25A_MSM_PMEM_MDP_SIZE       0x1500000
 
 #define MSM_PMEM_ADSP_SIZE      0x1300000
@@ -552,8 +600,12 @@ static u32 msm_calculate_batt_capacity(u32 current_voltage);
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
 	.voltage_min_design     = 3200,
 	.voltage_max_design     = 4200,
-	.voltage_fail_safe      = 3340,
-	.avail_chg_sources      = AC_CHG | USB_CHG ,
+//	.voltage_fail_safe      = 3340,
+#if 0
+	.avail_chg_sources      = AC_CHG | USB_CHG //Baseline code
+#else	
+	.avail_chg_sources      = AC_CHG | USB_CHG | UNKNOWN_CHG, //Support unknown usb to fixed reset issue.
+#endif	
 	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
 	.calculate_capacity     = &msm_calculate_batt_capacity,
 };
@@ -771,8 +823,8 @@ static void fix_sizes(void)
 		pmem_adsp_size = MSM_PMEM_ADSP_SIZE;
 	}
 
-	if (get_ddr_size() > SZ_512M)
-		pmem_adsp_size = CAMERA_ZSL_SIZE;
+	//if (get_ddr_size() > SZ_512M)
+	//	pmem_adsp_size = CAMERA_ZSL_SIZE;
 
 #ifdef CONFIG_ION_MSM
 	msm_ion_audio_size = MSM_PMEM_AUDIO_SIZE;
@@ -1093,9 +1145,14 @@ static void __init msm8625_rumi3_init(void)
 #define UART1DM_RX_GPIO		45
 
 #if defined(CONFIG_BT) && defined(CONFIG_MARIMBA_CORE)
+#define NV_ITEM_WLAN_MAC_ADDR   4678
+extern int msm_read_nv(unsigned int nv_item, void *buf);
+unsigned char wlan_mac_addr[6];
+
 static int __init msm7x27a_init_ar6000pm(void)
 {
 	msm_wlan_ar6000_pm_device.dev.platform_data = &ar600x_wlan_power;
+	msm_read_nv(NV_ITEM_WLAN_MAC_ADDR,wlan_mac_addr);
 	return platform_device_register(&msm_wlan_ar6000_pm_device);
 }
 #else
@@ -1175,12 +1232,37 @@ static void __init msm7x27a_pm_init(void)
 
 	msm_pm_register_irqs();
 }
+#if 0
+void test_flash(void)
+{
+    int t1 = 13;
+    int t2 = 32;
+
+	gpio_request(t1, "kernel_test");
+	gpio_request(t2, "kernel_test");
+
+    gpio_direction_output(t1, 0);
+    gpio_direction_output(t1, 0);
+
+    while (1)
+    {
+        gpio_set_value(t1, 1);
+        gpio_set_value(t2, 1);
+        mdelay(200);
+        gpio_set_value(t1, 0);
+        gpio_set_value(t2, 0);
+        mdelay(200);
+    }
+}
+#endif
 
 static void __init msm7x2x_init(void)
 {
-	msm7x2x_misc_init();
-
-	/* Initialize regulators first so that other devices can use them */
+    gpio_set_value(13, 0);
+    gpio_set_value(32, 0);
+    
+	msm7x2x_misc_init();    
+    /* Initialize regulators first so that other devices can use them */
 	msm7x27a_init_regulators();
 	msm_adsp_add_pdev();
 	if (cpu_is_msm8625() || cpu_is_msm8625q())
@@ -1206,11 +1288,31 @@ static void __init msm7x2x_init(void)
 	msm7627a_bt_power_init();
 #endif
 	msm7627a_camera_init();
+	msm7627a_sensor_init();
 	msm7627a_add_io_devices();
 	/*7x25a kgsl initializations*/
 	msm7x25a_kgsl_3d0_init();
 	/*8x25 kgsl initializations*/
 	msm8x25_kgsl_3d0_init();
+    //test_flash();
+	{
+	
+    int t1 = 13;
+    int t2 = 32;
+
+	gpio_request(t1, "kernel_test");
+	gpio_request(t2, "kernel_test");
+
+    gpio_direction_output(t1, 0);
+    gpio_direction_output(t1, 0);
+	
+	}
+//start yang.chenglei@byd added for smem_kpanic
+#ifdef	CONFIG_MMC_MSM_RAW
+    msm_init_apanic();
+#endif /* CONFIG_MMC_MSM_RAW */
+//end   yang.chenglei@byd added for smem_kpanic
+
 }
 
 static void __init msm7x2x_init_early(void)

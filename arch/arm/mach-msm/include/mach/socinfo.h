@@ -55,6 +55,12 @@
 
 #define PLATFORM_SUBTYPE_SGLTE	6
 
+#define HW_VERSION(major, minor)  (((major) << 16) | (minor))
+#define hw_version_is(major,minor)  \
+        ({ \
+                HW_VERSION((major),(minor))==socinfo_get_platform_version(); \
+        })
+
 enum msm_cpu {
 	MSM_CPU_UNKNOWN = 0,
 	MSM_CPU_7X01,
@@ -101,6 +107,7 @@ enum pmic_model {
 	PMIC_MODEL_UNKNOWN	= 0xFFFFFFFF
 };
 
+extern char socinfo_buf[200]; 
 enum msm_cpu socinfo_get_msm_cpu(void);
 uint32_t socinfo_get_id(void);
 uint32_t socinfo_get_version(void);

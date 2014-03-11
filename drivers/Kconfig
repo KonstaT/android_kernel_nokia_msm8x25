@@ -149,5 +149,7 @@ source "drivers/devfreq/Kconfig"
 source "drivers/gud/Kconfig"
 
 source "drivers/coresight/Kconfig"
-
+#add for nvbk
+source "drivers/odmm/Kconfig"
+#end
 endmenu

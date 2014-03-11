@@ -83,7 +83,7 @@
 /* String Table */
 static struct usb_string strings_dev[] = {
 	/* These dummy values should be overridden by platform data */
-	[STRING_MANUFACTURER_IDX].s = "Qualcomm Incorporated",
+	[STRING_MANUFACTURER_IDX].s = "Qualcomm Technologies, Inc.",
 	[STRING_PRODUCT_IDX].s = "Usb composition",
 	[STRING_SERIAL_IDX].s = "0123456789ABCDEF",
 	{  }                    /* end of list */

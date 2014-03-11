@@ -340,6 +340,8 @@ void cont_splash_clk_ctrl(int enable);
 void mipi_dsi_turn_on_clks(void);
 void mipi_dsi_turn_off_clks(void);
 void mipi_dsi_clk_cfg(int on);
+void my_prepare_enable_clocks(void);
+void my_unprepare_disable_clocks(void);
 
 int mipi_dsi_cmdlist_put(struct dcs_cmd_req *cmdreq);
 struct dcs_cmd_req *mipi_dsi_cmdlist_get(void);

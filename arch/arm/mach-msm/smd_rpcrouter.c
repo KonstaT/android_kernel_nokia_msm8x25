@@ -53,6 +53,11 @@
 #include "smd_rpc_sym.h"
 #include "smd_private.h"
 
+#ifdef CONFIG_MSM_SM_EVENT
+  #include <linux/sm_event_log.h>
+  #include <linux/sm_event.h>
+#endif
+
 enum {
 	SMEM_LOG = 1U << 0,
 	RTR_DBG = 1U << 1,
@@ -1567,6 +1572,9 @@ int msm_rpc_write(struct msm_rpc_endpoint *ept, void *buffer, int count)
 	int first_pkt = 1;
 	uint32_t mid;
 	unsigned long flags;
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_msm_rpc_data_t tmp;
+#endif
 
 	/* snoop the RPC packet and enforce permissions */
 
@@ -1665,6 +1673,31 @@ int msm_rpc_write(struct msm_rpc_endpoint *ept, void *buffer, int count)
 	}
 
  write_release_lock:
+#ifdef CONFIG_MSM_SM_EVENT
+	//RPC CALL
+	if (rq->type == 0) {
+		tmp.prog = ept->dst_prog;
+		tmp.version = ept->dst_vers;
+		tmp.type = hdr.type;
+		tmp.src_pid = hdr.src_pid;
+		tmp.src_cid = hdr.src_cid;
+		tmp.confirm_rx = hdr.confirm_rx;
+		tmp.size = hdr.size;
+		tmp.dst_pid = hdr.dst_pid;
+		tmp.dst_cid = hdr.dst_cid;
+		sm_add_event(SM_RPCROUTER_EVENT | RPCROUTER_WRITE_CALL, count, 0, (void*)&tmp, sizeof(tmp));
+	} else {
+		tmp.dst_pid = hdr.dst_pid;
+		tmp.type = hdr.type;
+		tmp.src_pid = hdr.src_pid;
+		tmp.src_cid = hdr.src_cid;
+		tmp.confirm_rx = hdr.confirm_rx;
+		tmp.size = hdr.size;
+		tmp.dst_cid = hdr.dst_cid;
+		sm_add_event(SM_RPCROUTER_EVENT | RPCROUTER_WRITE_REPLY, count, 0, (void*)&tmp, sizeof(tmp));
+	}
+#endif
+
 	/* if reply, release wakelock after writing to the transport */
 	if (rq->type != 0) {
 		/* Upon failure, add reply tag to the pending list.
@@ -1827,6 +1860,9 @@ int __msm_rpc_read(struct msm_rpc_endpoint *ept,
 	struct msm_rpc_reply *reply;
 	unsigned long flags;
 	int rc;
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_msm_rpc_data_t tmp;
+#endif
 
 	rc = wait_for_restart_and_notify(ept);
 	if (rc)
@@ -1898,6 +1934,32 @@ int __msm_rpc_read(struct msm_rpc_endpoint *ept,
 
 	*frag_ret = pkt->first;
 	rq = (void*) pkt->first->data;
+#ifdef CONFIG_MSM_SM_EVENT
+
+	//RPC CALL
+	if (rq->type == 0) {
+		tmp.prog = rq->prog;
+		tmp.version = rq->vers;
+		tmp.type = pkt->hdr.type;
+		tmp.src_pid = pkt->hdr.src_pid;
+		tmp.src_cid = pkt->hdr.src_cid;
+		tmp.confirm_rx = pkt->hdr.confirm_rx;
+		tmp.size = pkt->hdr.size;
+		tmp.dst_pid = pkt->hdr.dst_pid;
+		tmp.dst_cid = pkt->hdr.dst_cid;
+		sm_add_event(SM_RPCROUTER_EVENT | RPCROUTER_READ_CALL , rc, 0, (void*)&tmp, sizeof(tmp));
+	} else {
+		tmp.type = pkt->hdr.type;
+		tmp.src_pid = pkt->hdr.src_pid;
+		tmp.src_cid = pkt->hdr.src_cid;
+		tmp.confirm_rx = pkt->hdr.confirm_rx;
+		tmp.size = pkt->hdr.size;
+		tmp.dst_pid = pkt->hdr.dst_pid;
+		tmp.dst_cid = pkt->hdr.dst_cid;
+		sm_add_event(SM_RPCROUTER_EVENT | RPCROUTER_READ_REPLY, rc, 0, (void*)&tmp, sizeof(tmp));
+	}
+#endif
+
 	if ((rc >= (sizeof(uint32_t) * 3)) && (rq->type == 0)) {
 		/* RPC CALL */
 		reply = get_avail_reply(ept);

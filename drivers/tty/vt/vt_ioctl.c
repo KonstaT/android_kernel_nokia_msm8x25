@@ -110,34 +110,6 @@ void vt_event_post(unsigned int event, unsigned int old, unsigned int new)
 		wake_up_interruptible(&vt_event_waitqueue);
 }
 
-static void __vt_event_queue(struct vt_event_wait *vw)
-{
-	unsigned long flags;
-	/* Prepare the event */
-	INIT_LIST_HEAD(&vw->list);
-	vw->done = 0;
-	/* Queue our event */
-	spin_lock_irqsave(&vt_event_lock, flags);
-	list_add(&vw->list, &vt_events);
-	spin_unlock_irqrestore(&vt_event_lock, flags);
-}
-
-static void __vt_event_wait(struct vt_event_wait *vw)
-{
-	/* Wait for it to pass */
-	wait_event_interruptible(vt_event_waitqueue, vw->done);
-}
-
-static void __vt_event_dequeue(struct vt_event_wait *vw)
-{
-	unsigned long flags;
-
-	/* Dequeue it */
-	spin_lock_irqsave(&vt_event_lock, flags);
-	list_del(&vw->list);
-	spin_unlock_irqrestore(&vt_event_lock, flags);
-}
-
 /**
  *	vt_event_wait		-	wait for an event
  *	@vw: our event
@@ -147,11 +119,22 @@ static void __vt_event_dequeue(struct vt_event_wait *vw)
  *	or 0 if some event such as a signal ended the wait.
  */
 
-static void vt_event_wait(struct vt_event_wait *vw)
+static void vt_event_wait(struct vt_event_wait *vw,  int want_console)
 {
-	__vt_event_queue(vw);
-	__vt_event_wait(vw);
-	__vt_event_dequeue(vw);
+	unsigned long flags;
+	/* Prepare the event */
+	INIT_LIST_HEAD(&vw->list);
+	vw->done = 0;
+	/* Queue our event */
+	spin_lock_irqsave(&vt_event_lock, flags);
+	list_add(&vw->list, &vt_events);
+	spin_unlock_irqrestore(&vt_event_lock, flags);
+	/* Wait for it to pass */
+	wait_event_interruptible(vt_event_waitqueue, vw->done ||(want_console == (fg_console + 1)));
+	/* Dequeue it */
+	spin_lock_irqsave(&vt_event_lock, flags);
+	list_del(&vw->list);
+	spin_unlock_irqrestore(&vt_event_lock, flags);
 }
 
 /**
@@ -171,7 +154,7 @@ static int vt_event_wait_ioctl(struct vt_event __user *event)
 	if (vw.event.event & ~VT_MAX_EVENT)
 		return -EINVAL;
 
-	vt_event_wait(&vw);
+	vt_event_wait(&vw, -1);
 	/* If it occurred report it */
 	if (vw.done) {
 		if (copy_to_user(event, &vw.event, sizeof(struct vt_event)))
@@ -194,14 +177,10 @@ int vt_waitactive(int n)
 {
 	struct vt_event_wait vw;
 	do {
-		vw.event.event = VT_EVENT_SWITCH;
-		__vt_event_queue(&vw);
-		if (n == fg_console + 1) {
-			__vt_event_dequeue(&vw);
+		if (n == fg_console + 1)
 			break;
-		}
-		__vt_event_wait(&vw);
-		__vt_event_dequeue(&vw);
+		vw.event.event = VT_EVENT_SWITCH;
+		vt_event_wait(&vw, n);
 		if (vw.done == 0)
 			return -EINTR;
 	} while (vw.event.newev != n);

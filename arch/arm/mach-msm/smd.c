@@ -1,5 +1,5 @@
 /* arch/arm/mach-msm/smd.c
- *
+ * Copyright (c) 2012, The Linux Foundation. All Rights Reserved.
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
@@ -75,6 +75,7 @@ uint32_t SMSM_NUM_HOSTS = 3;
 /* Legacy SMSM interrupt notifications */
 #define LEGACY_MODEM_SMSM_MASK (SMSM_RESET | SMSM_INIT | SMSM_SMDINIT \
 			| SMSM_RUN | SMSM_SYSTEM_DOWNLOAD)
+
 
 enum {
 	MSM_SMD_DEBUG = 1U << 0,
@@ -2615,7 +2616,7 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 
 		old_apps = apps = __raw_readl(SMSM_STATE_ADDR(SMSM_APPS_STATE));
 
-		SMSM_DBG("<SM %08x %08x>\n", apps, modm);
+		SMSM_INFO("<SM %08x %08x>\n", apps, modm);
 		if (apps & SMSM_RESET) {
 			/* If we get an interrupt and the apps SMSM_RESET
 			   bit is already set, the modem is acking the
@@ -2638,7 +2639,8 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 				outer_flush_all();
 			}
 			modem_queue_start_reset_notify();
-
+	 		modm |= SMSM_SYSTEM_DOWNLOAD; //this will result the MP reset and go into download mode
+			smsm_change_state(SMSM_APPS_STATE, modm, modm);
 		} else if (modm & SMSM_INIT) {
 			if (!(apps & SMSM_INIT)) {
 				apps |= SMSM_INIT;

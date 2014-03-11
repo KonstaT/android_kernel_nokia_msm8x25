@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013 The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,7 +20,7 @@
 #include "msm_csic.h"
 #include "msm.h"
 
-#define DBG_CSIC 0
+#define DBG_CSIC 1
 
 #define V4L2_IDENT_CSIC			50004
 /* MIPI	CSI controller registers */
@@ -213,9 +213,9 @@ static int msm_csic_config(struct csic_cfg_params *cfg_params)
 		break;
 	}
 
-	msm_camera_io_w(0xF077F3C0, csicbase + MIPI_INTERRUPT_MASK);
+	msm_camera_io_w(0xF01FF3CF, csicbase + MIPI_INTERRUPT_MASK);
 	/*clear IRQ bits*/
-	msm_camera_io_w(0xF077F3C0, csicbase + MIPI_INTERRUPT_STATUS);
+	msm_camera_io_w(0xF01FF3CF, csicbase + MIPI_INTERRUPT_STATUS);
 
 	return rc;
 }
@@ -225,9 +225,9 @@ static irqreturn_t msm_csic_irq(int irq_num, void *data)
 	uint32_t irq;
 	struct csic_device *csic_dev = data;
 
-	pr_info("msm_csic_irq: %x\n", (unsigned int)csic_dev->base);
+	//pr_info("msm_csic_irq: %x\n", (unsigned int)csic_dev->base);
 	irq = msm_camera_io_r(csic_dev->base + MIPI_INTERRUPT_STATUS);
-	pr_info("%s MIPI_INTERRUPT_STATUS = 0x%x 0x%x\n",
+	printk("%s MIPI_INTERRUPT_STATUS = 0x%x 0x%x\n",
 		__func__, irq,
 		msm_camera_io_r(csic_dev->base + MIPI_PROTOCOL_CONTROL));
 	msm_camera_io_w(irq, csic_dev->base + MIPI_INTERRUPT_STATUS);

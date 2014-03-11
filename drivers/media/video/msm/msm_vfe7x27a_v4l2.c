@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013 The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -625,6 +625,7 @@ static void vfe_7x_ops(void *driver_data, unsigned id, size_t len,
 					msm_adsp_write(vfe_mod,
 							QDSP_CMDQUEUE,
 							cmd_data, len);
+
 					kfree(data);
 					return;
 				}
@@ -747,7 +748,9 @@ static void vfe_7x_ops(void *driver_data, unsigned id, size_t len,
 			}
 			break;
 		case MSG_RESET_ACK:
+			printk("%s:id=%d\n", __func__, id);
 		case MSG_START_ACK:
+			printk("%s:id=%d\n", __func__, id);
 		case MSG_UPDATE_ACK:
 		case MSG_VFE_ERROR:
 		case MSG_SYNC_TIMER1_DONE:
@@ -760,37 +763,37 @@ static void vfe_7x_ops(void *driver_data, unsigned id, size_t len,
 				struct vfe_error_msg *VFE_ErrorMessageBuffer
 					= data;
 				ptr = data;
-				CDBG("Error: %x %x\n", ptr[0], ptr[1]);
-				CDBG("CAMIF_Error              = %d\n",
+				printk("Error: %x %x\n", ptr[0], ptr[1]);
+				printk("CAMIF_Error              = %d\n",
 					VFE_ErrorMessageBuffer->camif_error);
-				CDBG("output1YBusOverflow      = %d\n",
+				printk("output1YBusOverflow      = %d\n",
 					VFE_ErrorMessageBuffer->
 					output1ybusoverflow);
-				CDBG("output1CbCrBusOverflow   = %d\n",
+				printk("output1CbCrBusOverflow   = %d\n",
 					VFE_ErrorMessageBuffer->
 					output1cbcrbusoverflow);
-				CDBG("output2YBusOverflow      = %d\n",
+				printk("output2YBusOverflow      = %d\n",
 					VFE_ErrorMessageBuffer->
 					output2ybusoverflow);
-				CDBG("output2CbCrBusOverflow   = %d\n",
+				printk("output2CbCrBusOverflow   = %d\n",
 						VFE_ErrorMessageBuffer->
 						output2cbcrbusoverflow);
-				CDBG("autofocusStatBusOverflow = %d\n",
+				printk("autofocusStatBusOverflow = %d\n",
 						VFE_ErrorMessageBuffer->
 						autofocusstatbusoverflow);
-				CDBG("WB_EXPStatBusOverflow    = %d\n",
+				printk("WB_EXPStatBusOverflow    = %d\n",
 						VFE_ErrorMessageBuffer->
 						wb_expstatbusoverflow);
-				CDBG("AXIError                 = %d\n",
+				printk("AXIError                 = %d\n",
 						VFE_ErrorMessageBuffer->
 						axierror);
-				CDBG("CAMIF_Staus              = %d\n",
+				printk("CAMIF_Staus              = %d\n",
 						VFE_ErrorMessageBuffer->
 						camif_staus);
-				CDBG("pixel_count              = %d\n",
+				printk("pixel_count              = %d\n",
 						VFE_ErrorMessageBuffer->
 						pixel_count);
-				CDBG("line_count               = %d\n",
+				printk("line_count               = %d\n",
 						VFE_ErrorMessageBuffer->
 						line_count);
 			}
@@ -1419,7 +1422,8 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
 		break;
 	case CMD_GENERAL:
 	case CMD_STATS_DISABLE: {
-		CDBG("CMD_GENERAL:%d %d\n", vfecmd.id, vfecmd.length);
+		if (vfecmd.id == VFE_CMD_START||vfecmd.id == VFE_CMD_STOP)
+			printk("CMD_GENERAL:%d %d\n", vfecmd.id, vfecmd.length);
 		if (vfecmd.id == VFE_CMD_OPERATION_CFG) {
 			if (copy_from_user(&vfe2x_ctrl->start_cmd,
 						(void __user *)(vfecmd.value),
@@ -1500,7 +1504,7 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
 									flags);
 				if ((!list_empty(&vfe2x_ctrl->table_q)) ||
 						vfe2x_ctrl->tableack_pending) {
-					CDBG("start pending\n");
+					printk("start pending\n");
 					vfe2x_ctrl->start_pending = 1;
 					spin_unlock_irqrestore(
 						&vfe2x_ctrl->table_lock,
@@ -1531,7 +1535,7 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
                                 }
 				if ((!list_empty(&vfe2x_ctrl->table_q)) ||
 						vfe2x_ctrl->tableack_pending) {
-					CDBG("stop pending\n");
+					printk("stop pending\n");
 					vfe2x_ctrl->stop_pending = 1;
 					spin_unlock_irqrestore(
 							&vfe2x_ctrl->table_lock,
@@ -1893,6 +1897,8 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
 
 config_send:
 	CDBG("send adsp command = %d\n", *(uint32_t *)cmd_data);
+	if (*(uint32_t *)cmd_data == 1||*(uint32_t *)cmd_data == 0)
+		printk("cmd:%d queue:%d length:%d\n", *(uint32_t *)cmd_data, queue, vfecmd.length + 4);
 	spin_lock_irqsave(&vfe2x_ctrl->table_lock, flags);
 	if (queue == QDSP_TABLEQUEUE &&
 			vfe2x_ctrl->tableack_pending) {
@@ -1927,7 +1933,7 @@ config_send:
 				uint32_t *ptr = cmd_data;
 				CDBG("%x %x %x\n", ptr[0], ptr[1], ptr[2]);
 			}
-			CDBG("send n-table cmd\n");
+			CDBG("send n-table cmd:%d queue:%d length:%d\n", *(uint32_t *)cmd_data, queue, vfecmd.length + 4);
 			rc = msm_adsp_write(vfe_mod, queue,
 				cmd_data, vfecmd.length + 4);
 			spin_unlock_irqrestore(&vfe2x_ctrl->table_lock, flags);

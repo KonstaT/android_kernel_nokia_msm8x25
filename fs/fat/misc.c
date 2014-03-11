@@ -10,8 +10,39 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/time.h>
+#include <linux/sched.h>
 #include "fat.h"
-
+/*
+ *there are some many errors related to SD card/FAT filesystsem
+ *add fat_fs_error_dump in __fat_fs_error() to get more information
+ *for analysis
+ */
+void fat_fs_error_dump(struct super_block *sb)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	printk("##############DUMP TASK###################\n");
+	printk("process:%s (pid:%d)\n",&current->comm[0],current->pid);
+	//BUG();
+	dump_stack();
+	printk("#############DUMP MSDOS SB INFO###########\n");
+	printk("sec_per_clus:%hd\n",sbi->sec_per_clus);
+	printk("cluster_bits:%hd\n",sbi->cluster_bits);
+	printk("cluster_size = %u\n",sbi->cluster_size);
+	printk("fats = %d\n",sbi->fats);
+	printk("fat_bits = %d\n",sbi->fat_bits);
+	printk("fat_start = %hu\n",sbi->fat_start);
+	printk("fat_length = %lu\n",sbi->fat_length);
+	printk("dir_start = %ld\n",sbi->dir_start);
+	printk("dir_entries = %hd\n",sbi->dir_entries);
+	printk("data_start = %lu\n",sbi->data_start);
+	printk("max_cluster = %lu\n",sbi->max_cluster);
+	printk("fsinfo_sector = %lu\n",sbi->fsinfo_sector);
+	printk("prev_free = %u\n",sbi->prev_free);
+	printk("free_clusters = %u\n",sbi->free_clusters);
+	printk("free_clus_valid = %u\n",sbi->free_clus_valid);
+	printk("############### END ######################\n");
+}
+EXPORT_SYMBOL_GPL(fat_fs_error_dump);
 /*
  * fat_fs_error reports a file system problem that might indicate fa data
  * corruption/inconsistency. Depending on 'errors' mount option the
@@ -33,7 +64,7 @@ void __fat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 		printk(KERN_ERR "FAT-fs (%s): error, %pV\n", sb->s_id, &vaf);
 		va_end(args);
 	}
-
+	fat_fs_error_dump(sb);
 	if (opts->errors == FAT_ERRORS_PANIC)
 		panic("FAT-fs (%s): fs panic from previous error\n", sb->s_id);
 	else if (opts->errors == FAT_ERRORS_RO && !(sb->s_flags & MS_RDONLY)) {
@@ -269,9 +300,10 @@ EXPORT_SYMBOL_GPL(fat_time_unix2fat);
 int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs)
 {
 	int i, err = 0;
-
+	//It’s an obvious mistake here,the current process will wait until the data be written
+	//So must give these IO request a  higher priority
 	for (i = 0; i < nr_bhs; i++)
-		write_dirty_buffer(bhs[i], WRITE);
+		write_dirty_buffer(bhs[i], WRITE_SYNC);
 
 	for (i = 0; i < nr_bhs; i++) {
 		wait_on_buffer(bhs[i]);

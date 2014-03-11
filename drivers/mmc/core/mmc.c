@@ -293,10 +293,12 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 	card->ext_csd.rev = ext_csd[EXT_CSD_REV];
 	if (card->ext_csd.rev > 6) {
-		printk(KERN_ERR "%s: unrecognised EXT_CSD revision %d\n",
+		printk(KERN_WARNING"%s: unrecognised EXT_CSD revision %d\n",
 			mmc_hostname(card->host), card->ext_csd.rev);
+		/* @du.yichun remove for eMMC v5.0 or later 
 		err = -EINVAL;
 		goto out;
+		*/
 	}
 
 	card->ext_csd.raw_sectors[0] = ext_csd[EXT_CSD_SEC_CNT + 0];

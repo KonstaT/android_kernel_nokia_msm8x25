@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All Rights Reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All Rights Reserved.
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License version 2 and
  only version 2 as published by the Free Software Foundation.
@@ -21,6 +21,8 @@
 #define PIP_CTL_STANDBY_EXIT        7
 #define PIP_CTL_STREAM_ON           8
 #define PIP_CTL_STREAM_OFF          9
+#define PIP_CTL_RESET_HW_DOWN       10
+#define PIP_CTL_MIPI_DOWN           11
 
 
 /* PIP working mode */

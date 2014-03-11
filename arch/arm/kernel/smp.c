@@ -554,6 +554,20 @@ void smp_send_all_cpu_backtrace(void)
 	smp_mb__after_clear_bit();
 }
 
+void smp_send_all_cpu_ping(void)
+{
+	struct cpumask mask;
+	int cpu = smp_processor_id();
+
+	cpumask_copy(&mask, cpu_online_mask);
+	cpumask_clear_cpu(cpu, &mask);
+	if (!cpumask_empty(&mask)) {
+		pr_info("ping all the CPU from CPU%d\n", cpu);
+		smp_cross_call(&mask, IPI_CPU_START);
+	}
+}
+
+
 /*
  * ipi_cpu_backtrace - handle IPI from smp_send_all_cpu_backtrace()
  */

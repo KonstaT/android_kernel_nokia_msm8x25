@@ -19,6 +19,7 @@
 #define PKT_TYPE			8
 #define DEINIT_TYPE			16
 #define USER_SPACE_LOG_TYPE		32
+#define DIAG_NV_WRITE			128
 #define DCI_DATA_TYPE			64
 #define USB_MODE			1
 #define MEMORY_DEVICE_MODE		2

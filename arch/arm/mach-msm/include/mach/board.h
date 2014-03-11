@@ -1,7 +1,7 @@
 /* arch/arm/mach-msm/include/mach/board.h
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2012, The Linux Foundation. All Rights Reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -253,6 +253,12 @@ enum msm_camera_actuator_name {
 	MSM_ACTUATOR_MAIN_CAM_5,
 	MSM_ACTUATOR_MAIN_CAM_6,
 	MSM_ACTUATOR_MAIN_CAM_7,
+	ODMM_MSM_ACTUATOR_MAIN_CAM_DALING_OVBD631AC_5,
+	ODMM_MSM_ACTUATOR_MAIN_CAM_PARTRON_CM500_5,
+	ODMM_MSM_ACTUATOR_MAIN_CAM_HQ_DG806T_5,
+	MSM_ACTUATOR_MAIN_CAM_8,
+	MSM_ACTUATOR_MAIN_CAM_9,
+	MSM_ACTUATOR_MAIN_CAM_10,
 	MSM_ACTUATOR_WEB_CAM_0,
 	MSM_ACTUATOR_WEB_CAM_1,
 	MSM_ACTUATOR_WEB_CAM_2,

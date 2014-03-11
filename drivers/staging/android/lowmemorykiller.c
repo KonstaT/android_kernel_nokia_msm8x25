@@ -29,7 +29,6 @@
  * GNU General Public License for more details.
  *
  */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -37,8 +36,18 @@
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
 #include <linux/notifier.h>
+#include <linux/mutex.h>
+#include <linux/delay.h>
+#include <linux/swap.h>
+#include <linux/fs.h>
 
-static uint32_t lowmem_debug_level = 2;
+#ifdef CONFIG_HIGHMEM
+#define _ZONE ZONE_HIGHMEM
+#else
+#define _ZONE ZONE_NORMAL
+#endif
+
+static uint32_t lowmem_debug_level = 1;
 static int lowmem_adj[6] = {
 	0,
 	1,
@@ -53,6 +62,7 @@ static int lowmem_minfree[6] = {
 	16 * 1024,	/* 64MB */
 };
 static int lowmem_minfree_size = 4;
+static int lmk_fast_run = 1;
 
 static unsigned long lowmem_deathpending_timeout;
 
@@ -78,6 +88,84 @@ static int test_task_flag(struct task_struct *p, int flag)
 	return 0;
 }
 
+static DEFINE_MUTEX(scan_mutex);
+
+void tune_lmk_zone_param(struct zonelist *zonelist, int classzone_idx,
+					int *other_free, int *other_file)
+{
+	struct zone *zone;
+	struct zoneref *zoneref;
+	int zone_idx;
+
+	for_each_zone_zonelist(zone, zoneref, zonelist, MAX_NR_ZONES) {
+		if ((zone_idx = zonelist_zone_idx(zoneref)) == ZONE_MOVABLE)
+			continue;
+
+		if (zone_idx > classzone_idx) {
+			if (other_free != NULL)
+				*other_free -= zone_page_state(zone,
+							       NR_FREE_PAGES);
+			if (other_file != NULL)
+				*other_file -= zone_page_state(zone,
+							       NR_FILE_PAGES)
+					      - zone_page_state(zone, NR_SHMEM);
+		} else if (zone_idx < classzone_idx) {
+			if (zone_watermark_ok(zone, 0, 0, classzone_idx, 0))
+				*other_free -=
+				           zone->lowmem_reserve[classzone_idx];
+			else
+				*other_free -=
+				           zone_page_state(zone, NR_FREE_PAGES);
+		}
+	}
+}
+
+void tune_lmk_param(int *other_free, int *other_file, struct shrink_control *sc)
+{
+	gfp_t gfp_mask;
+	struct zone *preferred_zone;
+	struct zonelist *zonelist;
+	enum zone_type high_zoneidx, classzone_idx;
+	unsigned long balance_gap;
+
+	gfp_mask = sc->gfp_mask;
+	zonelist = node_zonelist(0, gfp_mask);
+	high_zoneidx = gfp_zone(gfp_mask);
+	first_zones_zonelist(zonelist, high_zoneidx, NULL, &preferred_zone);
+	classzone_idx = zone_idx(preferred_zone);
+
+	balance_gap = min(low_wmark_pages(preferred_zone),
+			  (preferred_zone->present_pages +
+			   KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+			   KSWAPD_ZONE_BALANCE_GAP_RATIO);
+
+	if (likely(current_is_kswapd() && zone_watermark_ok(preferred_zone, 0,
+			  high_wmark_pages(preferred_zone) + SWAP_CLUSTER_MAX +
+			  balance_gap, 0, 0))) {
+		if (lmk_fast_run)
+			tune_lmk_zone_param(zonelist, classzone_idx, other_free,
+				       other_file);
+		else
+			tune_lmk_zone_param(zonelist, classzone_idx, other_free,
+				       NULL);
+
+		if (zone_watermark_ok(preferred_zone, 0, 0, _ZONE, 0))
+			*other_free -=
+			           preferred_zone->lowmem_reserve[_ZONE];
+		else
+			*other_free -= zone_page_state(preferred_zone,
+						      NR_FREE_PAGES);
+		lowmem_print(4, "lowmem_shrink of kswapd tunning for highmem "
+			     "ofree %d, %d\n", *other_free, *other_file);
+	} else {
+		tune_lmk_zone_param(zonelist, classzone_idx, other_free,
+			       other_file);
+
+		lowmem_print(4, "lowmem_shrink tunning for others ofree %d, "
+			     "%d\n", *other_free, *other_file);
+	}
+}
+
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
 	struct task_struct *tsk;
@@ -89,9 +177,36 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int selected_tasksize = 0;
 	int selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
-	int other_free = global_page_state(NR_FREE_PAGES);
-	int other_file = global_page_state(NR_FILE_PAGES) -
-						global_page_state(NR_SHMEM);
+	int other_free;
+	int other_file;
+	unsigned long nr_to_scan = sc->nr_to_scan;
+
+//hack
+	struct task_struct *selected_hciattach = NULL;
+	int selected_tasksize_hciattach = 0;
+	int selected_oom_score_adj_hciattach = 0;
+	unsigned long slab_unreclaimable = 0;
+	
+
+	if (nr_to_scan > 0) {
+		if (mutex_lock_interruptible(&scan_mutex) < 0)
+			return 0;
+	}
+
+	other_free = global_page_state(NR_FREE_PAGES);
+
+	if (global_page_state(NR_SHMEM) + total_swapcache_pages <
+		global_page_state(NR_FILE_PAGES))
+		other_file = global_page_state(NR_FILE_PAGES) -
+						global_page_state(NR_SHMEM) -
+						total_swapcache_pages;
+	else
+		other_file = 0;
+
+//hack
+	slab_unreclaimable = global_page_state(NR_SLAB_UNRECLAIMABLE);
+
+	tune_lmk_param(&other_free, &other_file, sc);
 
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
@@ -104,17 +219,21 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			break;
 		}
 	}
-	if (sc->nr_to_scan > 0)
+	if (nr_to_scan > 0)
 		lowmem_print(3, "lowmem_shrink %lu, %x, ofree %d %d, ma %d\n",
-				sc->nr_to_scan, sc->gfp_mask, other_free,
+				nr_to_scan, sc->gfp_mask, other_free,
 				other_file, min_score_adj);
 	rem = global_page_state(NR_ACTIVE_ANON) +
 		global_page_state(NR_ACTIVE_FILE) +
 		global_page_state(NR_INACTIVE_ANON) +
 		global_page_state(NR_INACTIVE_FILE);
-	if (sc->nr_to_scan <= 0 || min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
+	if (nr_to_scan <= 0 || min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
 		lowmem_print(5, "lowmem_shrink %lu, %x, return %d\n",
-			     sc->nr_to_scan, sc->gfp_mask, rem);
+			     nr_to_scan, sc->gfp_mask, rem);
+
+		if (nr_to_scan > 0)
+			mutex_unlock(&scan_mutex);
+
 		return rem;
 	}
 	selected_oom_score_adj = min_score_adj;
@@ -127,9 +246,16 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (tsk->flags & PF_KTHREAD)
 			continue;
 
+		/* if task no longer has any memory ignore it */
+		if (test_task_flag(tsk, TIF_MM_RELEASED))
+			continue;
+
 		if (time_before_eq(jiffies, lowmem_deathpending_timeout)) {
 			if (test_task_flag(tsk, TIF_MEMDIE)) {
 				rcu_read_unlock();
+				/* give the system time to free up the memory */
+				msleep_interruptible(20);
+				mutex_unlock(&scan_mutex);
 				return 0;
 			}
 		}
@@ -137,6 +263,14 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		p = find_lock_task_mm(tsk);
 		if (!p)
 			continue;
+
+		
+		//hack  38400*4 = 153600k = 150M
+		if((slab_unreclaimable > 38400) && !strcmp(p->comm,"hciattach")){
+			selected_hciattach = p;
+			selected_tasksize_hciattach = get_mm_rss(p->mm);
+			selected_oom_score_adj_hciattach = p->signal->oom_score_adj;
+		}
 
 		oom_score_adj = p->signal->oom_score_adj;
 		if (oom_score_adj < min_score_adj) {
@@ -161,17 +295,30 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     p->pid, p->comm, oom_score_adj, tasksize);
 	}
 	if (selected) {
-		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
+		//hack
+		if((slab_unreclaimable > 38400) && selected_hciattach){
+			selected = selected_hciattach;
+			selected_tasksize = selected_tasksize_hciattach;
+			selected_oom_score_adj = selected_oom_score_adj_hciattach;
+			lowmem_print(1, "hack hciattach!!!\n");			
+		}
+		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d,slab_unreclaimable %lu\n",
 			     selected->pid, selected->comm,
-			     selected_oom_score_adj, selected_tasksize);
+			     selected_oom_score_adj, selected_tasksize,slab_unreclaimable);
+			     
 		lowmem_deathpending_timeout = jiffies + HZ;
 		send_sig(SIGKILL, selected, 0);
 		set_tsk_thread_flag(selected, TIF_MEMDIE);
 		rem -= selected_tasksize;
-	}
+		rcu_read_unlock();
+		/* give the system time to free up the memory */
+		msleep_interruptible(20);
+	} else
+		rcu_read_unlock();
+
 	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
-		     sc->nr_to_scan, sc->gfp_mask, rem);
-	rcu_read_unlock();
+		     nr_to_scan, sc->gfp_mask, rem);
+	mutex_unlock(&scan_mutex);
 	return rem;
 }
 
@@ -282,6 +429,7 @@ module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(lmk_fast_run, lmk_fast_run, int, S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);
 module_exit(lowmem_exit);

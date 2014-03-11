@@ -80,10 +80,12 @@ static void dump_registers(struct ncp6335d_info *dd,
 #endif
 }
 
+extern void msm_cpr_disable(void);
 static void ncp6335d_restart_config(void)
 {
 	int rc, set_val;
 
+	msm_cpr_disable();
 	mutex_lock(&ncp6335d->restart_lock);
 
 	set_val = DIV_ROUND_UP(NCP6335D_DEF_VTG_UV - NCP6335D_MIN_VOLTAGE_UV,

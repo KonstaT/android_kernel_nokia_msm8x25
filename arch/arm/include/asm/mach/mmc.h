@@ -157,6 +157,7 @@ struct mmc_platform_data {
 	unsigned int msmsdcc_fmid;
 	unsigned int msmsdcc_fmax;
 	bool nonremovable;
+	bool hw_resetable;
 	unsigned int mpm_sdiowakeup_int;
 	unsigned int wpswitch_gpio;
 	bool is_wpswitch_active_low;

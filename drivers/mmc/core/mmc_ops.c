@@ -72,7 +72,7 @@ int mmc_card_sleepawake(struct mmc_host *host, int sleep)
 		cmd.arg |= 1 << 15;
 
 	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-	err = mmc_wait_for_cmd(host, &cmd, 0);
+	err = mmc_wait_for_cmd(host, &cmd, 5);
 	if (err)
 		return err;
 

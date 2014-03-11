@@ -98,6 +98,7 @@ struct rmt_storage_srv {
 struct rmt_storage_client {
 	uint32_t handle;
 	uint32_t sid;			/* Storage ID */
+    uint32_t usr_data;
 	char path[MAX_PATH_NAME];
 	struct rmt_storage_srv *srv;
 	struct list_head list;
@@ -141,9 +142,11 @@ struct rmt_storage_stats {
        struct rmt_storage_op_stats rd_stats;
        struct rmt_storage_op_stats wr_stats;
 };
+
 static struct rmt_storage_stats client_stats[MAX_NUM_CLIENTS];
 static struct dentry *stats_dentry;
 #endif
+static struct rmt_storage_event last_event;
 
 #define MSM_RMT_STORAGE_APIPROG	0x300000A7
 #define MDM_RMT_STORAGE_APIPROG	0x300100A7
@@ -179,6 +182,12 @@ static struct dentry *stats_dentry;
 #define RAMFS_SSD_STORAGE_ID		0x00535344
 #define RAMFS_SHARED_SSD_RAM_BASE	0x42E00000
 #define RAMFS_SHARED_SSD_RAM_SIZE	0x2000
+
+enum {
+    EVENT_NOT_HANDLED = 0,
+    EVENT_HANDLED,
+} event_status_type;
+static int32_t event_status = EVENT_HANDLED;
 
 static struct rmt_storage_client *rmt_storage_get_client(uint32_t handle)
 {
@@ -946,12 +955,14 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 	struct rmt_storage_send_sts status;
 	static struct msm_rpc_client *rpc_client;
 	struct rmt_shrd_mem_param usr_shrd_mem, *shrd_mem;
+    struct rmt_storage_client *rs_client;
 
 #ifdef CONFIG_MSM_RMT_STORAGE_CLIENT_STATS
 	struct rmt_storage_stats *stats;
 	struct rmt_storage_op_stats *op_stats;
 	ktime_t curr_stat;
 #endif
+    struct rmt_storage_revive_info revive_info;
 
 	switch (cmd) {
 
@@ -991,13 +1002,73 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 
 		kevent = get_event(rmc);
 		WARN_ON(kevent == NULL);
+
+        if ((kevent->event.id == RMT_STORAGE_READ) || (kevent->event.id == RMT_STORAGE_WRITE)) {
+            event_status = EVENT_NOT_HANDLED;
+            memcpy(&last_event, &kevent->event, sizeof(struct rmt_storage_event));
+        }
+
+
+        /* Save usr_data infomation */
+        if (kevent->event.id == RMT_STORAGE_SEND_USER_DATA) {
+            if((rs_client = rmt_storage_get_client(kevent->event.handle)))
+                rs_client->usr_data = kevent->event.usr_data;
+        }
+
 		if (copy_to_user((void __user *)arg, &kevent->event,
 			sizeof(struct rmt_storage_event))) {
 			pr_err("%s: copy to user failed\n\n", __func__);
 			ret = -EFAULT;
 		}
-		kfree(kevent);
+        kfree(kevent);
 		break;
+
+        /* Make the user revive and remember previous life */
+    case RMT_STORAGE_REVIVE:
+        pr_debug("%s: get revive request\n", __func__);
+
+        if(copy_from_user(&revive_info, (void __user*)arg, sizeof(struct rmt_storage_revive_info))) {
+            pr_debug("%s: revive_info.index=%d\n", __func__, revive_info.handle);
+            ret = -EFAULT;
+            break;
+        }
+
+        if (revive_info.type == RMT_REVIVE_CLIENT) {
+            pr_debug("%s: revive_info.handle=%d\n", __func__, revive_info.handle);
+
+            if((rs_client = rmt_storage_get_client(revive_info.handle))) {
+                memcpy(revive_info.path, rs_client->path, MAX_PATH_NAME);
+                revive_info.sid = rs_client->sid;
+                revive_info.usr_data = rs_client->usr_data;
+                if(copy_to_user((void __user *)arg, &revive_info, sizeof(struct rmt_storage_revive_info))) {
+                    pr_err("%s: revive error\n", __func__);
+                    ret = -EFAULT;
+                    break;
+                }
+                /* The handle doesn't exist */
+            } else {
+                ret = -EINVAL;
+                break;
+            }
+        } else if (revive_info.type == RMT_REVIVE_EVENT) {
+
+            /* Tell the user what happed */
+            revive_info.event_status = event_status;
+            if(copy_to_user((void __user*)arg, &revive_info, sizeof(struct rmt_storage_revive_info))) {
+                pr_err("%s: revive error\n", __func__);
+                ret = -EFAULT;
+                break;
+            }
+
+            /* The the user the event need to process */
+            if(copy_to_user((void __user*)revive_info.event, (void*)&last_event, sizeof(struct rmt_storage_event))) {
+                pr_err("%s: revive error\n", __func__);
+                ret = -EFAULT;
+                break;
+            }
+        }
+
+        break;
 
 	case RMT_STORAGE_SEND_STATUS:
 		pr_info("%s: send status ioctl\n", __func__);
@@ -1036,6 +1107,8 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 		if (ret < 0)
 			pr_err("%s: send status failed with ret val = %d\n",
 				__func__, ret);
+        else
+            event_status = EVENT_HANDLED;
 		if (atomic_dec_return(&rmc->wcount) == 0)
 			wake_unlock(&rmc->wlock);
 		break;
@@ -1350,6 +1423,9 @@ show_sync_sts(struct device *dev, struct device_attribute *attr, char *buf)
 			rmt_storage_get_sync_status(srv->rpc_client));
 }
 
+static void rmt_storage_set_client_status(struct rmt_storage_srv *srv,
+					  int enable);
+
 /*
  * Initiate the remote storage force sync and wait until
  * sync status is done or maximum 4 seconds in the reboot notifier.
@@ -1362,11 +1438,13 @@ static int rmt_storage_reboot_call(
 	struct notifier_block *this, unsigned long code, void *cmd)
 {
 	int ret, count = 0;
+	struct msm_rpc_client *rpc_client;
 
 	/*
 	 * In recovery mode RMT daemon is not available,
 	 * so return from reboot notifier without initiating
 	 * force sync.
+         * add senario: in normal mode, if reboot or shutdown  very early before the userspace open.
 	 */
 	spin_lock(&rmc->lock);
 	if (!rmc->open_excl) {
@@ -1376,6 +1454,14 @@ static int rmt_storage_reboot_call(
 	}
 
 	spin_unlock(&rmc->lock);
+
+	rpc_client = rmt_storage_get_rpc_client(last_event.handle);
+
+        if (!rpc_client) {
+                pr_err("%s: rpc_client is null\n", __func__);
+                return NOTIFY_DONE;
+        }
+
 	switch (code) {
 	case SYS_RESTART:
 	case SYS_HALT:
@@ -1413,7 +1499,10 @@ static int rmt_storage_reboot_call(
 		if (atomic_read(&rmc->wcount))
 			pr_err("%s: Efs_sync still incomplete\n", __func__);
 
-		pr_info("%s: Un-register RMT storage client\n", __func__);
+		pr_info("%s: Un register RMT storage client.\n", __func__);
+
+		cancel_delayed_work_sync(&rmt_srv->restart_work);
+		rmt_storage_set_client_status(rmt_srv, 0);
 		msm_rpc_unregister_client(rmt_srv->rpc_client);
 		break;
 
@@ -1669,12 +1758,14 @@ unregister_client:
 
 static void rmt_storage_client_shutdown(struct platform_device *pdev)
 {
+#if 0
 	struct rpcsvr_platform_device *dev;
 	struct rmt_storage_srv *srv;
 
 	dev = container_of(pdev, struct rpcsvr_platform_device, base);
 	srv = rmt_storage_get_srv(dev->prog);
 	rmt_storage_set_client_status(srv, 0);
+#endif
 }
 
 static void rmt_storage_destroy_rmc(void)

@@ -4,6 +4,7 @@
  *  Copyright (C) 2007 Google Inc,
  *  Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
  *  Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
+ *  Copyright (c) 2012-2013, The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -87,6 +88,7 @@ static int msmsdcc_prep_xfer(struct msmsdcc_host *host, struct mmc_data
 
 static u64 dma_mask = DMA_BIT_MASK(32);
 static unsigned int msmsdcc_pwrsave = 1;
+static bool en_runtime_suspend = 1;
 
 static struct mmc_command dummy52cmd;
 static struct mmc_request dummy52mrq = {
@@ -3993,6 +3995,75 @@ exit:
 	return rc;
 }
 
+/*
+ * Work around of the unavailability of a power_reset functionality in SD cards
+ * by turning the OFF & back ON the regulators supplying the SD card.
+ */
+static void msmsdcc_hw_reset(struct mmc_host *mmc)
+{
+	struct mmc_card *card = mmc->card;
+	struct msmsdcc_host *host = mmc_priv(mmc);
+	int rc;
+
+	pr_warn("%s: issue a hw reset now\n",
+					mmc_hostname(host->mmc));
+	/* Write-protection bits would be lost on a hardware reset in emmc */
+	if (!card || mmc_card_sdio(card))
+		return;
+
+	if (host->plat->translate_vdd && !host->sdio_gpio_lpm && !host->plat->vreg_data) {
+		rc = host->plat->translate_vdd(mmc_dev(mmc), 0);
+		if (rc) {
+			pr_err("%s: Failed to disable vdd\n",
+					mmc_hostname(host->mmc));
+			BUG_ON(rc);
+		}
+
+		/* 10ms delay for the supply to reach the desired voltage level */
+		usleep_range(10000, 12000);
+
+		rc = host->plat->translate_vdd(mmc_dev(mmc), 1);
+		if (rc) {
+			pr_err("%s: Failed to enable vdd\n",
+					mmc_hostname(host->mmc));
+			BUG_ON(rc);
+		}
+
+		/* 10ms delay for the supply to reach the desired voltage level */
+		usleep_range(10000, 12000);
+	} else {
+		/*
+		 * Continuing on failing to disable regulator would lead to a panic
+		 * anyway, since the commands would fail and console would be flooded
+		 * with prints, eventually leading to a watchdog bark
+		 */
+		rc = msmsdcc_setup_vreg(host, false, false);
+		if (rc) {
+			pr_err("%s: %s disable regulator: failed: %d\n",
+			       mmc_hostname(mmc), __func__, rc);
+			BUG_ON(rc);
+		}
+
+		/* 10ms delay for the supply to reach the desired voltage level */
+		usleep_range(10000, 12000);
+
+		/*
+		 * Continuing on failing to enable regulator would lead to a panic
+		 * anyway, since the commands would fail and console would be flooded
+		 * with prints, eventually leading to a watchdog bark
+		 */
+		rc = msmsdcc_setup_vreg(host, true, false);
+		if (rc) {
+			pr_err("%s: %s enable regulator: failed: %d\n",
+			       mmc_hostname(mmc), __func__, rc);
+			BUG_ON(rc);
+		}
+
+		/* 10ms delay for the supply to reach the desired voltage level */
+		usleep_range(10000, 12000);
+	}
+}
+
 static const struct mmc_host_ops msmsdcc_ops = {
 	.enable		= msmsdcc_enable,
 	.disable	= msmsdcc_disable,
@@ -4003,7 +4074,8 @@ static const struct mmc_host_ops msmsdcc_ops = {
 	.get_ro		= msmsdcc_get_ro,
 	.enable_sdio_irq = msmsdcc_enable_sdio_irq,
 	.start_signal_voltage_switch = msmsdcc_switch_io_voltage,
-	.execute_tuning = msmsdcc_execute_tuning
+	.execute_tuning = msmsdcc_execute_tuning,
+	.hw_reset = msmsdcc_hw_reset,
 };
 
 static unsigned int
@@ -5307,7 +5379,8 @@ msmsdcc_probe(struct platform_device *pdev)
 	mmc->caps |= plat->mmc_bus_width;
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED;
 	mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_ERASE;
-
+	if (plat->hw_resetable)
+		mmc->caps |= MMC_CAP_HW_RESET;
 	/*
 	 * If we send the CMD23 before multi block write/read command
 	 * then we need not to send CMD12 at the end of the transfer.
@@ -5337,8 +5410,6 @@ msmsdcc_probe(struct platform_device *pdev)
 	if (plat->nonremovable)
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
 	mmc->caps |= MMC_CAP_SDIO_IRQ;
-
-	mmc->caps2 |= MMC_CAP2_INIT_BKOPS | MMC_CAP2_BKOPS;
 
 	if (plat->is_sdio_al_client)
 		mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
@@ -5945,6 +6016,8 @@ msmsdcc_runtime_resume(struct device *dev)
 	return 0;
 }
 
+module_param_named(en_suspend, en_runtime_suspend, bool, S_IRUGO | S_IWUSR);
+
 static int msmsdcc_runtime_idle(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
@@ -5953,8 +6026,10 @@ static int msmsdcc_runtime_idle(struct device *dev)
 	if (host->plat->is_sdio_al_client)
 		return 0;
 
-	/* Idle timeout is not configurable for now */
-	pm_schedule_suspend(dev, host->idle_tout_ms);
+        if (likely(en_runtime_suspend)) {
+		/* Idle timeout is not configurable for now */
+		pm_schedule_suspend(dev, host->idle_tout_ms);
+	}
 
 	return -EAGAIN;
 }
@@ -5965,8 +6040,10 @@ static int msmsdcc_pm_suspend(struct device *dev)
 	struct msmsdcc_host *host = mmc_priv(mmc);
 	int rc = 0;
 
-	if (host->plat->is_sdio_al_client)
-		return 0;
+	if (host->plat->is_sdio_al_client){
+		rc = 0;
+		goto out;
+	}
 
 
 	if (host->plat->status_irq)
@@ -5984,10 +6061,9 @@ static int msmsdcc_pm_suspend(struct device *dev)
 	 */
 	if (!pm_runtime_suspended(dev) && !host->pending_resume)
 		rc = msmsdcc_runtime_suspend(dev);
-
+out:
 	/* This flag must not be set if system is entering into suspend */
 	host->pending_resume = false;
-
 	return rc;
 }
 

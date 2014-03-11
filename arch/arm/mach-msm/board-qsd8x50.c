@@ -195,7 +195,7 @@ static struct android_usb_product usb_products[] = {
 
 static struct usb_mass_storage_platform_data mass_storage_pdata = {
 	.nluns		= 1,
-	.vendor		= "Qualcomm Incorporated",
+	.vendor		= "Qualcomm Technologies, Inc.",
 	.product        = "Mass storage",
 	.release	= 0x0100,
 };
@@ -211,7 +211,7 @@ static struct platform_device usb_mass_storage_device = {
 static struct usb_ether_platform_data rndis_pdata = {
 	/* ethaddr is filled by board_serialno_setup */
 	.vendorID	= 0x05C6,
-	.vendorDescr	= "Qualcomm Incorporated",
+	.vendorDescr	= "Qualcomm Technologies, Inc.",
 };
 
 static struct platform_device rndis_device = {
@@ -227,7 +227,7 @@ static struct android_usb_platform_data android_usb_pdata = {
 	.product_id	= 0x9026,
 	.version	= 0x0100,
 	.product_name		= "Qualcomm HSUSB Device",
-	.manufacturer_name	= "Qualcomm Incorporated",
+	.manufacturer_name	= "Qualcomm Technologies, Inc.",
 	.num_products = ARRAY_SIZE(usb_products),
 	.products = usb_products,
 	.num_functions = ARRAY_SIZE(usb_functions_all),
@@ -378,7 +378,7 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.vendor_id          = 0x5c6,
 	.product_name       = "Qualcomm HSUSB Device",
 	.serial_number      = "1234567890ABCDEF",
-	.manufacturer_name  = "Qualcomm Incorporated",
+	.manufacturer_name  = "Qualcomm Technologies, Inc.",
 	.compositions	= usb_func_composition,
 	.num_compositions = ARRAY_SIZE(usb_func_composition),
 	.function_map   = usb_functions_map,

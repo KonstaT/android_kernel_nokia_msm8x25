@@ -16,6 +16,8 @@
 
 #include "msm_fb_def.h"
 
+//pjn add 
+extern int glancescreen_suspend_flag;
 struct msm_fb_data_type;
 
 typedef void (*msm_fb_vsync_handler_type) (void *arg);
@@ -100,6 +102,7 @@ struct mipi_panel_info {
 	char data_lane1;
 	char data_lane2;
 	char data_lane3;
+	char dlane_swap;
 	char rgb_swap;
 	char b_sel;
 	char g_sel;
@@ -192,6 +195,7 @@ struct msm_fb_panel_data {
 	/* function entry chain */
 	int (*on) (struct platform_device *pdev);
 	int (*off) (struct platform_device *pdev);
+	int (*glance_screen) (struct platform_device *pdev);
 	int (*power_ctrl) (boolean enable);
 	struct platform_device *next;
 	int (*clk_func) (int enable);

@@ -1468,19 +1468,9 @@ int hci_register_dev(struct hci_dev *hdev)
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
 
-	tasklet_init(&hdev->cmd_task, hci_cmd_task, (unsigned long) hdev);
-	tasklet_init(&hdev->rx_task, hci_rx_task, (unsigned long) hdev);
-	tasklet_init(&hdev->tx_task, hci_tx_task, (unsigned long) hdev);
-
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
 	skb_queue_head_init(&hdev->raw_q);
-
-	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
-	setup_timer(&hdev->disco_timer, mgmt_disco_timeout,
-						(unsigned long) hdev);
-	setup_timer(&hdev->disco_le_timer, mgmt_disco_le_timeout,
-						(unsigned long) hdev);
 
 	for (i = 0; i < NUM_REASSEMBLY; i++)
 		hdev->reassembly[i] = NULL;
@@ -1503,15 +1493,26 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	INIT_LIST_HEAD(&hdev->adv_entries);
 	rwlock_init(&hdev->adv_entries_lock);
-	setup_timer(&hdev->adv_timer, hci_adv_clear, (unsigned long) hdev);
 
 	INIT_WORK(&hdev->power_on, hci_power_on);
 	INIT_WORK(&hdev->power_off, hci_power_off);
-	setup_timer(&hdev->off_timer, hci_auto_off, (unsigned long) hdev);
 
 	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
 
 	atomic_set(&hdev->promisc, 0);
+
+	//initial the task in case someone want to schedule it before other global variables init ready.
+	tasklet_init(&hdev->cmd_task, hci_cmd_task, (unsigned long) hdev);
+	tasklet_init(&hdev->rx_task, hci_rx_task, (unsigned long) hdev);
+	tasklet_init(&hdev->tx_task, hci_tx_task, (unsigned long) hdev);
+
+	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
+	setup_timer(&hdev->disco_timer, mgmt_disco_timeout,
+						(unsigned long) hdev);
+	setup_timer(&hdev->disco_le_timer, mgmt_disco_le_timeout,
+						(unsigned long) hdev);
+	setup_timer(&hdev->adv_timer, hci_adv_clear, (unsigned long) hdev);
+	setup_timer(&hdev->off_timer, hci_auto_off, (unsigned long) hdev);
 
 	write_unlock_bh(&hci_dev_list_lock);
 
@@ -2135,6 +2136,9 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 
 	/* We don't have to lock device here. Connections are always
 	 * added and removed with TX task disabled. */
+
+	BUG_ON(!h);
+
 	list_for_each(p, &h->list) {
 		struct hci_conn *c;
 		c = list_entry(p, struct hci_conn, list);

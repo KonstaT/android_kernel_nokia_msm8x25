@@ -120,6 +120,7 @@ static void hci_le_connect_cancel(struct hci_conn *conn)
 {
 	hci_send_cmd(conn->hdev, HCI_OP_LE_CREATE_CONN_CANCEL, 0, NULL);
 }
+
 static inline bool is_role_switch_possible(struct hci_dev *hdev)
 {
 	if (hci_conn_hash_lookup_state(hdev, ACL_LINK, BT_CONNECTED))

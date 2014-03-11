@@ -191,6 +191,19 @@ struct msm_fb_data_type {
 	unsigned char *copy_splash_phys;
 };
 
+extern int msm_drm_debug;
+
+#define MSM_DRM_DEBUG(_fmt, _arg...) \
+	DRM_DEBUG(_fmt, ##_arg)
+
+#define DRM_DEBUG(_fmt, _arg...)					\
+	do {								\
+		if (msm_drm_debug) 	\
+			printk(KERN_INFO		\
+			       "[DISPLAY]%s: " _fmt ,		\
+			       __func__ , ##_arg);			\
+	} while (0)
+
 struct dentry *msm_fb_get_debugfs_root(void);
 void msm_fb_debugfs_file_create(struct dentry *root, const char *name,
 				u32 *var);
@@ -208,6 +221,9 @@ int msm_fb_writeback_stop(struct fb_info *info);
 int msm_fb_writeback_terminate(struct fb_info *info);
 int msm_fb_detect_client(const char *name);
 int calc_fb_offset(struct msm_fb_data_type *mfd, struct fb_info *fbi, int bpp);
+void mipi_dsi_set_column_addr(struct msm_fb_data_type *mfd);
+bool suspend_set_state(void);
+void suspend_clen_state(void);
 
 #ifdef CONFIG_FB_BACKLIGHT
 void msm_fb_config_backlight(struct msm_fb_data_type *mfd);

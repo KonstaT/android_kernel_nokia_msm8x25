@@ -818,7 +818,8 @@ struct msm_snapshot_pp_status {
 #define CFG_GET_CSI_PARAMS            46
 #define CFG_SENSOR_PIP_SET_CAM_MODE   47
 #define CFG_SENSOR_PIP_GET_CAM_MODE   48
-#define CFG_MAX			49
+#define CFG_SET_FACTORY_TEST_PARAMS	49
+#define CFG_MAX			50
 
 
 #define MOVE_NEAR	0
@@ -1298,6 +1299,7 @@ struct sensor_cfg_data {
 		int8_t exp_compensation;
 		struct cord aec_cord;
 		int is_autoflash;
+		int8_t factorytest; 
 		struct mirror_flip mirror_flip;
 	} cfg;
 };
@@ -1407,6 +1409,12 @@ enum af_camera_name {
 	ACTUATOR_MAIN_CAM_5,
 	ACTUATOR_MAIN_CAM_6,
 	ACTUATOR_MAIN_CAM_7,
+	ODMM_ACTUATOR_MAIN_CAM_DALING_OVBD631AC_5,
+	ODMM_ACTUATOR_MAIN_CAM_PARTRON_CM500_5,
+	ODMM_ACTUATOR_MAIN_CAM_HQ_DG806T_5,
+	ACTUATOR_MAIN_CAM_8,
+	ACTUATOR_MAIN_CAM_9,
+	ACTUATOR_MAIN_CAM_10,
 	ACTUATOR_WEB_CAM_0,
 	ACTUATOR_WEB_CAM_1,
 	ACTUATOR_WEB_CAM_2,

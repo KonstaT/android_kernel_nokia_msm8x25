@@ -867,7 +867,23 @@ config SENSORS_EPM_ADC
 	help
 	  Provides interface for measuring the current on specific power rails
 	  through the channels on ADC1158 ADC
+	  
+config SENSORS_BMA2X2
+	tristate "BMA255/BMA250E/BMA222E/BMA280 acceleration sensor support"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get support for Bosch Sensortec's 
+	  acceleration sensors BMA255/BMA250E/BMA222E/BMA280.
 
+config SENSORS_LTR559
+	tristate "LTR559 Digital P/L sensor support"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get support for LITEON
+	  P/L sensors LTR559.
+	
 config SENSORS_PC87360
 	tristate "National Semiconductor PC87360 family"
 	depends on !PPC

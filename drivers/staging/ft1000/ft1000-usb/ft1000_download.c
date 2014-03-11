@@ -1,5 +1,5 @@
 //=====================================================
-// CopyRight (C) 2007 Qualcomm Inc. All Rights Reserved.
+// CopyRight (C) 2007 Qualcomm Technologies, Inc. All Rights Reserved.
 //
 //
 // This file is part of Express Card USB Driver

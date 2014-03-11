@@ -42,6 +42,8 @@
 #include <linux/notifier.h>
 #include <linux/rculist.h>
 
+#include <linux/rtc.h>
+#include <mach/msm_rtb.h>
 #include <asm/uaccess.h>
 
 #include <mach/msm_rtb.h>
@@ -65,6 +67,7 @@ void asmlinkage __attribute__((weak)) early_printk(const char *fmt, ...)
 #define DEFAULT_CONSOLE_LOGLEVEL 7 /* anything MORE serious than KERN_DEBUG */
 
 DECLARE_WAIT_QUEUE_HEAD(log_wait);
+DECLARE_WAIT_QUEUE_HEAD(dev_wait);
 
 int console_printk[4] = {
 	DEFAULT_CONSOLE_LOGLEVEL,	/* console_loglevel */
@@ -115,6 +118,7 @@ static DEFINE_RAW_SPINLOCK(logbuf_lock);
  */
 static unsigned log_start;	/* Index into log_buf: next char to be read by syslog() */
 static unsigned con_start;	/* Index into log_buf: next char to be sent to consoles */
+static unsigned dev_start;	/* Index into log_buf: next char to be read by /dev/kmsg */
 static unsigned log_end;	/* Index into log_buf: most-recently-written-char + 1 */
 
 /*
@@ -148,7 +152,7 @@ static int console_may_schedule;
 
 #ifdef CONFIG_PRINTK
 
-static char __log_buf[__LOG_BUF_LEN];
+char __log_buf[__LOG_BUF_LEN];
 static char *log_buf = __log_buf;
 static int log_buf_len = __LOG_BUF_LEN;
 static unsigned logged_chars; /* Number of chars produced since last read+clear operation */
@@ -222,7 +226,7 @@ void __init setup_log_buf(int early)
 	new_log_buf_len = 0;
 	free = __LOG_BUF_LEN - log_end;
 
-	offset = start = min(con_start, log_start);
+	offset = start = min3(con_start, log_start, dev_start);
 	dest_idx = 0;
 	while (start != log_end) {
 		unsigned log_idx_mask = start & (__LOG_BUF_LEN - 1);
@@ -232,6 +236,7 @@ void __init setup_log_buf(int early)
 		dest_idx++;
 	}
 	log_start -= offset;
+	dev_start -= offset;
 	con_start -= offset;
 	log_end -= offset;
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
@@ -539,6 +544,44 @@ SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
 	return do_syslog(type, buf, len, SYSLOG_FROM_CALL);
 }
 
+int dev_read_kmsg(char __user *buf, int len)
+{
+	int error = -EINVAL;
+	unsigned i;
+	char c;
+
+	if (!buf || len < 0)
+		goto out;
+	error = 0;
+	if (!len)
+		goto out;
+	if (!access_ok(VERIFY_WRITE, buf, len)) {
+		error = -EFAULT;
+		goto out;
+	}
+	error = wait_event_interruptible(dev_wait,
+						(dev_start - log_end));
+	if (error)
+		goto out;
+	i = 0;
+	raw_spin_lock_irq(&logbuf_lock);
+	while (!error && (dev_start != log_end) && i < len) {
+		c = LOG_BUF(dev_start);
+		dev_start++;
+		raw_spin_unlock_irq(&logbuf_lock);
+		error = __put_user(c,buf);
+		buf++;
+		i++;
+		cond_resched();
+		raw_spin_lock_irq(&logbuf_lock);
+	}
+	raw_spin_unlock_irq(&logbuf_lock);
+	if (!error)
+		error = i;
+out:
+	return error;
+}
+
 #ifdef	CONFIG_KGDB_KDB
 /* kdb dmesg command needs access to the syslog buffer.  do_syslog()
  * uses locks so it cannot be used during debugging.  Just tell kdb
@@ -722,6 +765,8 @@ static void emit_log_char(char c)
 		log_start = log_end - log_buf_len;
 	if (log_end - con_start > log_buf_len)
 		con_start = log_end - log_buf_len;
+	if (log_end - dev_start > log_buf_len)
+		dev_start = log_end - log_buf_len;
 	if (logged_chars < log_buf_len)
 		logged_chars++;
 }
@@ -757,6 +802,22 @@ module_param_named(time, printk_time, bool, S_IRUGO | S_IWUSR);
 
 static bool always_kmsg_dump;
 module_param_named(always_kmsg_dump, always_kmsg_dump, bool, S_IRUGO | S_IWUSR);
+
+#if defined(CONFIG_PRINTK_RTC_TIME)
+bool printk_rtc = 1;
+#else
+bool printk_rtc = 0;
+#endif
+module_param_named(rtc_time, printk_rtc, bool, S_IRUGO | S_IWUSR);
+
+#if defined(CONFIG_SMP)
+#if defined(CONFIG_PRINTK_CPU_ID)
+bool printk_cpuid = 1;
+#else
+bool printk_cpuid = 0;
+#endif
+module_param_named(cpu_id, printk_cpuid, bool, S_IRUGO | S_IWUSR);
+#endif
 
 /* Check if we have any console registered that can be called early in boot. */
 static int have_callable_console(void)
@@ -1000,6 +1061,38 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 				printed_len += tlen;
 			}
 
+			if (printk_rtc) {
+				/* add the rtc time stamp */
+				char tbuf[100], *tp;
+				unsigned tlen;
+				struct timespec ts;
+				struct rtc_time tm;
+
+				getnstimeofday_nolock(&ts);
+
+				rtc_time_to_tm(ts.tv_sec, &tm);
+				tlen = sprintf(tbuf, "[(%d-%02d-%02d %02d:%02d:%02d.%09lu UTC)] ",
+						tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+						tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec);
+
+				for (tp = tbuf; tp < tbuf + tlen; tp++)
+					emit_log_char(*tp);
+				printed_len += tlen;
+			}
+#ifdef CONFIG_SMP
+			if (printk_cpuid) {
+				/* add the cpu id stamp */
+				char tbuf[100], *tp;
+				unsigned tlen;
+				int id;
+
+				id = raw_smp_processor_id();
+				tlen = sprintf(tbuf, "[cpuid: %d] ", id);
+				for (tp = tbuf; tp < tbuf + tlen; tp++)
+					emit_log_char(*tp);
+				printed_len += tlen;
+			}
+#endif
 			if (!*p)
 				break;
 		}
@@ -1294,6 +1387,7 @@ int is_console_locked(void)
 
 #define PRINTK_PENDING_WAKEUP	0x01
 #define PRINTK_PENDING_SCHED	0x02
+#define PRINTK_PENDING_DEVREAD	0x04
 
 static DEFINE_PER_CPU(int, printk_pending);
 static DEFINE_PER_CPU(char [PRINTK_BUF_SIZE], printk_sched_buf);
@@ -1308,6 +1402,8 @@ void printk_tick(void)
 		}
 		if (pending & PRINTK_PENDING_WAKEUP)
 			wake_up_interruptible(&log_wait);
+		if (pending & PRINTK_PENDING_DEVREAD)
+			wake_up_interruptible(&dev_wait);
 	}
 }
 
@@ -1322,6 +1418,12 @@ void wake_up_klogd(void)
 {
 	if (waitqueue_active(&log_wait))
 		this_cpu_or(printk_pending, PRINTK_PENDING_WAKEUP);
+}
+
+void wake_up_devread(void)
+{
+	if (waitqueue_active(&dev_wait))
+		this_cpu_or(printk_pending, PRINTK_PENDING_DEVREAD);
 }
 
 /**
@@ -1342,7 +1444,7 @@ void console_unlock(void)
 {
 	unsigned long flags;
 	unsigned _con_start, _log_end;
-	unsigned wake_klogd = 0, retry = 0;
+	unsigned wake_klogd = 0, wake_devread = 0, retry = 0;
 
 	if (console_suspended) {
 		up(&console_sem);
@@ -1355,6 +1457,7 @@ again:
 	for ( ; ; ) {
 		raw_spin_lock_irqsave(&logbuf_lock, flags);
 		wake_klogd |= log_start - log_end;
+		wake_devread |= dev_start - log_end;
 		if (con_start == log_end)
 			break;			/* Nothing to print */
 		_con_start = con_start;
@@ -1392,6 +1495,8 @@ again:
 
 	if (wake_klogd)
 		wake_up_klogd();
+	if (wake_devread)
+		wake_up_devread();
 }
 EXPORT_SYMBOL(console_unlock);
 

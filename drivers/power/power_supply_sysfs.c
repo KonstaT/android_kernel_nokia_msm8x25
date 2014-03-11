@@ -1,5 +1,6 @@
 /*
  *  Sysfs interface for the universal power supply monitor class
+ *  Copyright (c) 2012, The Linux Foundation. All Rights Reserved.
  *
  *  Copyright © 2007  David Woodhouse <dwmw2@infradead.org>
  *  Copyright © 2007  Anton Vorontsov <cbou@mail.ru>
@@ -55,7 +56,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 	};
 	static char *health_text[] = {
 		"Unknown", "Good", "Overheat", "Dead", "Over voltage",
-		"Unspecified failure", "Cold",
+		"Unspecified failure", "Cold", "Exhaust",
 	};
 	static char *technology_text[] = {
 		"Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe", "NiCd",

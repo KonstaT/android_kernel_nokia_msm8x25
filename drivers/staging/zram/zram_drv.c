@@ -31,6 +31,8 @@
 #include <linux/slab.h>
 #include <linux/lzo.h>
 #include <linux/string.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 #include <linux/vmalloc.h>
 
 #include "zram_drv.h"
@@ -41,6 +43,13 @@ struct zram *zram_devices;
 
 /* Module params (documentation at end) */
 static unsigned int num_devices;
+/* Module params */
+static uint disksize[4] = {
+	48 * 1024,	/* 64MB */
+	0,
+	0,
+	0,
+};
 
 static void zram_stat_inc(u32 *v)
 {
@@ -625,7 +634,8 @@ int zram_init_device(struct zram *zram)
 {
 	int ret;
 	size_t num_pages;
-
+	struct page *page;
+	union swap_header *swap_header;
 	down_write(&zram->init_lock);
 
 	if (zram->init_done) {
@@ -657,6 +667,23 @@ int zram_init_device(struct zram *zram)
 		ret = -ENOMEM;
 		goto fail_no_table;
 	}
+	memset(zram->table, 0, num_pages * sizeof(*zram->table));
+
+	page = alloc_page(__GFP_ZERO);
+	if (!page) {
+		pr_err("Error allocating swap header page\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
+	zram->table[0].handle = page;
+	zram_set_flag(zram, 0, ZRAM_UNCOMPRESSED);
+
+	swap_header = kmap(page);
+	swap_header->info.version = 1;
+	swap_header->info.last_page = (zram->disksize >> PAGE_SHIFT) - 1;
+	swap_header->info.nr_badpages = 0;
+	memcpy(swap_header->magic.magic, "SWAPSPACE2", 10);
+	kunmap(page);
 
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 
@@ -787,6 +814,7 @@ unsigned int zram_get_num_devices(void)
 static int __init zram_init(void)
 {
 	int ret, dev_id;
+	struct zram *zram;
 
 	if (num_devices > max_num_devices) {
 		pr_warning("Invalid value for num_devices: %u\n",
@@ -817,10 +845,16 @@ static int __init zram_init(void)
 
 	for (dev_id = 0; dev_id < num_devices; dev_id++) {
 		ret = create_device(&zram_devices[dev_id], dev_id);
-		if (ret)
-			goto free_devices;
+		zram = &zram_devices[dev_id];
+		if (disksize[dev_id]) {
+			//zram->disksize = (disksize[dev_id]) << 10;
+                        zram->disksize = 100 << 20; // change to 100MB
+			printk("zram_init_device set disksize\n");
+			ret = zram_init_device(zram);
+			if (ret)
+				goto free_devices;
+		}
 	}
-
 	return 0;
 
 free_devices:
@@ -854,6 +888,9 @@ static void __exit zram_exit(void)
 
 module_param(num_devices, uint, 0);
 MODULE_PARM_DESC(num_devices, "Number of zram devices");
+
+module_param_array(disksize, uint, NULL, 0);
+MODULE_PARM_DESC(disksize, "Disksize of zram devices");
 
 module_init(zram_init);
 module_exit(zram_exit);

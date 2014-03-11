@@ -10,7 +10,18 @@ menuconfig INPUT_TOUCHSCREEN
 	  If unsure, say Y.
 
 if INPUT_TOUCHSCREEN
+config TOUCHSCREEN_FOCAL
+	tristate "focal I2C Touchscreen for wg451v"
+	depends on I2C
+	help
+	  Say Y here if you have Atmel mXT series I2C touchscreen,
+	  such as FOCAL, connected to your system.
 
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called focal_ts.
+	  
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X
@@ -988,4 +999,15 @@ config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
 	  To compile this driver as a module, choose M here: the
 	  module will be called synaptics_dsx_fw_update.
 
+config TOUCHSCREEN_FT6306
+	tristate "ft6306 I2C Touchscreen for normandy"
+	depends on I2C
+	help
+	  Say Y here if you have Atmel mXT series I2C touchscreen,
+	  such as FT6306, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ft6306_touch.
 endif

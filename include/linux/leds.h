@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/timer.h>
+#include <mach/pmic.h>
 
 struct device;
 /*
@@ -180,6 +181,27 @@ struct led_platform_data {
 	int		num_leds;
 	struct led_info	*leds;
 };
+
+enum drv_type {
+	PMIC8029_DRV_TPYE_VOL,
+	PMIC8029_DRV_TYPE_CUR,
+};
+
+struct pmic8029_led_platform_data {
+	const char *name;
+	enum mpp_which which;
+	enum drv_type type;
+	union {
+		enum mpp_dlogic_level vol;
+		enum mpp_i_sink_level cur;
+	}max;
+};
+
+struct pmic8029_leds_platform_data {
+	int num_leds;
+	struct pmic8029_led_platform_data *leds;
+};
+
 
 /* For the leds-gpio driver */
 struct gpio_led {

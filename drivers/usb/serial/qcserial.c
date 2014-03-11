@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include "usb-wwan.h"
 
-#define DRIVER_AUTHOR "Qualcomm Inc"
+#define DRIVER_AUTHOR "Qualcomm Technologies, Inc."
 #define DRIVER_DESC "Qualcomm USB Serial driver"
 
 static bool debug;

@@ -3,7 +3,7 @@
  * Core MSM framebuffer driver.
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013 The Linux Foundation. All Rights Reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -41,6 +41,7 @@
 #include <linux/android_pmem.h>
 #include <linux/leds.h>
 #include <linux/pm_runtime.h>
+#include <linux/gpio.h>
 
 #define MSM_FB_C
 #include "msm_fb.h"
@@ -51,6 +52,11 @@
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_NUM	3
+#endif
+#define LCM_1LED_CTRL_GPIO_PIN121  121
+#define LCD_GLANCEVIEW_SCREEN 
+#ifdef  LCD_GLANCEVIEW_SCREEN
+#include <linux/glanceview.h>
 #endif
 
 static unsigned char *fbram;
@@ -185,6 +191,7 @@ static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
 
 	if (!bl_lvl && value)
 		bl_lvl = 1;
+
 	down(&mfd->sem);
 	msm_fb_set_backlight(mfd, bl_lvl);
 	up(&mfd->sem);
@@ -337,9 +344,8 @@ static void msm_fb_remove_sysfs(struct platform_device *pdev)
 }
 
 static void bl_workqueue_handler(struct work_struct *work);
-
 static ssize_t msm_fb_xres(struct device *dev,
-		struct device_attribute *attr, char *buf)
+            struct device_attribute *attr, char *buf)
 {
 	ssize_t ret = strnlen(buf, PAGE_SIZE);
 	struct fb_info *fbi = dev_get_drvdata(dev);
@@ -380,34 +386,34 @@ static struct attribute_group yres_fs_attr_group = {
 
 static int msm_fb_resolution_sysfs(struct platform_device *pdev)
 {
-	int rc;
-	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
+    int rc;
+    struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
 
-	if (!mfd) {
+    if (!mfd) {
 		pr_err("%s: mfd not found\n", __func__);
 		return -ENODEV;
-	}
-	if (!mfd->fbi) {
+    }
+    if (!mfd->fbi) {
 		pr_err("%s: mfd->fbi not found\n", __func__);
 		return -ENODEV;
-	}
-	if (!mfd->fbi->dev) {
+    }
+    if (!mfd->fbi->dev) {
 		pr_err("%s: mfd->fbi->dev not found\n", __func__);
 		return -ENODEV;
-	}
-	rc = sysfs_create_group(&mfd->fbi->dev->kobj,
+    }
+    rc = sysfs_create_group(&mfd->fbi->dev->kobj,
 		&xres_fs_attr_group);
 	if (rc) {
 		pr_err("%s: sysfs group creation failed, rc=%d\n",
 			__func__, rc);
 		return rc;
-	}
+    }
 
 	rc = sysfs_create_group(&mfd->fbi->dev->kobj,
-		&yres_fs_attr_group);
+           &yres_fs_attr_group);
 	if (rc) {
 		pr_err("%s: sysfs group creation failed, rc=%d\n",
-			__func__, rc);
+		__func__, rc);
 		return rc;
 	}
 	return 0;
@@ -566,7 +572,7 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 	struct msm_fb_data_type *mfd;
 	int ret = 0;
 
-	MSM_FB_DEBUG("msm_fb_suspend\n");
+	MSM_FB_DEBUG("Enter\n");
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
@@ -575,7 +581,6 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 
 	console_lock();
 	fb_set_suspend(mfd->fbi, FBINFO_STATE_SUSPENDED);
-
 	ret = msm_fb_suspend_sub(mfd);
 	if (ret != 0) {
 		printk(KERN_ERR "msm_fb: failed to suspend! %d\n", ret);
@@ -608,6 +613,7 @@ static int msm_fb_suspend_sub(struct msm_fb_data_type *mfd)
 	mfd->suspend.sw_refreshing_enable = mfd->sw_refreshing_enable;
 	mfd->suspend.op_enable = mfd->op_enable;
 	mfd->suspend.panel_power_on = mfd->panel_power_on;
+	MSM_DRM_DEBUG(" op_enable:%d,panel_power_on:%d\n", mfd->suspend.op_enable, mfd->suspend.panel_power_on);
 
 	if (mfd->op_enable) {
 		ret =
@@ -664,6 +670,8 @@ static int msm_fb_resume_sub(struct msm_fb_data_type *mfd)
 	/* resume state var recover */
 	mfd->sw_refreshing_enable = mfd->suspend.sw_refreshing_enable;
 	mfd->op_enable = mfd->suspend.op_enable;
+	MSM_DRM_DEBUG("op_enable:%d,panel_power_on:%d\n",
+		mfd->suspend.op_enable,mfd->suspend.panel_power_on);
 
 	if (mfd->suspend.panel_power_on) {
 		ret =
@@ -685,7 +693,7 @@ static int msm_fb_resume(struct platform_device *pdev)
 	int ret = 0;
 	struct msm_fb_data_type *mfd;
 
-	MSM_FB_DEBUG("msm_fb_resume\n");
+	MSM_FB_DEBUG("Enter\n");
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
@@ -786,6 +794,85 @@ static int msm_fb_ext_resume(struct device *dev)
 }
 #endif
 
+#ifdef LCD_GLANCEVIEW_SCREEN
+int glancescreen_suspend_flag = 0;
+void lcd_gv_mode_awake(struct device * dev)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct msm_fb_data_type *mfd;
+	struct msm_fb_panel_data *pdata = NULL;
+	int ret = 0;
+	MSM_DRM_DEBUG("start\n");
+	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
+
+	pdata = (struct msm_fb_panel_data *)dev->platform_data;
+	if ((!pdata) ||(!pdata->glance_screen)){
+		printk(KERN_ERR "msm_fb_blank_sub: no panel operation detected!\n");
+	}
+
+	glancescreen_suspend_flag = 0;
+
+	//pjn add to open mipi
+	msm_fb_resume_sub(mfd);
+
+	ret = pdata->glance_screen(pdev);
+	if (ret) 
+		printk("%s, lcd glance screen resume fail\n",__func__);
+
+	return;
+}
+
+void lcd_gv_mode_asleep(struct device * dev)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct msm_fb_data_type *mfd;
+	struct msm_fb_panel_data *pdata = NULL;
+	int ret = 0;
+	MSM_DRM_DEBUG("start\n");
+	//TODO:
+	/*Add low power mode under glance view mode here*/
+	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
+	
+	pdata = (struct msm_fb_panel_data *)dev->platform_data;
+	if ((!pdata) ||(!pdata->glance_screen)){
+		printk(KERN_ERR "msm_fb_blank_sub: no panel operation detected!\n");
+	}
+
+	glancescreen_suspend_flag = 1;
+	ret = pdata->glance_screen(pdev);
+	if (ret) 
+		printk("%s, lcd glance screen sleep fail\n",__func__);
+
+	//pjn add to close mipi
+	msm_fb_suspend_sub(mfd);
+}
+
+int lcd_gv_mode(struct device * dev,enum  glanceview_op op)
+{
+   if(dev==NULL) 
+   {
+    return -1;
+   }
+   switch(op){
+    case gv_enable:
+    lcd_gv_mode_awake(dev);
+    break;
+    case gv_disable:
+    lcd_gv_mode_asleep(dev);
+    break;
+    default:
+    break;
+   }
+
+   return 0;
+}
+
+static struct glanceview_ops gv_dev=
+{
+   .gv_glance_mode=lcd_gv_mode,
+};
+#endif
+//pjn end
 static struct dev_pm_ops msm_fb_dev_pm_ops = {
 	.runtime_suspend = msm_fb_runtime_suspend,
 	.runtime_resume = msm_fb_runtime_resume,
@@ -818,7 +905,9 @@ static void msmfb_early_suspend(struct early_suspend *h)
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
 						early_suspend);
 	struct msm_fb_panel_data *pdata = NULL;
+	MSM_DRM_DEBUG("start\n");
 
+	
 	msm_fb_suspend_sub(mfd);
 
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
@@ -839,24 +928,24 @@ static void msmfb_early_resume(struct early_suspend *h)
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
 						early_suspend);
 	struct msm_fb_panel_data *pdata = NULL;
-
+	MSM_DRM_DEBUG("start\n");
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
-	if (hdmi_prim_display &&
-		(mfd->panel_info.type == HDMI_PANEL ||
-		 mfd->panel_info.type == DTV_PANEL)) {
-		/* Turn on the HPD circuitry */
-		if (pdata->power_ctrl) {
-			MSM_FB_INFO("%s: Turning on HPD circuitry\n", __func__);
-			pdata->power_ctrl(TRUE);
-		}
-	}
 
-	msm_fb_resume_sub(mfd);
+    	if (hdmi_prim_display &&
+    		(mfd->panel_info.type == HDMI_PANEL ||
+    		 mfd->panel_info.type == DTV_PANEL)) {
+    		/* Turn on the HPD circuitry */
+    		if (pdata->power_ctrl) {
+    			MSM_FB_INFO("%s: Turning on HPD circuitry\n", __func__);
+    			pdata->power_ctrl(TRUE);
+    		}
+    	}
+    	msm_fb_resume_sub(mfd);	
 }
 #endif
 
 static int unset_bl_level, bl_updated;
-static int bl_level_old;
+static int bl_level_old, pan_display_flag;
 static int mdp_bl_scale_config(struct msm_fb_data_type *mfd,
 						struct mdp_bl_scale_data *data)
 {
@@ -873,14 +962,12 @@ static int mdp_bl_scale_config(struct msm_fb_data_type *mfd,
 	if (mfd->panel_power_on && bl_updated)
 		msm_fb_set_backlight(mfd, curr_bl);
 	up(&mfd->sem);
-
 	return ret;
 }
 
 static void msm_fb_scale_bl(__u32 *bl_lvl)
 {
 	__u32 temp = *bl_lvl;
-	pr_debug("%s: input = %d, scale = %d", __func__, temp, bl_scale);
 	if (temp >= bl_min_lvl) {
 		/* bl_scale is the numerator of scaling fraction (x/1024)*/
 		temp = ((*bl_lvl) * bl_scale) / 1024;
@@ -889,30 +976,36 @@ static void msm_fb_scale_bl(__u32 *bl_lvl)
 		if (temp < bl_min_lvl)
 			temp = bl_min_lvl;
 	}
-	pr_debug("%s: output = %d", __func__, temp);
 
 	(*bl_lvl) = temp;
 }
 
-/*must call this function from within mfd->sem*/
 void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
 {
 	struct msm_fb_panel_data *pdata;
 	__u32 temp = bkl_lvl;
+   
+    if(gv_dev.state==1){
+		 unset_bl_level = 0;
+		   MSM_DRM_DEBUG(":unset_bl_level = %d\n", unset_bl_level);
+		 return;
+	}
 	if (!mfd->panel_power_on || !bl_updated) {
 		unset_bl_level = bkl_lvl;
+//Normandy_P010154 remove to fix flash screen in charger mode by wang.xiaojun3@byd.com 131219
+		if((unset_bl_level > 10) && !bl_updated && pan_display_flag)
+			schedule_delayed_work(&mfd->backlight_worker, backlight_duration);
+		 MSM_DRM_DEBUG("bl_updated = %d,power_on=%d,level=%d\n", bl_updated,mfd->panel_power_on, bkl_lvl);
 		return;
 	} else {
 		unset_bl_level = 0;
 	}
-
+	
+	MSM_DRM_DEBUG(" %d\n", unset_bl_level);
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 
 	if ((pdata) && (pdata->set_backlight)) {
 		msm_fb_scale_bl(&temp);
-		if (bl_level_old == temp) {
-			return;
-		}
 		mfd->bl_level = temp;
 		pdata->set_backlight(mfd);
 		mfd->bl_level = bkl_lvl;
@@ -970,13 +1063,16 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 
 			mfd->op_enable = FALSE;
 			curr_pwr_state = mfd->panel_power_on;
+
 			down(&mfd->sem);
+			msm_fb_set_backlight(mfd, 0);
 			mfd->panel_power_on = FALSE;
 			bl_updated = 0;
+			pan_display_flag = 0;
 			up(&mfd->sem);
-			cancel_delayed_work_sync(&mfd->backlight_worker);
+			if (delayed_work_pending(&mfd->backlight_worker))
+				cancel_delayed_work_sync(&mfd->backlight_worker);
 
-			msleep(16);
 			ret = pdata->off(mfd->pdev);
 			if (ret)
 				mfd->panel_power_on = curr_pwr_state;
@@ -1383,7 +1479,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 		if (panel_info->type == MDDI_PANEL && panel_info->mddi.is_type1)
 			var->reserved[4] = panel_info->lcd.refx100 / (100 * 2);
 		else
-			var->reserved[4] = panel_info->lcd.refx100 / 100;
+			var->reserved[4] = 60;//panel_info->lcd.refx100 / 100;
 	} else {
 		if (panel_info->type == MIPI_VIDEO_PANEL) {
 			var->reserved[4] = panel_info->mipi.frame_rate;
@@ -1554,6 +1650,10 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	}
 #endif
 
+//pjn add to register glanceview 
+#ifdef LCD_GLANCEVIEW_SCREEN
+glanceview_register(gv_device_id_lcd, &gv_dev, &mfd->pdev->dev);
+#endif
 #ifdef MSM_FB_ENABLE_DBGFS
 	{
 		struct dentry *root;
@@ -1751,11 +1851,12 @@ static void bl_workqueue_handler(struct work_struct *work)
 	struct msm_fb_data_type *mfd = container_of(to_delayed_work(work),
 				struct msm_fb_data_type, backlight_worker);
 	struct msm_fb_panel_data *pdata = mfd->pdev->dev.platform_data;
-
+    
 	down(&mfd->sem);
 	if ((pdata) && (pdata->set_backlight) && (!bl_updated)
-					&& mfd->panel_power_on) {
+				&& mfd->panel_power_on) {
 		mfd->bl_level = unset_bl_level;
+		printk("%s,backlight=%d\n",__func__,unset_bl_level);
 		pdata->set_backlight(mfd);
 		bl_level_old = unset_bl_level;
 		bl_updated = 1;
@@ -1769,25 +1870,48 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 	struct mdp_dirty_region dirty;
 	struct mdp_dirty_region *dirtyPtr = NULL;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
-
+	static int notify_cnt = 0;
+	int state = 0;
+ 	if (!suspend_set_state())
+	{
+		printk("%s,suspend_status is true\n",__func__);
+		state= -EPERM;
+		return state;
+		
+	}
+ 
 	/*
 	 * If framebuffer is 2, io pen display is not allowed.
 	 */
 	if (bf_supported && info->node == 2) {
 		pr_err("%s: no pan display for fb%d!",
 		       __func__, info->node);
-		return -EPERM;
+		//return -EPERM;
+		state= -EPERM;
+		goto MSM_FB_PAN_ERROR;
 	}
 
 	if (info->node != 0 || mfd->cont_splash_done)	/* primary */
 		if ((!mfd->op_enable) || (!mfd->panel_power_on))
-			return -EPERM;
-
+		{
+			//return -EPERM;
+			state= -EPERM;
+			goto MSM_FB_PAN_ERROR;
+		}
+			
 	if (var->xoffset > (info->var.xres_virtual - info->var.xres))
-		return -EINVAL;
+	{
+		//return -EINVAL;
+		state= -EINVAL;
+		goto MSM_FB_PAN_ERROR;
+	}
 
 	if (var->yoffset > (info->var.yres_virtual - info->var.yres))
-		return -EINVAL;
+	{
+		//return -EINVAL;
+		state= -EINVAL;
+		goto MSM_FB_PAN_ERROR;
+	}
 
 	if (info->fix.xpanstep)
 		info->var.xoffset =
@@ -1804,9 +1928,17 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 		dirty.yoffset = (var->reserved[1] >> 16) & 0xffff;
 
 		if ((var->reserved[2] & 0xffff) <= dirty.xoffset)
-			return -EINVAL;
+		{
+			//return -EINVAL;
+			state= -EINVAL;
+			goto MSM_FB_PAN_ERROR;
+		}
 		if (((var->reserved[2] >> 16) & 0xffff) <= dirty.yoffset)
-			return -EINVAL;
+		{
+			//return -EINVAL;
+			state= -EINVAL;
+			goto MSM_FB_PAN_ERROR;
+		}
 
 		dirty.width = (var->reserved[2] & 0xffff) - dirty.xoffset;
 		dirty.height =
@@ -1814,23 +1946,47 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 		info->var.yoffset = var->yoffset;
 
 		if (dirty.xoffset < 0)
-			return -EINVAL;
+		{
+			//return -EINVAL;
+			state= -EINVAL;
+			goto MSM_FB_PAN_ERROR;
+		}
 
 		if (dirty.yoffset < 0)
-			return -EINVAL;
+		{
+			//return -EINVAL;
+			state= -EINVAL;
+			goto MSM_FB_PAN_ERROR;
+		}
 
 		if ((dirty.xoffset + dirty.width) > info->var.xres)
-			return -EINVAL;
+		{
+			//return -EINVAL;
+			state= -EINVAL;
+			goto MSM_FB_PAN_ERROR;
+		}
 
 		if ((dirty.yoffset + dirty.height) > info->var.yres)
-			return -EINVAL;
+		{
+			//return -EINVAL;
+			state= -EINVAL;
+			goto MSM_FB_PAN_ERROR;
+		}
 
 		if ((dirty.width <= 0) || (dirty.height <= 0))
-			return -EINVAL;
-
+		{
+			//return -EINVAL;
+			state= -EINVAL;
+			goto MSM_FB_PAN_ERROR;
+		}
 		dirtyPtr = &dirty;
 	}
-	complete(&mfd->msmfb_update_notify);
+	/* FIXME: reduce fb change notification time to ease mess backlight configuration */
+	if (notify_cnt >= 6) {
+		notify_cnt = 0;
+		complete(&mfd->msmfb_update_notify);
+	} else
+		notify_cnt++;
 	mutex_lock(&msm_fb_notify_update_sem);
 	if (mfd->msmfb_no_update_notify_timer.function)
 		del_timer(&mfd->msmfb_no_update_notify_timer);
@@ -1840,30 +1996,41 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 	mutex_unlock(&msm_fb_notify_update_sem);
 
 	down(&msm_fb_pan_sem);
-
+	
 	if (info->node == 0 && !(mfd->cont_splash_done)) { /* primary */
 		mdp_set_dma_pan_info(info, NULL, TRUE);
 		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable)) {
 			pr_err("%s: can't turn on display!\n", __func__);
 			up(&msm_fb_pan_sem);
-			return -EINVAL;
+			//return -EINVAL;
+			state= -EINVAL;
+			goto MSM_FB_PAN_ERROR;
 		}
+		msleep(50);
 	}
-
+	//mipi_dsi_set_column_addr(mfd);
 	mdp_set_dma_pan_info(info, dirtyPtr,
 			     (var->activate == FB_ACTIVATE_VBL));
 	mdp_dma_pan_update(info);
 	up(&msm_fb_pan_sem);
 
-	if (unset_bl_level && !bl_updated)
+//fix BL can't turn on untill next frame come by wang.xiaojun3@byd.com 131219
+	pan_display_flag = 1;
+	if (unset_bl_level && !bl_updated){
+		MSM_DRM_DEBUG("call BL set schedule work\n");
 		schedule_delayed_work(&mfd->backlight_worker,
 				backlight_duration);
-
+	}
 	if (info->node == 0 && (mfd->cont_splash_done)) /* primary */
 		mdp_free_splash_buffer(mfd);
 
 	++mfd->panel_info.frame_count;
-	return 0;
+	 
+	
+MSM_FB_PAN_ERROR:	
+ 	suspend_clen_state();
+ 
+	return state;
 }
 
 static int msm_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)

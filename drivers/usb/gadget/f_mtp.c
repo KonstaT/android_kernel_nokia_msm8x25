@@ -806,6 +806,11 @@ static void receive_file_work(struct work_struct *data)
 				 * sizes > 4 gig
 				 */
 				DBG(cdev, "got short packet\n");
+				/*TODO:
+				 *when cancel  MTP file transfer,the kernel got a short packet
+				 *it is better to give MTP server a prompt,so that it can 
+				 *do further operation*/
+				r = -EBADFD;
 				count = 0;
 			}
 
@@ -1020,7 +1025,7 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 		/* Handle MTP OS descriptor */
 		DBG(cdev, "vendor request: %d index: %d value: %d length: %d\n",
 			ctrl->bRequest, w_index, w_value, w_length);
-
+		mtp_ext_config_desc.function.bFirstInterfaceNumber = mtp_interface_desc.bInterfaceNumber;
 		if (ctrl->bRequest == 1
 				&& (ctrl->bRequestType & USB_DIR_IN)
 				&& (w_index == 4 || w_index == 5)) {
@@ -1050,7 +1055,7 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			 */
 			value = w_length;
 		} else if (ctrl->bRequest == MTP_REQ_GET_DEVICE_STATUS
-				&& w_index == 0 && w_value == 0) {
+				&& w_value == 0) {
 			struct mtp_device_status *status = cdev->req->buf;
 			status->wLength =
 				__constant_cpu_to_le16(sizeof(*status));

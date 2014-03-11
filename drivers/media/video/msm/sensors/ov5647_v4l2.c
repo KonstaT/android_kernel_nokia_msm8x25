@@ -17,6 +17,22 @@
 #define PLATFORM_DRIVER_NAME "msm_camera_ov5647"
 #define ov5647_obj ov5647_##obj
 
+#ifdef CDBG
+#undef CDBG
+#endif
+#ifdef CDBG_HIGH
+#undef CDBG_HIGH
+#endif
+
+#define OV8825_DGB
+
+#ifdef OV8825_DGB
+#define CDBG(fmt, args...) printk(fmt, ##args)
+#define CDBG_HIGH(fmt, args...) printk(fmt, ##args)
+#else
+#define CDBG(fmt, args...) do { } while (0)
+#define CDBG_HIGH(fmt, args...) printk(fmt, ##args)
+#endif
 static struct msm_sensor_ctrl_t ov5647_s_ctrl;
 
 DEFINE_MUTEX(ov5647_mut);
@@ -306,11 +322,11 @@ static struct msm_camera_i2c_reg_conf ov5647_recommend_settings[] = {
 	{0x583c, 0x24},
 	{0x583d, 0xce},
 	/* manual AWB,manual AE,close Lenc,open WBC*/
-	{0x3503, 0x03}, /*manual AE*/
-	{0x3501, 0x10},
-	{0x3502, 0x80},
+	{0x3503, 0x07}, /*manual AE*/
+	{0x3501, 0x00},
+	{0x3502, 0x10},
 	{0x350a, 0x00},
-	{0x350b, 0x7f},
+	{0x350b, 0x00},
 	{0x5001, 0x01}, /*manual AWB*/
 	{0x5180, 0x08},
 	{0x5186, 0x04},
@@ -712,6 +728,9 @@ int32_t ov5647_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	struct msm_camera_sensor_info *info = NULL;
 
 	info = s_ctrl->sensordata;
+
+	CDBG("%s, sensor_pwd:%d, sensor_reset:%d\r\n",__func__, info->sensor_pwd, info->sensor_reset);
+
 	gpio_direction_output(info->sensor_pwd, 1);
 	gpio_direction_output(info->sensor_reset, 0);
 	usleep_range(10000, 11000);

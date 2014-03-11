@@ -31,6 +31,10 @@ static struct clk *ahb_m_clk;
 static struct clk *ahb_s_clk;
 static struct clk *ebi1_dsi_clk;
 int mipi_dsi_clk_on;
+//pjn add
+extern struct clk *mdp_clk;
+extern struct clk *mdp_pclk;
+//pjn end
 
 int mipi_dsi_clk_init(struct platform_device *pdev)
 {
@@ -362,6 +366,40 @@ void mipi_dsi_unprepare_clocks(void)
 	clk_unprepare(dsi_clk);
 	clk_unprepare(dsi_pixel_clk);
 }
+
+//pjn add
+void my_prepare_enable_clocks(void)
+{
+	clk_prepare_enable(mdp_clk);
+	clk_prepare_enable(mdp_pclk);
+
+	clk_prepare_enable(dsi_ref_clk);
+	clk_prepare_enable(ahb_m_clk);
+	clk_prepare_enable(ahb_s_clk);
+	clk_prepare_enable(ebi1_dsi_clk);
+	clk_prepare_enable(mdp_dsi_pclk);
+	clk_prepare_enable(dsi_byte_div_clk);
+	clk_prepare_enable(dsi_esc_clk);
+	clk_prepare_enable(dsi_clk);
+	clk_prepare_enable(dsi_pixel_clk);
+}
+
+void my_unprepare_disable_clocks(void)
+{
+	clk_disable_unprepare(mdp_clk);
+	clk_disable_unprepare(mdp_pclk);
+
+	clk_disable_unprepare(dsi_ref_clk);
+	clk_disable_unprepare(ahb_m_clk);
+	clk_disable_unprepare(ahb_s_clk);
+	clk_disable_unprepare(ebi1_dsi_clk);
+	clk_disable_unprepare(mdp_dsi_pclk);
+	clk_disable_unprepare(dsi_byte_div_clk);
+	clk_disable_unprepare(dsi_esc_clk);
+	clk_disable_unprepare(dsi_clk);
+	clk_disable_unprepare(dsi_pixel_clk);
+}
+//pjn end
 
 void mipi_dsi_ahb_ctrl(u32 enable)
 {

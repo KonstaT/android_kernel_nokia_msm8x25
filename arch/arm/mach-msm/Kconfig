@@ -301,6 +301,7 @@ config ARCH_MSM8625
 	select MSM_RUN_QUEUE_STATS
 	select MIGHT_HAVE_CACHE_L2X0
 	select ARM_HAS_SG_CHAIN
+	select CPU_HAS_L2_PMU
 
 config ARCH_MSM9625
 	bool "MSM9625"
@@ -311,6 +312,32 @@ config ARCH_MSM9625
 	select MSM_SMP
 	select CPU_V7
 	select MSM_GPIOMUX
+	select MSM_RPM_SMD
+	select MSM_NATIVE_RESTART
+	select MSM_RESTART_V2
+	select MSM_SPM_V2
+	select MSM_PM8X60 if PM
+	select MSM_SCM if SMP
+	select MULTI_IRQ_HANDLER
+	select GPIO_MSM_V3
+	select MAY_HAVE_SPARSE_IRQ
+	select SPARSE_IRQ
+	select MSM_MULTIMEDIA_USE_ION
+	select MSM_RPM_STATS_LOG
+	select MSM_QDSP6_APRV2
+	select MSM_QDSP6V2_CODECS
+	select MSM_AUDIO_QDSP6V2 if SND_SOC
+	select CPU_HAS_L2_PMU
+
+config ARCH_MSM8910
+	bool "MSM8910"
+	select ARM_GIC
+	select GIC_SECURE
+	select ARCH_MSM_CORTEXMP
+	select CPU_V7
+	select MSM_SCM if SMP
+	select MAY_HAVE_SPARSE_IRQ
+	select SPARSE_IRQ
 	select MULTI_IRQ_HANDLER
 	select GPIO_MSM_V2
 
@@ -387,6 +414,7 @@ config ARCH_MSM7X27A
 	select MIGHT_HAVE_CACHE_L2X0
 	select ARM_HAS_SG_CHAIN
 	select MSM_FIQ_SUPPORT
+	select CPU_HAS_L2_PMU
 
 config  MSM_VIC
 	bool
@@ -560,33 +588,29 @@ config MACH_MSM8625_EVB
 	help
 	  Support for the Qualcomm MSM8625 Reference Design.
 
+config MACH_MSM7X27A_QRD5A
+	depends on ARCH_MSM7X27A
+	depends on !MSM_STACKED_MEMORY
+	default y
+	bool "QRD MSM7x27a SKU5A"
+	help
+	  Support for the Qualcomm MSM7X27A QRD5A Reference Design.
+
 config MACH_MSM8625_QRD7
 	depends on ARCH_MSM8625
 	depends on !MSM_STACKED_MEMORY
 	default y
 	bool "MSM8625 QRD7"
 	help
-	  Support for the Qualcomm MSM8625 Reference Design.
+	  Support for the Qualcomm MSM8625 SKU7 Reference Design.
 
-config MACH_MSM8625_EVT
+config MACH_MSM8625_QRD5
 	depends on ARCH_MSM8625
 	depends on !MSM_STACKED_MEMORY
 	default y
-	bool "MSM8625 EVT"
+	bool "MSM8625 QRD5"
 	help
-	  Support for the Qualcomm MSM8625 Reference Design.
-
-config MACH_QRD_SKUD_PRIME
-	depends on ARCH_MSM8625
-	depends on !MSM_STACKED_MEMORY
-	default y
-	bool "MSM8625 SKUD PRIME"
-	help
-	  Support for the Qualcomm MSM8625 SKUD prime Reference Design.
-	  Add support for a SKUD prime reference design based on MSM8x25
-	  chipset. This device is much closer to a phone than regular form
-	  factor devices, with new touch, display panel and other hardware
-	  configurations.
+	  Support for the Qualcomm MSM8625 SKU5 Reference Design.
 
 config MACH_MSM8625Q_EVBD
 	depends on ARCH_MSM8625
@@ -607,10 +631,18 @@ config MACH_MSM8625Q_SKUD
 	bool "MSM8625Q SKUD"
 	help
 	  Support for the Qualcomm MSM8625Q SKUD Reference Design.
-	  Add support for a SKUD reference design based on MSM8x25Q
+	  Add support for a EVBD reference design based on MSM8x25Q
 	  chipset. This device is much closer to a phone than regular form
 	  factor devices, with new touch, display panel and other hardware
 	  configurations.
+
+config MACH_MSM8625Q_SKUE
+	depends on ARCH_MSM8625
+	depends on !MSM_STACKED_MEMORY
+	default y
+	bool "MSM8625Q SKUE"
+	help
+	  Support for the Qualcomm MSM8625Q SKUE Reference Design.
 
 config MACH_MSM7X30_SURF
        depends on ARCH_MSM7X30
@@ -1270,6 +1302,13 @@ config MSM_SMD
 	  used to communicate with various services on the baseband
 	  processor.
 
+config MSM_AMSS_ENHANCE_DEBUG
+	bool "MSM AMSS enhance debug"
+	help
+	  Using RPC to tell the modem processer the some log addresses
+	  in order that the modem will dump some logs in ap when ap
+	  crashes.
+
 choice
 	prompt "MSM Shared memory interface version"
 	depends on MSM_SMD
@@ -1299,12 +1338,19 @@ config MSM_RPC_SDIO_XPRT
 	help
 	  SDIO Transport Layer for RPC Rouer
 
-config MSM_RPC_SDIO_DEBUG
+	  config MSM_RPC_SDIO_DEBUG
+
 	depends on MSM_RPC_SDIO_XPRT
 	default y
 	bool "MSM SDIO XPRT debug support"
 	help
 	  Support for debugging SDIO XPRT
+
+config MSM_FUSE_INFO_DEBUG 
+	default y
+	bool "MSM FUSE debug support"
+	help
+	  Support for debugging fuse info
 
 config MSM_SMD_DEBUG
 	depends on MSM_SMD
@@ -1313,6 +1359,12 @@ config MSM_SMD_DEBUG
 	help
 	  Support for debugging the SMD for communication
 	  between the ARM9 and ARM11
+
+config MSM_FAST_BOOT
+	default n
+	bool "MSM fast power on support"
+	help
+	  Enable the fast power on support in MSM platform.
 
 config MSM_SDIO_AL
 	depends on ((ARCH_MSM7X30 || MACH_MSM8X60_FUSN_FFA || MACH_TYPE_MSM8X60_FUSION) && HAS_WAKELOCK)
@@ -2185,6 +2237,24 @@ config MSM_RUN_QUEUE_STATS
 	 This option enalbes statistics collection on Run Queue. A daemon
          in user mode, called MPDecision will be using this data to decide
          on when to switch off/on the other cores.
+
+config MSM_SM_EVENT
+	bool "Enable system event monitor
+	select UNCACHED_BUF
+	default n
+
+config MSM_SM_EVENT_LOG
+	depends on MSM_SM_EVENT
+	tristate "Enable system event log"
+	default n
+
+config UNCACHED_BUF
+	bool "reserve uncached memory segment"
+	default n
+
+config MSM_SLEEP_MONITOR
+	tristate "Enable sleep monitor"
+	default n
 
 config MSM_STANDALONE_POWER_COLLAPSE
        bool "Enable standalone power collapse"

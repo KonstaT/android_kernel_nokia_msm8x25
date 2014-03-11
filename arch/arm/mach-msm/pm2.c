@@ -46,6 +46,11 @@
 #include <mach/proc_comm.h>
 #include <asm/smp_scu.h>
 
+#ifdef CONFIG_MSM_SM_EVENT
+#include <linux/sm_event_log.h>
+#include <linux/sm_event.h>
+#endif
+
 #include "smd_private.h"
 #include "smd_rpcrouter.h"
 #include "acpuclock.h"
@@ -884,6 +889,9 @@ static int msm_pm_power_collapse
 	struct msm_pm_polled_group state_grps[2];
 	unsigned long saved_acpuclk_rate;
 	int collapsed = 0;
+#ifdef CONFIG_MSM_SM_EVENT
+	uint64_t sclk_suspend_time = 0, sclk_resume_time, sclk_period;
+#endif
 	int ret;
 	int val;
 	int modem_early_exit = 0;
@@ -1002,6 +1010,10 @@ static int msm_pm_power_collapse
 		goto power_collapse_early_exit;
 	}
 
+#ifdef CONFIG_MSM_SM_EVENT
+	if (!from_idle)
+		sclk_suspend_time = msm_timer_get_sclk_time(&sclk_period);
+#endif
 	msm_pm_config_hw_before_power_down();
 	MSM_PM_DEBUG_PRINT_STATE("msm_pm_power_collapse(): pre power down");
 
@@ -1014,6 +1026,12 @@ static int msm_pm_power_collapse
 		msm_pm_config_hw_after_power_up();
 		goto power_collapse_early_exit;
 	}
+
+#ifdef CONFIG_MSM_SM_EVENT
+	if (!from_idle) {
+		sm_add_event(SM_POWER_EVENT | SM_POWER_EVENT_SUSPEND, SM_EVENT_END, 0, 0, 0);
+	}
+#endif
 
 	/* save the AHB clock registers */
 	if (cpu_is_msm8625q()) {
@@ -1215,6 +1233,19 @@ static int msm_pm_power_collapse
 		goto power_collapse_restore_gpio_bail;
 	}
 
+#ifdef CONFIG_MSM_SM_EVENT
+	if (!from_idle) {
+		int64_t time;
+		sm_set_system_state (SM_STATE_RESUME);
+		sclk_resume_time = msm_timer_get_sclk_time(NULL);
+
+		time = sclk_resume_time - sclk_suspend_time;
+		if (time < 0)
+			time += sclk_period;
+		do_div (time, 1000000);//milli-second
+		sm_add_event(SM_POWER_EVENT | SM_POWER_EVENT_RESUME, SM_EVENT_START, (uint32_t)time, (void *)msm_pm_smem_data, sizeof(*msm_pm_smem_data));
+	}
+#endif
 	*(uint32_t *)(virt_start_ptr + 0x30) = 0x16;
 
 	/* DEM Master == RUN */

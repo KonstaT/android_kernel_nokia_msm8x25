@@ -1,4 +1,5 @@
-/* Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
+ /*
+ * Copyright (c) 2012, The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -64,6 +65,9 @@ struct mask_info {
 do {									\
 	*(int *)(msg_mask_tbl_ptr) = MSG_SSID_ ## XX;			\
 	msg_mask_tbl_ptr += 4;						\
+	*(int *)(msg_mask_tbl_ptr) = MSG_SSID_ ## XX ## _LAST;		\
+	msg_mask_tbl_ptr += 4;						\
+	/* mimic the last entry as actual_last while creation */	\
 	*(int *)(msg_mask_tbl_ptr) = MSG_SSID_ ## XX ## _LAST;		\
 	msg_mask_tbl_ptr += 4;						\
 	/* mimic the last entry as actual_last while creation */	\

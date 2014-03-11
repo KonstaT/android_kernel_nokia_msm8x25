@@ -1,6 +1,7 @@
 /* kernel/power/earlysuspend.c
  *
  * Copyright (C) 2005-2008 Google, Inc.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -19,15 +20,26 @@
 #include <linux/rtc.h>
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
+
+#ifdef CONFIG_MSM_SM_EVENT
+#include <linux/sm_event_log.h>
+#include <linux/sm_event.h>
+#endif
 
 #include "power.h"
 
+
+ 
 enum {
 	DEBUG_USER_STATE = 1U << 0,
 	DEBUG_SUSPEND = 1U << 2,
 	DEBUG_VERBOSE = 1U << 3,
 };
-static int debug_mask = DEBUG_USER_STATE;
+/*open suspend debug*/
+static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND;
+suspend_state_t suspend_state_flag;
+int suspend_status = false;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static DEFINE_MUTEX(early_suspend_lock);
@@ -37,6 +49,11 @@ static void late_resume(struct work_struct *work);
 static DECLARE_WORK(early_suspend_work, early_suspend);
 static DECLARE_WORK(late_resume_work, late_resume);
 static DEFINE_SPINLOCK(state_lock);
+
+ static DEFINE_SPINLOCK(suspend_lock);
+bool suspend_set_state(void);
+void suspend_clen_state(void);
+ 
 enum {
 	SUSPEND_REQUESTED = 0x1,
 	SUSPENDED = 0x2,
@@ -76,7 +93,30 @@ static void early_suspend(struct work_struct *work)
 	unsigned long irqflags;
 	int abort = 0;
 
+ 	int count = 0;
+
+ 	while(1)
+	{
+		if (suspend_set_state())
+		{
+			pr_info("early_suspend():%d\n",count );
+			break;
+		}
+		else
+		{	
+			count++;
+			usleep(2);
+		}
+		
+	}
+
 	mutex_lock(&early_suspend_lock);
+ 
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_set_system_state (SM_STATE_EARLYSUSPEND);
+	sm_add_event(SM_POWER_EVENT | SM_POWER_EVENT_EARLY_SUSPEND, SM_EVENT_START, 0, NULL, 0);
+	add_active_wakelock_event();
+#endif
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPEND_REQUESTED)
 		state |= SUSPENDED;
@@ -93,6 +133,7 @@ static void early_suspend(struct work_struct *work)
 
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("early_suspend: call handlers\n");
+
 	list_for_each_entry(pos, &early_suspend_handlers, link) {
 		if (pos->suspend != NULL) {
 			if (debug_mask & DEBUG_VERBOSE)
@@ -103,11 +144,19 @@ static void early_suspend(struct work_struct *work)
 	mutex_unlock(&early_suspend_lock);
 
 	suspend_sys_sync_queue();
+	if (debug_mask & DEBUG_SUSPEND)
+		pr_info("early_suspend: done\n");
 abort:
 	spin_lock_irqsave(&state_lock, irqflags);
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_add_event(SM_POWER_EVENT | SM_POWER_EVENT_EARLY_SUSPEND, SM_EVENT_END, 0, NULL, 0);
+#endif
 	if (state == SUSPEND_REQUESTED_AND_SUSPENDED)
 		wake_unlock(&main_wake_lock);
 	spin_unlock_irqrestore(&state_lock, irqflags);
+	
+ 	suspend_clen_state();
+ 
 }
 
 static void late_resume(struct work_struct *work)
@@ -115,8 +164,29 @@ static void late_resume(struct work_struct *work)
 	struct early_suspend *pos;
 	unsigned long irqflags;
 	int abort = 0;
+	int count = 0;
 
+	while(1)
+	{
+		if (suspend_set_state())
+		{
+			pr_info("late_resume():%d\n",count );
+			break;
+		}
+		else
+		{	
+			count++;
+			usleep(2);
+		}
+		
+	}
+	
 	mutex_lock(&early_suspend_lock);
+ 
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_set_system_state (SM_STATE_LATERESUME);
+	sm_add_event(SM_POWER_EVENT | SM_POWER_EVENT_LATE_RESUME, SM_EVENT_START, 0, NULL, 0);
+#endif
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPENDED)
 		state &= ~SUSPENDED;
@@ -142,7 +212,13 @@ static void late_resume(struct work_struct *work)
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: done\n");
 abort:
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_set_system_state (SM_STATE_RUNNING);
+	sm_add_event(SM_POWER_EVENT | SM_POWER_EVENT_LATE_RESUME, SM_EVENT_END, 0, NULL, 0);
+#endif
 	mutex_unlock(&early_suspend_lock);
+
+	suspend_clen_state();
 }
 
 void request_suspend_state(suspend_state_t new_state)
@@ -150,8 +226,12 @@ void request_suspend_state(suspend_state_t new_state)
 	unsigned long irqflags;
 	int old_sleep;
 
+	mutex_lock(&early_suspend_lock);
+	
+	
 	spin_lock_irqsave(&state_lock, irqflags);
 	old_sleep = state & SUSPEND_REQUESTED;
+	
 	if (debug_mask & DEBUG_USER_STATE) {
 		struct timespec ts;
 		struct rtc_time tm;
@@ -174,10 +254,67 @@ void request_suspend_state(suspend_state_t new_state)
 		queue_work(suspend_work_queue, &late_resume_work);
 	}
 	requested_suspend_state = new_state;
-	spin_unlock_irqrestore(&state_lock, irqflags);
+
+	spin_unlock_irqrestore(&state_lock, irqflags);	
+	
+	mutex_unlock(&early_suspend_lock);
 }
 
 suspend_state_t get_suspend_state(void)
 {
 	return requested_suspend_state;
 }
+ 
+bool suspend_set_state(void)
+{
+	unsigned long flags;
+	bool rtn_state = false;
+
+	spin_lock_irqsave(&suspend_lock, flags);
+	if (!suspend_status)
+	{
+		suspend_status = true;	
+		rtn_state = true;
+	}
+	else
+	{
+		rtn_state = false;
+	}
+	spin_unlock_irqrestore(&suspend_lock, flags);
+	return rtn_state;
+	
+}
+
+void suspend_clen_state(void)
+{
+
+	unsigned long flags;
+	
+	spin_lock_irqsave(&suspend_lock, flags);
+	if (suspend_status)
+	{
+		suspend_status = false;
+	}	
+	spin_unlock_irqrestore(&suspend_lock, flags);
+	return;
+
+}
+#if 0
+bool suspend_get_state(void)
+{
+	unsigned long flags;
+	bool rtn_state = false;
+
+	spin_lock_irqsave(&suspend_lock, flags);
+	if (!suspend_status)
+	{
+		rtn_state = true;
+	}
+	else
+	{
+		rtn_state = false;
+	}
+	spin_unlock_irqrestore(&suspend_lock, flags);
+	return rtn_state;
+}
+ #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2012, Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -136,7 +136,13 @@ static struct gpiomux_setting recovery_config = {
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
-
+/*add QC pathc for MTBF test I2C time start*/
+static struct gpiomux_setting i2c_config = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_16MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+/*add QC pathc for MTBF test I2C time end*/
 struct qup_i2c_dev {
 	struct device                *dev;
 	void __iomem                 *base;		/* virtual */
@@ -676,33 +682,47 @@ static void qup_i2c_recover_bus_busy(struct qup_i2c_dev *dev)
 	bool gpio_clk_status = false;
 	uint32_t status = readl_relaxed(dev->base + QUP_I2C_STATUS);
 	struct gpiomux_setting old_gpio_setting;
-
-	if (dev->pdata->msm_i2c_config_gpio)
+        /*ad QC pathc for MTBF test I2C time */
+	dev_err(dev->dev, "qup_i2c_recover_bus_busy()clk=%d,data=%d\n",dev->pdata->pri_clk,dev->pdata->pri_dat);
+	if (!dev->pdata->pri_clk && !dev->pdata->pri_dat)
+	{
+		if(dev->msg)
+		{
+			dev_err(dev->dev, "Recovery failed, pri_clk|pri_dat = 0, addr: 0x%x\n",dev->msg->addr);
+		}
 		return;
+	}	
 
 	if (!(status & (I2C_STATUS_BUS_ACTIVE)) ||
 		(status & (I2C_STATUS_BUS_MASTER)))
+	{
+		dev_err(dev->dev, "qup_i2c_recover_bus_busy() status:%d\n",status);
 		return;
+	}
 
-	gpio_clk = dev->i2c_gpios[0];
-	gpio_dat = dev->i2c_gpios[1];
+	//gpio_clk = dev->i2c_gpios[0];
+	//gpio_dat = dev->i2c_gpios[1];
+	gpio_clk = dev->pdata->pri_clk;
+    gpio_dat = dev->pdata->pri_dat;
 
-	if ((gpio_clk == -1) && (gpio_dat == -1)) {
+	if ((gpio_clk == -1) && (gpio_dat == -1)) 
+	{
 		dev_err(dev->dev, "Recovery failed due to undefined GPIO's\n");
 		return;
 	}
+    dev->i2c_gpios[0] = gpio_clk;
+	dev->i2c_gpios[1] = gpio_dat;
 
 	disable_irq(dev->err_irq);
 	for (i = 0; i < ARRAY_SIZE(i2c_rsrcs); ++i) {
 		if (msm_gpiomux_write(dev->i2c_gpios[i], GPIOMUX_ACTIVE,
 				&recovery_config, &old_gpio_setting)) {
-			dev_err(dev->dev, "GPIO pins have no active setting\n");
+			dev_err(dev->dev, "GPIO pins have no active setting i= %d,gpio=%d\n",i, dev->i2c_gpios[i]);
 			goto recovery_end;
 		}
 	}
 
-	dev_warn(dev->dev, "i2c_scl: %d, i2c_sda: %d\n",
-		 gpio_get_value(gpio_clk), gpio_get_value(gpio_dat));
+	dev_warn(dev->dev, "i2c_scl: %d, i2c_sda: %d\n",gpio_get_value(gpio_clk), gpio_get_value(gpio_dat));
 
 	for (i = 0; i < 9; i++) {
 		if (gpio_get_value(gpio_dat) && gpio_clk_status)
@@ -721,11 +741,15 @@ static void qup_i2c_recover_bus_busy(struct qup_i2c_dev *dev)
 		gpio_direction_input(gpio_dat);
 		udelay(5);
 	}
-
+         /*ad QC pathc for MTBF test I2C time */
+         udelay(10);
 	/* Configure ALT funciton to QUP I2C*/
 	for (i = 0; i < ARRAY_SIZE(i2c_rsrcs); ++i) {
-		msm_gpiomux_write(dev->i2c_gpios[i], GPIOMUX_ACTIVE,
-				&old_gpio_setting, NULL);
+		if (msm_gpiomux_write(dev->i2c_gpios[i], GPIOMUX_ACTIVE,
+				&i2c_config, NULL))
+		{
+			dev_err(dev->dev, "GPIO pins have no active setting:i=%d,gpio=%d\n",i,dev->i2c_gpios[i]);
+		}
 	}
 
 	udelay(10);
@@ -743,7 +767,61 @@ static void qup_i2c_recover_bus_busy(struct qup_i2c_dev *dev)
 recovery_end:
 	enable_irq(dev->err_irq);
 }
+/*ad QC pathc for MTBF test I2C time */
+#if 0
+static void qup_i2c_gpio(struct qup_i2c_dev *dev)
+{
+	int i;
+	int gpio_clk;
+	int gpio_dat;
+	//bool gpio_clk_status = false;
+	struct gpiomux_setting old_gpio_setting;
 
+	dev_err(dev->dev, "-----------qup_i2c_gpio gpio_clk=%d, gpio_dat=%d\n", dev->pdata->pri_clk, dev->pdata->pri_dat);
+
+	gpio_clk = dev->pdata->pri_clk;
+    gpio_dat = dev->pdata->pri_dat;
+	
+	if ((gpio_clk == -1) && (gpio_dat == -1)) {
+		dev_err(dev->dev, "Recovery failed due to undefined GPIO's\n");
+		return;
+	}
+    dev->i2c_gpios[0] = gpio_clk;
+	dev->i2c_gpios[1] = gpio_dat;
+
+	if ((gpio_clk == -1) && (gpio_dat == -1)) {
+		dev_err(dev->dev, "Recovery failed due to undefined GPIO's\n");
+		return;
+	}
+     disable_irq(dev->err_irq);
+	for (i = 0; i < ARRAY_SIZE(i2c_rsrcs); ++i) {
+		if (msm_gpiomux_write(dev->i2c_gpios[i], GPIOMUX_ACTIVE,
+				&recovery_config, &old_gpio_setting)) {
+			//dev_err(dev->dev, "GPIO pins have no active setting\n");
+			dev_err(dev->dev, "msm_gpiomux_write recovery_config GPIO pins have no active setting i=%d, dev->i2c_gpios=%d\n", i, dev->i2c_gpios[i]);
+		}
+	}
+
+	
+
+	dev_warn(dev->dev, "i2c_scl: %d, i2c_sda: %d\n",
+		 gpio_get_value(gpio_clk), gpio_get_value(gpio_dat));
+
+	/* Configure ALT funciton to QUP I2C*/
+	for (i = 0; i < ARRAY_SIZE(i2c_rsrcs); ++i) {
+		if (msm_gpiomux_write(dev->i2c_gpios[i], GPIOMUX_ACTIVE,
+				&old_gpio_setting, NULL)){
+			dev_err(dev->dev, "msm_gpiomux_write old_gpio_setting GPIO pins have no active setting i=%d, dev->i2c_gpios=%d\n", i, dev->i2c_gpios[i]);
+		}
+	}
+
+	udelay(10);
+	dev_warn(dev->dev, "-----------qup_i2c_gpio end\n");
+
+enable_irq(dev->err_irq);
+
+}
+#endif
 static int
 qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
@@ -848,7 +926,7 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 			ret = -EIO;
 			goto out_err;
 		}
-
+	        //dev_err(dev->dev, "qup_i2c_xfer():qup_print_status()1\n");
 		qup_print_status(dev);
 		/* HW limits Read upto 256 bytes in 1 read without stop */
 		if (dev->msg->flags & I2C_M_RD) {
@@ -869,7 +947,7 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 			ret = err;
 			goto out_err;
 		}
-
+               //dev_err(dev->dev, "qup_i2c_xfer()qup_print_status()2\n"); 
 		qup_print_status(dev);
 		writel_relaxed(dev->clk_ctl, dev->base + QUP_I2C_CLK_CTL);
 		/* CLK_CTL register is not in the same 1K region as other QUP
@@ -888,7 +966,7 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 				ret = err;
 				goto out_err;
 			}
-
+                         //dev_err(dev->dev, "qup_i2c_xfer()qup_print_status()3\n"); 
 			qup_print_status(dev);
 			/* This operation is Write, check the next operation
 			 * and decide mode
@@ -933,10 +1011,10 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 			}
 			dev_dbg(dev->dev, "idx:%d, rem:%d, num:%d, mode:%d\n",
 				idx, rem, num, dev->mode);
-
+                        //dev_err(dev->dev, "qup_i2c_xfer()qup_print_status()4\n"); 
 			qup_print_status(dev);
 			timeout = wait_for_completion_timeout(&complete,
-					msecs_to_jiffies(dev->out_fifo_sz));
+					msecs_to_jiffies(dev->out_fifo_sz)*1);
 			if (!timeout) {
 				uint32_t istatus = readl_relaxed(dev->base +
 							QUP_I2C_STATUS);
@@ -944,7 +1022,32 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 							QUP_ERROR_FLAGS);
 				uint32_t op_flgs = readl_relaxed(dev->base +
 							QUP_OPERATIONAL);
-
+#if 0
+				uint32_t Q_CONFIG = readl_relaxed(dev->base +
+							QUP_CONFIG);
+				uint32_t Q_STATE = readl_relaxed(dev->base +
+							QUP_STATE);
+				uint32_t Q_IO_MODE = readl_relaxed(dev->base +
+							QUP_IO_MODE);
+				uint32_t Q_SW_RESET = readl_relaxed(dev->base +
+							QUP_SW_RESET);
+				uint32_t Q_ERROR_FLAGS = readl_relaxed(dev->base +
+							QUP_ERROR_FLAGS_EN);
+				uint32_t Q_MX_READ = readl_relaxed(dev->base +
+							QUP_MX_READ_CNT);
+				uint32_t Q_MX_INPUT = readl_relaxed(dev->base +
+							QUP_MX_INPUT_CNT);
+				uint32_t Q_MX_WR_CNT = readl_relaxed(dev->base +
+							QUP_MX_WR_CNT);
+				uint32_t Q_OUT_DEBUG = readl_relaxed(dev->base +
+							QUP_OUT_DEBUG);
+				uint32_t Q_IN_READ_CUR = readl_relaxed(dev->base +
+							QUP_IN_READ_CUR);
+				uint32_t Q_IN_DEBUG = readl_relaxed(dev->base +
+							QUP_IN_DEBUG);
+				uint32_t Q_I2C_CLK_CTL = readl_relaxed(dev->base +
+							QUP_I2C_CLK_CTL);
+#endif
 				/*
 				 * Dont wait for 1 sec if i2c sees the bus
 				 * active and controller is not master.
@@ -966,6 +1069,20 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 				dev_err(dev->dev, "I2C Status: %x\n", istatus);
 				dev_err(dev->dev, "QUP Status: %x\n", qstatus);
 				dev_err(dev->dev, "OP Flags: %x\n", op_flgs);
+#if 0
+				dev_err(dev->dev, "QUP_CONFIG: %x\n", Q_CONFIG);
+				dev_err(dev->dev, "QUP_STATE: %x\n", Q_STATE);
+				dev_err(dev->dev, "QUP_IO_MODE: %x\n", Q_IO_MODE);
+				dev_err(dev->dev, "QUP_SW_RESET: %x\n", Q_SW_RESET);
+				dev_err(dev->dev, "QUP_ERROR_FLAGS_EN: %x\n", Q_ERROR_FLAGS);
+				dev_err(dev->dev, "QUP_MX_READ_CNT: %x\n", Q_MX_READ);
+				dev_err(dev->dev, "QUP_MX_INPUT_CNT: %x\n", Q_MX_INPUT);
+				dev_err(dev->dev, "QUP_MX_WR_CNT: %x\n", Q_MX_WR_CNT);
+				dev_err(dev->dev, "QUP_OUT_DEBUG: %x\n", Q_OUT_DEBUG);
+				dev_err(dev->dev, "QUP_IN_READ_CUR: %x\n", Q_IN_READ_CUR);
+				dev_err(dev->dev, "QUP_IN_DEBUG: %x\n", Q_IN_DEBUG);
+				dev_err(dev->dev, "QUP_I2C_CLK_CTL: %x\n", Q_I2C_CLK_CTL);
+#endif				
 				writel_relaxed(1, dev->base + QUP_SW_RESET);
 				/* Make sure that the write has gone through
 				 * before returning from the function
@@ -1236,9 +1353,12 @@ blsp_core_init:
 		dev->i2c_gpios[i] = res ? res->start : -1;
 	}
 
-	ret = qup_i2c_request_gpios(dev);
-	if (ret)
-		goto err_request_gpio_failed;
+	/* Request gpio only when custom gpio configuration function is NOT defined*/
+	if(!pdata->msm_i2c_config_gpio){
+		ret = qup_i2c_request_gpios(dev);
+		if (ret)
+			goto err_request_gpio_failed;
+	}
 
 	platform_set_drvdata(pdev, dev);
 

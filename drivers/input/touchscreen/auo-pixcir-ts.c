@@ -5,7 +5,7 @@
  *
  * loosely based on auo_touch.c from Dell Streak vendor-kernel
  *
- * Copyright (c) 2008 QUALCOMM Incorporated.
+ * Copyright (c) 2008 Qualcomm Technologies, Inc.
  * Copyright (c) 2008 QUALCOMM USA, INC.
  *
  *

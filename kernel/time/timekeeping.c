@@ -146,6 +146,8 @@ static inline s64 timekeeping_get_ns(void)
 
 	/* read clocksource: */
 	clock = timekeeper.clock;
+	if (unlikely(clock == NULL))
+		return 0;
 	cycle_now = clock->read(clock);
 
 	/* calculate the delta since the last update_wall_time: */
@@ -242,6 +244,19 @@ void getnstimeofday(struct timespec *ts)
 }
 
 EXPORT_SYMBOL(getnstimeofday);
+
+void getnstimeofday_nolock(struct timespec *ts)
+{
+	s64 nsecs;
+
+	*ts = timekeeper.xtime;
+	nsecs = timekeeping_get_ns();
+
+	/* If arch requires, add in gettimeoffset() */
+	nsecs += arch_gettimeoffset();
+
+	timespec_add_ns(ts, nsecs);
+}
 
 ktime_t ktime_get(void)
 {

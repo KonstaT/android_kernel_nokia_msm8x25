@@ -3,7 +3,7 @@
  * MSM architecture clock driver
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007 QUALCOMM Incorporated
+ * Copyright (c) 2007 Qualcomm Technologies, Inc.
  * Author: San Mehat <san@android.com>
  *
  * This software is licensed under the terms of the GNU General Public

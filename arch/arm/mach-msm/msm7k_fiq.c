@@ -15,12 +15,13 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/nmi.h>
 #include <asm/fiq.h>
-#include <asm/unwind.h>
 #include <asm/hardware/gic.h>
 #include <asm/cacheflush.h>
 #include <mach/irqs.h>
 #include <mach/socinfo.h>
+#include <asm/unwind.h>
 #include <mach/fiq.h>
 #include <mach/msm_iomap.h>
 
@@ -48,6 +49,8 @@ void msm7k_fiq_handler(void)
 	pr_info("%s: Fiq is received on CPU%d\n", __func__, this_cpu);
 	fiq_counter += 1;
 
+	pr_err("%s msm_dump_cpu_ctx[this_cpu] usr_r0:0x%x", __func__, msm_dump_cpu_ctx[this_cpu].usr_r0);
+	pr_err("%s msm_dump_cpu_ctx[this_cpu] usr_r0:0x%x usr_r1:0x%x usr_r2:0x%x usr_r3:0x%x usr_r4:0x%x usr_r5:0x%x usr_r6:0x%x usr_r7:0x%x usr_r8:0x%x usr_r9:0x%x usr_r10:0x%x usr_r11:0x%x usr_r12:0x%x usr_r13:0x%x usr_r14:0x%x irq_spsr:0x%x irq_r13:0x%x irq_r14:0x%x svc_spsr:0x%x svc_r13:0x%x svc_r14:0x%x abt_spsr:0x%x abt_r13:0x%x abt_r14:0x%x und_spsr:0x%x und_r13:0x%x und_r14:0x%x fiq_spsr:0x%x fiq_r8:0x%x fiq_r9:0x%x fiq_r10:0x%x fiq_r11:0x%x fiq_r12:0x%x fiq_r13:0x%x fiq_r14:0x%x\n",__func__, msm_dump_cpu_ctx[this_cpu].usr_r0,msm_dump_cpu_ctx[this_cpu].usr_r1,msm_dump_cpu_ctx[this_cpu].usr_r2,msm_dump_cpu_ctx[this_cpu].usr_r3, msm_dump_cpu_ctx[this_cpu].usr_r4, msm_dump_cpu_ctx[this_cpu].usr_r5, msm_dump_cpu_ctx[this_cpu].usr_r6, msm_dump_cpu_ctx[this_cpu].usr_r7, msm_dump_cpu_ctx[this_cpu].usr_r8, msm_dump_cpu_ctx[this_cpu].usr_r9, msm_dump_cpu_ctx[this_cpu].usr_r10, msm_dump_cpu_ctx[this_cpu].usr_r11, msm_dump_cpu_ctx[this_cpu].usr_r12, msm_dump_cpu_ctx[this_cpu].usr_r13, msm_dump_cpu_ctx[this_cpu].usr_r14, msm_dump_cpu_ctx[this_cpu].irq_spsr, msm_dump_cpu_ctx[this_cpu].irq_r13, msm_dump_cpu_ctx[this_cpu].irq_r14, msm_dump_cpu_ctx[this_cpu].svc_spsr, msm_dump_cpu_ctx[this_cpu].svc_r13, msm_dump_cpu_ctx[this_cpu].svc_r14, msm_dump_cpu_ctx[this_cpu].abt_spsr,msm_dump_cpu_ctx[this_cpu].abt_r13, msm_dump_cpu_ctx[this_cpu].abt_r14, msm_dump_cpu_ctx[this_cpu].und_spsr,msm_dump_cpu_ctx[this_cpu].und_r13, msm_dump_cpu_ctx[this_cpu].und_r14, msm_dump_cpu_ctx[this_cpu].fiq_spsr,msm_dump_cpu_ctx[this_cpu].fiq_r8, msm_dump_cpu_ctx[this_cpu].fiq_r9, msm_dump_cpu_ctx[this_cpu].fiq_r10, msm_dump_cpu_ctx[this_cpu].fiq_r11, msm_dump_cpu_ctx[this_cpu].fiq_r12, msm_dump_cpu_ctx[this_cpu].fiq_r13, msm_dump_cpu_ctx[this_cpu].fiq_r14);
 	ctx_regs.ARM_pc = msm_dump_cpu_ctx[this_cpu].fiq_r14;
 	ctx_regs.ARM_lr = msm_dump_cpu_ctx[this_cpu].svc_r14;
 	ctx_regs.ARM_sp = msm_dump_cpu_ctx[this_cpu].svc_r13;
@@ -192,4 +195,4 @@ static int __init init7k_fiq(void)
 
 	return 0;
 }
-fs_initcall(init7k_fiq);
+late_initcall(init7k_fiq);

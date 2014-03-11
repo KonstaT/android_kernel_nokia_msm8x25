@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All Rights Reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All Rights Reserved.
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -14,10 +14,10 @@
 #include "msm_sensor.h"
 #include "msm.h"
 #include "pip_ov5648_ov7695.h"
-#define SENSOR_NAME "ov5648"
-#define PLATFORM_DRIVER_NAME "msm_camera_ov5648"
-#define ov5648_obj ov5648_##obj
 
+#define SENSOR_NAME "ov5648_truly_cm8352"
+#define PLATFORM_DRIVER_NAME "msm_camera_ov5648_truly_cm8352"
+#define ov5648_truly_cm8352_obj ov5648_truly_cm8352_##obj
 
 #ifdef CDBG
 #undef CDBG
@@ -26,9 +26,9 @@
 #undef CDBG_HIGH
 #endif
 
-#define OV5648_VERBOSE_DGB
+#define OV5648_TRULY_CM8352_VERBOSE_DGB
 
-#ifdef OV5648_VERBOSE_DGB
+#ifdef OV5648_TRULY_CM8352_VERBOSE_DGB
 #define CDBG(fmt, args...) printk(fmt, ##args)
 #define CDBG_HIGH(fmt, args...) printk(fmt, ##args)
 #else
@@ -36,18 +36,18 @@
 #define CDBG_HIGH(fmt, args...) printk(fmt, ##args)
 #endif
 
-#define OV5648_OTP_FEATURE
-//#ifdef OV5648_OTP_FEATURE
-//#undef OV5648_OTP_FEATURE
+#define OV5648_TRULY_CM8352_OTP_FEATURE
+//#ifdef OV5648_TRULY_CM8352_OTP_FEATURE
+//#undef OV5648_TRULY_CM8352_OTP_FEATURE
 //#endif
 
-static struct msm_sensor_ctrl_t ov5648_s_ctrl;
+static struct msm_sensor_ctrl_t ov5648_truly_cm8352_s_ctrl;
 
-DEFINE_MUTEX(ov5648_mut);
+DEFINE_MUTEX(ov5648_truly_cm8352_mut);
 
 /***********************PIP settings*******************************/
 
-static struct msm_camera_i2c_reg_conf ov5648_pip_init_settings_master[] =
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_pip_init_settings_master[] =
 {
 	//0x0103, 0x01, // software reset
 	{0x3001, 0x00}, // D[7:0] set to input
@@ -173,7 +173,7 @@ static struct msm_camera_i2c_reg_conf ov5648_pip_init_settings_master[] =
 	{0x4520, 0x00},
 	{0x4521, 0x00},
 	{0x4511, 0x22},
-        {0x4800, 0x24},
+	{0x4800, 0x24},
 	{0x481f, 0x3c}, // MIPI clk prepare min
 	{0x4826, 0x00}, // MIPI hs prepare min
 	{0x4837, 0x18}, // MIPI global timing
@@ -220,7 +220,7 @@ static struct msm_camera_i2c_reg_conf ov5648_pip_init_settings_master[] =
 };
 
 
-static struct msm_camera_i2c_reg_conf ov5648_pip_snap_settings_master[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_pip_snap_settings_master[] = {
 #if 0
 	//4:3 settings
 	//// OV5648 wake up
@@ -350,7 +350,7 @@ static struct msm_camera_i2c_reg_conf ov5648_pip_snap_settings_master[] = {
 	{0x383b, 0xa0},//	; 80 PIP Location
 
 	{0x4004, 0x04},//	; black line number
-//	{0x4005, 0x1a}, //BLC always update
+	{0x4005, 0x1a}, //BLC always update
 
 	{0x5b00, 0x02},
 	{0x5b01, 0x80},
@@ -361,7 +361,7 @@ static struct msm_camera_i2c_reg_conf ov5648_pip_snap_settings_master[] = {
 #endif
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_pip_prev_settings_master[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_pip_prev_settings_master[] = {
 #if 1
 	//16:9 settings
 	//// OV5648 wake up
@@ -498,7 +498,7 @@ static struct msm_camera_i2c_reg_conf ov5648_pip_prev_settings_master[] = {
 #endif
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_pip_preview_settings_slave[] =
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_pip_preview_settings_slave[] =
 {
 	{0x3830, 0x40},
 	{0x3808, 0x02}, //Timing X output Size = 656
@@ -529,39 +529,39 @@ static struct msm_camera_i2c_reg_conf ov5648_pip_preview_settings_slave[] =
 };
 
 
-static struct msm_camera_i2c_conf_array ov5648_pip_init_conf_master[] = {
-	{&ov5648_pip_init_settings_master[0],
-	ARRAY_SIZE(ov5648_pip_init_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA}
+static struct msm_camera_i2c_conf_array ov5648_truly_cm8352_pip_init_conf_master[] = {
+	{&ov5648_truly_cm8352_pip_init_settings_master[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_init_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA}
 };
 
-static struct msm_camera_i2c_conf_array ov5648_pip_preview_conf_slave[] = {
-	{&ov5648_pip_preview_settings_slave[0],
-	ARRAY_SIZE(ov5648_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_pip_preview_settings_slave[0],
-	ARRAY_SIZE(ov5648_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_pip_preview_settings_slave[0],
-	ARRAY_SIZE(ov5648_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_pip_preview_settings_slave[0],
-	ARRAY_SIZE(ov5648_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_pip_preview_settings_slave[0],
-	ARRAY_SIZE(ov5648_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
+static struct msm_camera_i2c_conf_array ov5648_truly_cm8352_pip_preview_conf_slave[] = {
+	{&ov5648_truly_cm8352_pip_preview_settings_slave[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_pip_preview_settings_slave[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_pip_preview_settings_slave[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_pip_preview_settings_slave[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_pip_preview_settings_slave[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_preview_settings_slave), 0, MSM_CAMERA_I2C_BYTE_DATA},
 };
 
-static struct msm_camera_i2c_conf_array ov5648_pip_confs_master[] = {
-	{&ov5648_pip_snap_settings_master[0],
-	ARRAY_SIZE(ov5648_pip_snap_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_pip_prev_settings_master[0],
-	ARRAY_SIZE(ov5648_pip_prev_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_pip_prev_settings_master[0],
-	ARRAY_SIZE(ov5648_pip_prev_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_pip_prev_settings_master[0],
-	ARRAY_SIZE(ov5648_pip_prev_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_pip_snap_settings_master[0],
-	ARRAY_SIZE(ov5648_pip_snap_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA}
+static struct msm_camera_i2c_conf_array ov5648_truly_cm8352_pip_confs_master[] = {
+	{&ov5648_truly_cm8352_pip_snap_settings_master[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_snap_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_pip_prev_settings_master[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_prev_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_pip_prev_settings_master[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_prev_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_pip_prev_settings_master[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_prev_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_pip_snap_settings_master[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_pip_snap_settings_master), 0, MSM_CAMERA_I2C_BYTE_DATA}
 };
 
 
-static struct msm_sensor_output_info_t ov5648_pip_dimensions[] = {
+static struct msm_sensor_output_info_t ov5648_truly_cm8352_pip_dimensions[] = {
 #if 0
 	//4:3 settings
 	{ /* For SNAPSHOT */
@@ -659,6 +659,8 @@ int32_t pip_ov5648_ctrl(int cmd, struct msm_camera_pip_ctl *pip_ctl)
 	int rc = 0;
 	struct msm_camera_i2c_client sensor_i2c_client;
 	struct i2c_client client;
+	unsigned short rdata = 0;
+
 	CDBG("%s IN, cmd:%d\r\n", __func__, cmd);
 	switch(cmd)
 	{
@@ -675,16 +677,15 @@ int32_t pip_ov5648_ctrl(int cmd, struct msm_camera_pip_ctl *pip_ctl)
 			if(PIP_REG_SETTINGS_INIT == pip_ctl->write_ctl)
 			{
 				rc = msm_sensor_write_all_conf_array(
-					&sensor_i2c_client, &ov5648_pip_init_conf_master[0],
-					ARRAY_SIZE(ov5648_pip_init_conf_master));
+					&sensor_i2c_client, &ov5648_truly_cm8352_pip_init_conf_master[0],
+					ARRAY_SIZE(ov5648_truly_cm8352_pip_init_conf_master));
 			}
 			else
 			{
 				rc = msm_sensor_write_conf_array(
 				&sensor_i2c_client,
-				&ov5648_pip_preview_conf_slave[0], pip_ctl->write_ctl);
+				&ov5648_truly_cm8352_pip_preview_conf_slave[0], pip_ctl->write_ctl);
 			}
-			break;
 			break;
 		case PIP_CRL_POWERUP:
 			if(0 != ov5648_pwdn_pin)
@@ -735,18 +736,18 @@ int32_t pip_ov5648_ctrl(int cmd, struct msm_camera_pip_ctl *pip_ctl)
 				msm_camera_i2c_write(&sensor_i2c_client, 0x100, 0x0,
 					MSM_CAMERA_I2C_BYTE_DATA);
 			break;
-			case PIP_CTL_STANDBY_EXIT:
-					if(NULL == pip_ctl){
-						CDBG("%s parameters check error, exit\r\n", __func__);
-						return rc;
-					}
-					memcpy(&sensor_i2c_client, pip_ctl->sensor_i2c_client, sizeof(struct msm_camera_i2c_client));
-					memcpy(&client, pip_ctl->sensor_i2c_client->client, sizeof(struct i2c_client));
-					client.addr = ov5648_i2c_address;
-					sensor_i2c_client.client = &client;
-					msm_camera_i2c_write(&sensor_i2c_client, 0x100, 0x1,
-						MSM_CAMERA_I2C_BYTE_DATA);
-				break;
+		case PIP_CTL_STANDBY_EXIT:
+				if(NULL == pip_ctl){
+					CDBG("%s parameters check error, exit\r\n", __func__);
+					return rc;
+				}
+				memcpy(&sensor_i2c_client, pip_ctl->sensor_i2c_client, sizeof(struct msm_camera_i2c_client));
+				memcpy(&client, pip_ctl->sensor_i2c_client->client, sizeof(struct i2c_client));
+				client.addr = ov5648_i2c_address;
+				sensor_i2c_client.client = &client;
+				msm_camera_i2c_write(&sensor_i2c_client, 0x100, 0x1,
+					MSM_CAMERA_I2C_BYTE_DATA);
+			break;
 		case PIP_CTL_STREAM_ON:
 				if(NULL == pip_ctl){
 					CDBG("%s parameters check error, exit\r\n", __func__);
@@ -756,21 +757,45 @@ int32_t pip_ov5648_ctrl(int cmd, struct msm_camera_pip_ctl *pip_ctl)
 				memcpy(&client, pip_ctl->sensor_i2c_client->client, sizeof(struct i2c_client));
 				client.addr = ov5648_i2c_address;
 				sensor_i2c_client.client = &client;
-				msm_camera_i2c_write(&sensor_i2c_client, 0x4202, 0x0,
+				msm_camera_i2c_write(&sensor_i2c_client, 0x301a, 0xf0,
 					MSM_CAMERA_I2C_BYTE_DATA);
 			break;
-			case PIP_CTL_STREAM_OFF:
-					if(NULL == pip_ctl){
-						CDBG("%s parameters check error, exit\r\n", __func__);
-						return rc;
-					}
-					memcpy(&sensor_i2c_client, pip_ctl->sensor_i2c_client, sizeof(struct msm_camera_i2c_client));
-					memcpy(&client, pip_ctl->sensor_i2c_client->client, sizeof(struct i2c_client));
-					client.addr = ov5648_i2c_address;
-					sensor_i2c_client.client = &client;
-					msm_camera_i2c_write(&sensor_i2c_client, 0x4202, 0x0f,
-						MSM_CAMERA_I2C_BYTE_DATA);
+		case PIP_CTL_STREAM_OFF:
+				if(NULL == pip_ctl){
+					CDBG("%s parameters check error, exit\r\n", __func__);
+					return rc;
+				}
+				memcpy(&sensor_i2c_client, pip_ctl->sensor_i2c_client, sizeof(struct msm_camera_i2c_client));
+				memcpy(&client, pip_ctl->sensor_i2c_client->client, sizeof(struct i2c_client));
+				client.addr = ov5648_i2c_address;
+				sensor_i2c_client.client = &client;
+				msm_camera_i2c_write(&sensor_i2c_client, 0x301a, 0xf1,
+					MSM_CAMERA_I2C_BYTE_DATA);
 				break;
+		case PIP_CTL_RESET_HW_DOWN:
+			if(0 != ov5648_reset_pin)
+			{
+				CDBG("PIP ctrl, set the gpio:%d to 0\r\n", ov5648_reset_pin);
+				gpio_direction_output(ov5648_reset_pin, 0);
+			}
+			break;
+		case PIP_CTL_MIPI_DOWN:
+			if(NULL == pip_ctl){
+				CDBG("%s parameters check error, exit\r\n", __func__);
+				return rc;
+			}
+			memcpy(&sensor_i2c_client, pip_ctl->sensor_i2c_client, sizeof(struct msm_camera_i2c_client));
+			memcpy(&client, pip_ctl->sensor_i2c_client->client, sizeof(struct i2c_client));
+			client.addr = ov5648_i2c_address;
+			sensor_i2c_client.client = &client;
+			rc = msm_camera_i2c_read(&sensor_i2c_client, 0x3018,
+				&rdata, MSM_CAMERA_I2C_BYTE_DATA);
+			CDBG("ov5648_truly_cm8352_sensor_power_down: %d\n", rc);
+			rdata |= 0x18;
+			msm_camera_i2c_write(&sensor_i2c_client,
+				0x3018, rdata,
+				MSM_CAMERA_I2C_BYTE_DATA);
+			break;
 		default:
 				break;
 	}
@@ -780,24 +805,24 @@ int32_t pip_ov5648_ctrl(int cmd, struct msm_camera_pip_ctl *pip_ctl)
 EXPORT_SYMBOL(pip_ov5648_ctrl);
 /* End */
 
-static struct msm_camera_i2c_reg_conf ov5648_start_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_start_settings[] = {
 	{0x301a, 0xf0},  /* streaming on */
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_stop_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_stop_settings[] = {
 	{0x301a, 0xf1},  /* streaming off*/
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_groupon_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_groupon_settings[] = {
 	{0x3208, 0x0},
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_groupoff_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_groupoff_settings[] = {
 	{0x3208, 0x10},
 	{0x3208, 0xa0},
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_prev_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_prev_settings[] = {
 	/*1296*972 preview*/
 	// 1296x972 30fps 2 lane MIPI 420Mbps/lane
 	{0x3035, 0x21}, //PLL
@@ -806,6 +831,12 @@ static struct msm_camera_i2c_reg_conf ov5648_prev_settings[] = {
 	{0x3708, 0x66},
 	{0x3709, 0x52},
 	{0x370c, 0xc3},
+
+	{0x3500, 0x00}, // exposure [19:16]
+	{0x3501, 0x3d}, // exposure [15:8]
+	{0x3502, 0xc0}, // exposure [7:0], exposure
+	{0x350a, 0x00}, // gain[9:8]
+	{0x350b, 0x23}, // gain[7:0],
 
 	{0x3800, 0x00},//xstart = 0
 	{0x3801, 0x00},//x start
@@ -839,7 +870,7 @@ static struct msm_camera_i2c_reg_conf ov5648_prev_settings[] = {
 	{0x4837, 0x17},//MIPI global timing
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_snap_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_snap_settings[] = {
 	/* 2592*1944 capture */
 	//2592x1944 15fps 2 lane MIPI 420Mbps/lane
 	{0x3035, 0x21}, //PLL
@@ -881,7 +912,7 @@ static struct msm_camera_i2c_reg_conf ov5648_snap_settings[] = {
 	{0x4837, 0x17}, //MIPI global timing
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_video_60fps_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_video_60fps_settings[] = {
 	//640x480 60fps 2 lane MIPI 280Mbps/lane
 	{0x3035, 0x31}, //PLL
 	{0x2501, 0x1e}, //exposure
@@ -922,7 +953,7 @@ static struct msm_camera_i2c_reg_conf ov5648_video_60fps_settings[] = {
 	{0x4837, 0x23}, //MIPI global timing
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_video_90fps_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_video_90fps_settings[] = {
 	// 640x480 90fps 2 lane MIPI 420Mbps/lane
 	{0x3035, 0x21}, //PLL
 	{0x2501, 0x1e}, //exposure
@@ -963,9 +994,16 @@ static struct msm_camera_i2c_reg_conf ov5648_video_90fps_settings[] = {
 	{0x4837, 0x17}, //MIPI global timing
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_zsl_settings[] = {
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_zsl_settings[] = {
 	{0x3035, 0x21}, //PLL
-//	{0x3501, 0x7b}, //exposure
+
+	{0x3500, 0x00}, // exposure [19:16]
+	{0x3501, 0x10}, // exposure [15:8]
+	{0x3502, 0x80}, // exposure [7:0], exposure
+	{0x3503, 0x03}, // gain has no delay, manual agc/aec
+	{0x350a, 0x00}, // gain[9:8]
+	{0x350b, 0x7f}, // gain[7:0],
+
 	{0x2502, 0x00}, //exposure
 	{0x3708, 0x63}, //
 	{0x3709, 0x12}, //
@@ -1003,7 +1041,7 @@ static struct msm_camera_i2c_reg_conf ov5648_zsl_settings[] = {
 	{0x4837, 0x17}, //MIPI global timing
 };
 
-static struct msm_camera_i2c_reg_conf ov5648_recommend_settings[] =
+static struct msm_camera_i2c_reg_conf ov5648_truly_cm8352_recommend_settings[] =
 {
 //	{0x0103, 0x01}, // software reset
 	{0x3001, 0x00}, // D[7:0] set to input
@@ -1036,12 +1074,12 @@ static struct msm_camera_i2c_reg_conf ov5648_recommend_settings[] =
 	{0x330f, 0x20},
 	{0x3300, 0x00},
 
-	{0x3500, 0x00}, // exposure [19:16]
-	{0x3501, 0x00}, // exposure [15:8]
-	{0x3502, 0x10}, // exposure [7:0], exposure = 0x3d0 = 976
+//	{0x3500, 0x00}, // exposure [19:16]
+//	{0x3501, 0x00}, // exposure [15:8]
+//	{0x3502, 0x10}, // exposure [7:0], exposure = 0x3d0 = 976
 	{0x3503, 0x07}, // gain has no delay, manual agc/aec
-	{0x350a, 0x00}, // gain[9:8]
-	{0x350b, 0x00}, // gain[7:0],
+//	{0x350a, 0x00}, // gain[9:8]
+//	{0x350b, 0x00}, // gain[7:0],
 
 	{0x3601, 0x33}, // analog control
 	{0x3602, 0x00}, // analog control
@@ -1135,7 +1173,7 @@ static struct msm_camera_i2c_reg_conf ov5648_recommend_settings[] =
 	{0x4521, 0x00},
 	{0x4511, 0x22},
 
-        {0x4800, 0x24},
+	{0x4800, 0x24},
 	{0x481f, 0x3c}, // MIPI clk prepare min
 	{0x4826, 0x00}, // MIPI hs prepare min
 	{0x4837, 0x18}, // MIPI global timing
@@ -1163,25 +1201,25 @@ static struct msm_camera_i2c_reg_conf ov5648_recommend_settings[] =
 };
 
 
-static struct msm_camera_i2c_conf_array ov5648_init_conf[] = {
-	{&ov5648_recommend_settings[0],
-	ARRAY_SIZE(ov5648_recommend_settings), 0, MSM_CAMERA_I2C_BYTE_DATA}
+static struct msm_camera_i2c_conf_array ov5648_truly_cm8352_init_conf[] = {
+	{&ov5648_truly_cm8352_recommend_settings[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_recommend_settings), 0, MSM_CAMERA_I2C_BYTE_DATA}
 };
 
-static struct msm_camera_i2c_conf_array ov5648_confs[] = {
-	{&ov5648_snap_settings[0],
-	ARRAY_SIZE(ov5648_snap_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_prev_settings[0],
-	ARRAY_SIZE(ov5648_prev_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_video_60fps_settings[0],
-	ARRAY_SIZE(ov5648_video_60fps_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_video_90fps_settings[0],
-	ARRAY_SIZE(ov5648_video_90fps_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
-	{&ov5648_zsl_settings[0],
-	ARRAY_SIZE(ov5648_zsl_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
+static struct msm_camera_i2c_conf_array ov5648_truly_cm8352_confs[] = {
+	{&ov5648_truly_cm8352_snap_settings[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_snap_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_prev_settings[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_prev_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_video_60fps_settings[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_video_60fps_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_video_90fps_settings[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_video_90fps_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
+	{&ov5648_truly_cm8352_zsl_settings[0],
+	ARRAY_SIZE(ov5648_truly_cm8352_zsl_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
 };
 
-static struct msm_camera_csi_params ov5648_csi_params = {
+static struct msm_camera_csi_params ov5648_truly_cm8352_csi_params = {
 	.data_format = CSI_10BIT,
 	.lane_cnt    = 2,
 	.lane_assign = 0xe4,
@@ -1189,7 +1227,7 @@ static struct msm_camera_csi_params ov5648_csi_params = {
 	.settle_cnt  = 20,
 };
 
-static struct v4l2_subdev_info ov5648_subdev_info[] = {
+static struct v4l2_subdev_info ov5648_truly_cm8352_subdev_info[] = {
 	{
 		.code   = V4L2_MBUS_FMT_SBGGR10_1X10,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -1199,7 +1237,7 @@ static struct v4l2_subdev_info ov5648_subdev_info[] = {
 	/* more can be supported, to be added later */
 };
 
-static struct msm_sensor_output_info_t ov5648_dimensions[] = {
+static struct msm_sensor_output_info_t ov5648_truly_cm8352_dimensions[] = {
 	{ /* For SNAPSHOT */
 		.x_output = 0xa20,         /*2592*/
 		.y_output = 0x798,         /*1944*/
@@ -1248,33 +1286,33 @@ static struct msm_sensor_output_info_t ov5648_dimensions[] = {
 
 };
 
-static struct msm_sensor_output_reg_addr_t ov5648_reg_addr = {
+static struct msm_sensor_output_reg_addr_t ov5648_truly_cm8352_reg_addr = {
 	.x_output = 0x3808,
 	.y_output = 0x380A,
 	.line_length_pclk = 0x380C,
 	.frame_length_lines = 0x380E,
 };
 
-static struct msm_camera_csi_params *ov5648_csi_params_array[] = {
-	&ov5648_csi_params, /* Snapshot */
-	&ov5648_csi_params, /* Preview */
-	&ov5648_csi_params, /* 60fps */
-	&ov5648_csi_params, /* 90fps */
-	&ov5648_csi_params, /* ZSL */
+static struct msm_camera_csi_params *ov5648_truly_cm8352_csi_params_array[] = {
+	&ov5648_truly_cm8352_csi_params, /* Snapshot */
+	&ov5648_truly_cm8352_csi_params, /* Preview */
+	&ov5648_truly_cm8352_csi_params, /* 60fps */
+	&ov5648_truly_cm8352_csi_params, /* 90fps */
+	&ov5648_truly_cm8352_csi_params, /* ZSL */
 };
 
-static struct msm_sensor_id_info_t ov5648_id_info = {
+static struct msm_sensor_id_info_t ov5648_truly_cm8352_id_info = {
 	.sensor_id_reg_addr = 0x300a,
 	.sensor_id = 0x5648,
 };
 
-static struct msm_sensor_exp_gain_info_t ov5648_exp_gain_info = {
+static struct msm_sensor_exp_gain_info_t ov5648_truly_cm8352_exp_gain_info = {
 	.coarse_int_time_addr = 0x3500,
 	.global_gain_addr = 0x350A,
 	.vert_offset = 4,
 };
 
-void ov5648_sensor_reset_stream(struct msm_sensor_ctrl_t *s_ctrl)
+void ov5648_truly_cm8352_sensor_reset_stream(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	msm_camera_i2c_write(
 		s_ctrl->sensor_i2c_client,
@@ -1282,7 +1320,7 @@ void ov5648_sensor_reset_stream(struct msm_sensor_ctrl_t *s_ctrl)
 		MSM_CAMERA_I2C_BYTE_DATA);
 }
 
-#ifdef OV5648_OTP_FEATURE
+#ifdef OV5648_TRULY_CM8352_OTP_FEATURE
 
 int RG_Ratio_Typical = 0x125;
 int BG_Ratio_Typical = 0x185;
@@ -1300,14 +1338,14 @@ struct otp_struct {
 
 static struct msm_sensor_ctrl_t *otp_s_ctrl = NULL;
 
-int32_t ov5648_otp_write(uint16_t addr, uint16_t data)
+int32_t ov5648_truly_cm8352_otp_write(uint16_t addr, uint16_t data)
 {
 	return msm_camera_i2c_write(otp_s_ctrl->sensor_i2c_client, addr, data,
 		MSM_CAMERA_I2C_BYTE_DATA);
 }
 
 
-uint16_t ov5648_otp_read(uint16_t addr)
+uint16_t ov5648_truly_cm8352_otp_read(uint16_t addr)
 {
     uint16_t temp;
 	msm_camera_i2c_read(otp_s_ctrl->sensor_i2c_client, addr, &temp,
@@ -1319,7 +1357,7 @@ uint16_t ov5648_otp_read(uint16_t addr)
 // return:    0, group index is empty
 //       1, group index has invalid data
 //       2, group index has valid data
-int ov5648_check_otp(int index)
+int ov5648_truly_cm8352_check_otp(int index)
 {
      int temp, i;
      int address;
@@ -1327,31 +1365,31 @@ int ov5648_check_otp(int index)
      if (index<2)
      {
          // read otp --Bank 0
-         ov5648_otp_write(0x3d84, 0xc0);
-         ov5648_otp_write(0x3d85, 0x00);
-         ov5648_otp_write(0x3d86, 0x0f);
-         ov5648_otp_write(0x3d81, 0x01);
+         ov5648_truly_cm8352_otp_write(0x3d84, 0xc0);
+         ov5648_truly_cm8352_otp_write(0x3d85, 0x00);
+         ov5648_truly_cm8352_otp_write(0x3d86, 0x0f);
+         ov5648_truly_cm8352_otp_write(0x3d81, 0x01);
 
          usleep_range(10000, 10500);
          address = 0x3d05 + index*9;
      }
      else{
          // read otp --Bank 1
-         ov5648_otp_write(0x3d84, 0xc0);
-         ov5648_otp_write(0x3d85, 0x10);
-         ov5648_otp_write(0x3d86, 0x1f);
-         ov5648_otp_write(0x3d81, 0x01);
+         ov5648_truly_cm8352_otp_write(0x3d84, 0xc0);
+         ov5648_truly_cm8352_otp_write(0x3d85, 0x10);
+         ov5648_truly_cm8352_otp_write(0x3d86, 0x1f);
+         ov5648_truly_cm8352_otp_write(0x3d81, 0x01);
          usleep_range(10000, 10500);
          address = 0x3d05 + index*9-16;
      }
-     temp = ov5648_otp_read(address);
+     temp = ov5648_truly_cm8352_otp_read(address);
 
      // disable otp read
-     ov5648_otp_write(0x3d81, 0x00);
+     ov5648_truly_cm8352_otp_write(0x3d81, 0x00);
 
      // clear otp buffer
      for (i=0;i<16;i++) {
-         ov5648_otp_write(0x3d00 + i, 0x00);
+         ov5648_truly_cm8352_otp_write(0x3d00 + i, 0x00);
      }
 
      if (!temp) {
@@ -1367,7 +1405,7 @@ int ov5648_check_otp(int index)
 
 // index: index of otp group. (0, 1, 2)
 // return:    0,
-int ov5648_read_otp(int index, struct otp_struct * otp_ptr)
+int ov5648_truly_cm8352_read_otp(int index, struct otp_struct * otp_ptr)
 {
      int i;
      int address;
@@ -1376,32 +1414,32 @@ int ov5648_read_otp(int index, struct otp_struct * otp_ptr)
      if (index<2)
      {
          // read otp --Bank 0
-         ov5648_otp_write(0x3d84, 0xc0);
-         ov5648_otp_write(0x3d85, 0x00);
-         ov5648_otp_write(0x3d86, 0x0f);
-         ov5648_otp_write(0x3d81, 0x01);
+         ov5648_truly_cm8352_otp_write(0x3d84, 0xc0);
+         ov5648_truly_cm8352_otp_write(0x3d85, 0x00);
+         ov5648_truly_cm8352_otp_write(0x3d86, 0x0f);
+         ov5648_truly_cm8352_otp_write(0x3d81, 0x01);
          usleep_range(10000, 10500);
          address = 0x3d05 + index*9;
      }
      else{
          // read otp --Bank 1
-         ov5648_otp_write(0x3d84, 0xc0);
-         ov5648_otp_write(0x3d85, 0x10);
-         ov5648_otp_write(0x3d86, 0x1f);
-         ov5648_otp_write(0x3d81, 0x01);
+         ov5648_truly_cm8352_otp_write(0x3d84, 0xc0);
+         ov5648_truly_cm8352_otp_write(0x3d85, 0x10);
+         ov5648_truly_cm8352_otp_write(0x3d86, 0x1f);
+         ov5648_truly_cm8352_otp_write(0x3d81, 0x01);
          usleep_range(10000, 10500);
          address = 0x3d05 + index*9-16;
      }
 
-     (*otp_ptr).customer_id = (ov5648_otp_read(address) & 0x7f);
-     (*otp_ptr).module_integrator_id = ov5648_otp_read(address);
-     (*otp_ptr).lens_id = ov5648_otp_read(address + 1);
-     (*otp_ptr).rg_ratio = (ov5648_otp_read(address + 2)<<2) + (ov5648_otp_read(address + 6)>>6) ;
-     (*otp_ptr).bg_ratio = (ov5648_otp_read(address + 3)<<2) +((ov5648_otp_read(address + 6)>>4)&(0x03));
-     (*otp_ptr).user_data[0] = ov5648_otp_read(address + 4);
-     (*otp_ptr).user_data[1] = ov5648_otp_read(address + 5);
-     (*otp_ptr).light_rg = (int)(ov5648_otp_read(address + 7)<<2) + (int)((ov5648_otp_read(address + 6)>>2)&(0x03));
-     (*otp_ptr).light_bg = (int)(ov5648_otp_read(address + 8)<<2) + (int)((ov5648_otp_read(address + 6))&(0x03));
+     (*otp_ptr).customer_id = (ov5648_truly_cm8352_otp_read(address) & 0x7f);
+     (*otp_ptr).module_integrator_id = ov5648_truly_cm8352_otp_read(address);
+     (*otp_ptr).lens_id = ov5648_truly_cm8352_otp_read(address + 1);
+     (*otp_ptr).rg_ratio = (ov5648_truly_cm8352_otp_read(address + 2)<<2) + (ov5648_truly_cm8352_otp_read(address + 6)>>6) ;
+     (*otp_ptr).bg_ratio = (ov5648_truly_cm8352_otp_read(address + 3)<<2) +((ov5648_truly_cm8352_otp_read(address + 6)>>4)&(0x03));
+     (*otp_ptr).user_data[0] = ov5648_truly_cm8352_otp_read(address + 4);
+     (*otp_ptr).user_data[1] = ov5648_truly_cm8352_otp_read(address + 5);
+     (*otp_ptr).light_rg = (int)(ov5648_truly_cm8352_otp_read(address + 7)<<2) + (int)((ov5648_truly_cm8352_otp_read(address + 6)>>2)&(0x03));
+     (*otp_ptr).light_bg = (int)(ov5648_truly_cm8352_otp_read(address + 8)<<2) + (int)((ov5648_truly_cm8352_otp_read(address + 6))&(0x03));
 
      CDBG("==========OV5648 OTP INFO==========\r\n");
      CDBG("%s-customer_id  = 0x%x\r\n", __func__, otp_ptr->customer_id);
@@ -1415,11 +1453,11 @@ int ov5648_read_otp(int index, struct otp_struct * otp_ptr)
      CDBG("%s-light_rg = 0x%x\r\n", __func__, otp_ptr->light_rg);
      CDBG("%s-light_bg = 0x%x\r\n", __func__, otp_ptr->light_bg);
      // disable otp read
-     ov5648_otp_write(0x3d81, 0x00);
+     ov5648_truly_cm8352_otp_write(0x3d81, 0x00);
 
      // clear otp buffer
      for (i=0;i<16;i++) {
-         ov5648_otp_write(0x3d00 + i, 0x00);
+         ov5648_truly_cm8352_otp_write(0x3d00 + i, 0x00);
      }
 
      return 0;
@@ -1429,21 +1467,21 @@ int ov5648_read_otp(int index, struct otp_struct * otp_ptr)
 // G_gain, sensor green gain of AWB, 0x400 =1
 // B_gain, sensor blue gain of AWB, 0x400 =1
 // return 0;
-int ov5648_update_awb_gain(int R_gain, int G_gain, int B_gain)
+int ov5648_truly_cm8352_update_awb_gain(int R_gain, int G_gain, int B_gain)
 {
      if (R_gain>0x400) {
-         ov5648_otp_write(0x5186, R_gain>>8);
-         ov5648_otp_write(0x5187, R_gain & 0x00ff);
+         ov5648_truly_cm8352_otp_write(0x5186, R_gain>>8);
+         ov5648_truly_cm8352_otp_write(0x5187, R_gain & 0x00ff);
      }
 
      if (G_gain>0x400) {
-         ov5648_otp_write(0x5188, G_gain>>8);
-         ov5648_otp_write(0x5189, G_gain & 0x00ff);
+         ov5648_truly_cm8352_otp_write(0x5188, G_gain>>8);
+         ov5648_truly_cm8352_otp_write(0x5189, G_gain & 0x00ff);
      }
 
      if (B_gain>0x400) {
-         ov5648_otp_write(0x518a, B_gain>>8);
-         ov5648_otp_write(0x518b, B_gain & 0x00ff);
+         ov5648_truly_cm8352_otp_write(0x518a, B_gain>>8);
+         ov5648_truly_cm8352_otp_write(0x518b, B_gain & 0x00ff);
      }
      return 0;
 }
@@ -1452,7 +1490,7 @@ int ov5648_update_awb_gain(int R_gain, int G_gain, int B_gain)
 // call this function after OV5647 initialization
 // return value: 0 update success
 //       1, no OTP
-int ov5648_update_otp(struct msm_sensor_ctrl_t *s_ctrl)
+int ov5648_truly_cm8352_update_otp(struct msm_sensor_ctrl_t *s_ctrl)
 {
      struct otp_struct current_otp;
      int i;
@@ -1466,7 +1504,7 @@ int ov5648_update_otp(struct msm_sensor_ctrl_t *s_ctrl)
      // R/G and B/G of current camera module is read out from sensor OTP
      // check first OTP with valid data
      for(i=0;i<3;i++) {
-         temp = ov5648_check_otp(i);
+         temp = ov5648_truly_cm8352_check_otp(i);
          if (temp == 2) {
               otp_index = i;
               break;
@@ -1478,7 +1516,7 @@ int ov5648_update_otp(struct msm_sensor_ctrl_t *s_ctrl)
          return 1;
      }
 
-     ov5648_read_otp(otp_index, &current_otp);
+     ov5648_truly_cm8352_read_otp(otp_index, &current_otp);
 
      if(current_otp.light_rg==0) {
          // no light source information in OTP
@@ -1544,7 +1582,7 @@ int ov5648_update_otp(struct msm_sensor_ctrl_t *s_ctrl)
          }
      }
 
-     ov5648_update_awb_gain(R_gain, G_gain, B_gain);
+     ov5648_truly_cm8352_update_awb_gain(R_gain, G_gain, B_gain);
 
      return 0;
 
@@ -1552,7 +1590,7 @@ int ov5648_update_otp(struct msm_sensor_ctrl_t *s_ctrl)
 
 #endif
 
-static int32_t ov5648_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
+static int32_t ov5648_truly_cm8352_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 		uint16_t gain, uint32_t line)
 {
 
@@ -1600,7 +1638,7 @@ static int32_t ov5648_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 
 
 		line = line<<4;
-		/* ov5648 need this operation */
+		/* ov5648_truly_cm8352 need this operation */
 		intg_time_hsb = (u8)(line>>16);
 		intg_time_msb = (u8) ((line & 0xFF00) >> 8);
 		intg_time_lsb = (u8) (line & 0x00FF);
@@ -1681,7 +1719,7 @@ static int32_t ov5648_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 		}
 
 		line = line<<4;
-		/* ov5648 need this operation */
+		/* ov5648_truly_cm8352 need this operation */
 		intg_time_hsb = (u8)(line>>16);
 		intg_time_msb = (u8) ((line & 0xFF00) >> 8);
 		intg_time_lsb = (u8) (line & 0x00FF);
@@ -1734,7 +1772,7 @@ static int32_t ov5648_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 
 static int esposure_delay_en = 1;
 
-static int32_t ov5648_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
+static int32_t ov5648_truly_cm8352_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 						uint16_t gain, uint32_t line)
 {
 	u8 intg_time_hsb, intg_time_msb, intg_time_lsb;
@@ -1769,11 +1807,10 @@ static int32_t ov5648_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 			MSM_CAMERA_I2C_BYTE_DATA);
 
 		line = line<<4;
-		/* ov5648 need this operation */
+		/* ov5648_truly_cm8352 need this operation */
 		intg_time_hsb = (u8)(line>>16);
 		intg_time_msb = (u8) ((line & 0xFF00) >> 8);
 		intg_time_lsb = (u8) (line & 0x00FF);
-
 
 		/* Coarse Integration Time */
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
@@ -1809,13 +1846,13 @@ static int32_t ov5648_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 	{
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
 		/* adjust frame rate */
-		if (line > fl_lines)
+		if (line > (fl_lines - offset))
 		{
-			line = fl_lines;
+			line = fl_lines - offset;
 		}
 
 		line = line<<4;
-		/* ov5648 need this operation */
+		/* ov5648_truly_cm8352 need this operation */
 		intg_time_hsb = (u8)(line>>16);
 		intg_time_msb = (u8) ((line & 0xFF00) >> 8);
 		intg_time_lsb = (u8) (line & 0x00FF);
@@ -1858,12 +1895,12 @@ static int32_t ov5648_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 	return 0;
 }
 
-static const struct i2c_device_id ov5648_i2c_id[] = {
-	{SENSOR_NAME, (kernel_ulong_t)&ov5648_s_ctrl},
+static const struct i2c_device_id ov5648_truly_cm8352_i2c_id[] = {
+	{SENSOR_NAME, (kernel_ulong_t)&ov5648_truly_cm8352_s_ctrl},
 	{ }
 };
 extern void camera_af_software_powerdown(struct i2c_client *client);
-int32_t ov5648_sensor_i2c_probe(struct i2c_client *client,
+int32_t ov5648_truly_cm8352_sensor_i2c_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	int32_t rc = 0;
@@ -1893,50 +1930,49 @@ int32_t ov5648_sensor_i2c_probe(struct i2c_client *client,
 	return rc;
 }
 
-static struct i2c_driver ov5648_i2c_driver = {
-	.id_table = ov5648_i2c_id,
-	.probe  = ov5648_sensor_i2c_probe,
+static struct i2c_driver ov5648_truly_cm8352_i2c_driver = {
+	.id_table = ov5648_truly_cm8352_i2c_id,
+	.probe  = ov5648_truly_cm8352_sensor_i2c_probe,
 	.driver = {
 		.name = SENSOR_NAME,
 	},
 };
 
-static struct msm_camera_i2c_client ov5648_sensor_i2c_client = {
+static struct msm_camera_i2c_client ov5648_truly_cm8352_sensor_i2c_client = {
 	.addr_type = MSM_CAMERA_I2C_WORD_ADDR,
 };
 
 static int __init msm_sensor_init_module(void)
 {
-	return i2c_add_driver(&ov5648_i2c_driver);
+	return i2c_add_driver(&ov5648_truly_cm8352_i2c_driver);
 }
 
-static struct v4l2_subdev_core_ops ov5648_subdev_core_ops = {
+static struct v4l2_subdev_core_ops ov5648_truly_cm8352_subdev_core_ops = {
 	.ioctl = msm_sensor_subdev_ioctl,
 	.s_power = msm_sensor_power,
 };
 
-static struct v4l2_subdev_video_ops ov5648_subdev_video_ops = {
+static struct v4l2_subdev_video_ops ov5648_truly_cm8352_subdev_video_ops = {
 	.enum_mbus_fmt = msm_sensor_v4l2_enum_fmt,
 };
 
-static struct v4l2_subdev_ops ov5648_subdev_ops = {
-	.core = &ov5648_subdev_core_ops,
-	.video  = &ov5648_subdev_video_ops,
+static struct v4l2_subdev_ops ov5648_truly_cm8352_subdev_ops = {
+	.core = &ov5648_truly_cm8352_subdev_core_ops,
+	.video  = &ov5648_truly_cm8352_subdev_video_ops,
 };
 
-int32_t ov5648_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
+int32_t ov5648_truly_cm8352_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 {
-	struct msm_camera_sensor_info *info = NULL;
+	struct msm_camera_sensor_info *info = s_ctrl->sensordata;
 	unsigned short rdata;
 	int rc;
-	CDBG("%s IN\r\n", __func__);
 
-	info = s_ctrl->sensordata;
-        msm_camera_i2c_write(s_ctrl->sensor_i2c_client,0x301a, 0xf1, MSM_CAMERA_I2C_BYTE_DATA);
+	CDBG("%s IN\r\n", __func__);
+	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,0x301a, 0xf1, MSM_CAMERA_I2C_BYTE_DATA);
 	msleep(40);
 	rc = msm_camera_i2c_read(s_ctrl->sensor_i2c_client, 0x3018,
 			&rdata, MSM_CAMERA_I2C_BYTE_DATA);
-	CDBG("ov5648_sensor_power_down: %d\n", rc);
+	CDBG("ov5648_truly_cm8352_sensor_power_down: %d\n", rc);
 	rdata |= 0x18;
 	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 		0x3018, rdata,
@@ -1953,8 +1989,6 @@ int32_t ov5648_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 	usleep_range(5000, 5100);
 	gpio_direction_output(info->sensor_reset, 0);
 	usleep_range(5000, 5100);
-	gpio_direction_output(info->sensor_reset, 0);
-	usleep_range(5000, 5100);
 	msm_sensor_power_down(s_ctrl);
 	msleep(40);
 	//if (s_ctrl->sensordata->pmic_gpio_enable){
@@ -1963,7 +1997,7 @@ int32_t ov5648_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 	return 0;
 }
 
-int32_t ov5648_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
+int32_t ov5648_truly_cm8352_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
 	struct msm_camera_sensor_info *info = s_ctrl->sensordata;
@@ -2011,7 +2045,7 @@ int32_t ov5648_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 }
 
 static int32_t vfe_clk = 266667000;
-int32_t ov5648_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
+int32_t ov5648_truly_cm8352_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 			int update_type, int res)
 {
 	int32_t rc = 0;
@@ -2024,6 +2058,7 @@ int32_t ov5648_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 	if(CAM_MODE_NORMAL == ov5648_working_mode)
 	{
 		s_ctrl->func_tbl->sensor_stop_stream(s_ctrl);
+
 		if (update_type == MSM_SENSOR_REG_INIT) {
 			CDBG("Normal Register INIT\n");
 			s_ctrl->curr_csi_params = NULL;
@@ -2033,11 +2068,11 @@ int32_t ov5648_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 					MSM_CAMERA_I2C_BYTE_DATA);
 			msm_sensor_enable_debugfs(s_ctrl);
 			msm_sensor_write_init_settings(s_ctrl);
-#ifdef OV5648_OTP_FEATURE
+#ifdef OV5648_TRULY_CM8352_OTP_FEATURE
 			CDBG("Update OTP\n");
 			msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x100, 0x1,
 					MSM_CAMERA_I2C_BYTE_DATA);
-			ov5648_update_otp(s_ctrl);
+			ov5648_truly_cm8352_update_otp(s_ctrl);
 			usleep_range(5000, 6000);
 			msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x100, 0x0,
 			  MSM_CAMERA_I2C_BYTE_DATA);
@@ -2059,13 +2094,13 @@ int32_t ov5648_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 				mb();
 				msleep(30);
 				csi_config = 1;
-			msm_camera_i2c_write(
-				s_ctrl->sensor_i2c_client,
-				0x100, 0x1,
-				MSM_CAMERA_I2C_BYTE_DATA);
+        msm_camera_i2c_write(
+          s_ctrl->sensor_i2c_client,
+          0x100, 0x1,
+          MSM_CAMERA_I2C_BYTE_DATA);
 			}
-			if(res == MSM_SENSOR_RES_QTR)
-			{
+
+			if(res == MSM_SENSOR_RES_QTR){
 				esposure_delay_en = 1;
 			}
 
@@ -2108,7 +2143,7 @@ int32_t ov5648_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 			pip_ctl.sensor_i2c_client = s_ctrl->sensor_i2c_client;
 			pip_ctl.write_ctl = res;
 			pip_ov7695_ctrl(PIP_CRL_WRITE_SETTINGS, &pip_ctl);
-			msleep(50);
+			msleep(60);
 			msm_sensor_write_conf_array(
 				s_ctrl->sensor_i2c_client,
 				s_ctrl->msm_sensor_reg->mode_settings, res);
@@ -2123,14 +2158,13 @@ int32_t ov5648_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 				mb();
 				msleep(30);
 				csi_config = 1;
-			msm_camera_i2c_write(
-				s_ctrl->sensor_i2c_client,
-				0x100, 0x1,
-				MSM_CAMERA_I2C_BYTE_DATA);
+  			msm_camera_i2c_write(
+  				s_ctrl->sensor_i2c_client,
+  				0x100, 0x1,
+  				MSM_CAMERA_I2C_BYTE_DATA);
 			}
 
-			if(res == MSM_SENSOR_RES_QTR)
-			{
+			if(res == MSM_SENSOR_RES_QTR){
 				esposure_delay_en = 1;
 			}
 
@@ -2145,96 +2179,97 @@ int32_t ov5648_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 	return rc;
 }
 
-int32_t ov5648_pip_get_mode(struct msm_sensor_ctrl_t *s_ctrl,
+
+int32_t ov5648_turly_cm8352_pip_get_mode(struct msm_sensor_ctrl_t *s_ctrl,
 	int32_t * mode);
 
-int32_t ov5648_pip_set_mode(struct msm_sensor_ctrl_t *s_ctrl,
+int32_t ov5648_turly_cm8352_pip_set_mode(struct msm_sensor_ctrl_t *s_ctrl,
 	int32_t pip_mode);
 
-int32_t ov5648_sensor_get_output_info(struct msm_sensor_ctrl_t *s_ctrl,
+int32_t ov5648_turly_cm8352_sensor_get_output_info(struct msm_sensor_ctrl_t *s_ctrl,
 		struct sensor_output_info_t *sensor_output_info);
 
-static struct msm_sensor_fn_t ov5648_func_tbl = {
+static struct msm_sensor_fn_t ov5648_truly_cm8352_func_tbl = {
 	.sensor_start_stream = msm_sensor_start_stream,
 	.sensor_stop_stream = msm_sensor_stop_stream,
 	.sensor_group_hold_on = msm_sensor_group_hold_on,
 	.sensor_group_hold_off = msm_sensor_group_hold_off,
 	.sensor_set_fps = msm_sensor_set_fps,
-	.sensor_write_exp_gain = ov5648_write_prev_exp_gain,
-	.sensor_write_snapshot_exp_gain = ov5648_write_pict_exp_gain,
-	.sensor_csi_setting = ov5648_sensor_setting,
+	.sensor_write_exp_gain = ov5648_truly_cm8352_write_prev_exp_gain,
+	.sensor_write_snapshot_exp_gain = ov5648_truly_cm8352_write_pict_exp_gain,
+	.sensor_csi_setting = ov5648_truly_cm8352_sensor_setting,
 	.sensor_set_sensor_mode = msm_sensor_set_sensor_mode,
 	.sensor_mode_init = msm_sensor_mode_init,
-	.sensor_get_output_info = ov5648_sensor_get_output_info,
+	.sensor_get_output_info = ov5648_turly_cm8352_sensor_get_output_info,
 	.sensor_config = msm_sensor_config,
-	.sensor_power_up = ov5648_sensor_power_up,
-	.sensor_power_down = ov5648_sensor_power_down,
-	.sensor_pip_get_mode = ov5648_pip_get_mode,
-	.sensor_pip_set_mode = ov5648_pip_set_mode,
+	.sensor_power_up = ov5648_truly_cm8352_sensor_power_up,
+	.sensor_power_down = ov5648_truly_cm8352_sensor_power_down,
+	.sensor_pip_get_mode = ov5648_turly_cm8352_pip_get_mode,
+	.sensor_pip_set_mode = ov5648_turly_cm8352_pip_set_mode,
 };
 
-static struct msm_sensor_reg_t ov5648_regs = {
+static struct msm_sensor_reg_t ov5648_truly_cm8352_regs = {
 	.default_data_type = MSM_CAMERA_I2C_BYTE_DATA,
-	.start_stream_conf = ov5648_start_settings,
-	.start_stream_conf_size = ARRAY_SIZE(ov5648_start_settings),
-	.stop_stream_conf = ov5648_stop_settings,
-	.stop_stream_conf_size = ARRAY_SIZE(ov5648_stop_settings),
-	.group_hold_on_conf = ov5648_groupon_settings,
-	.group_hold_on_conf_size = ARRAY_SIZE(ov5648_groupon_settings),
-	.group_hold_off_conf = ov5648_groupoff_settings,
+	.start_stream_conf = ov5648_truly_cm8352_start_settings,
+	.start_stream_conf_size = ARRAY_SIZE(ov5648_truly_cm8352_start_settings),
+	.stop_stream_conf = ov5648_truly_cm8352_stop_settings,
+	.stop_stream_conf_size = ARRAY_SIZE(ov5648_truly_cm8352_stop_settings),
+	.group_hold_on_conf = ov5648_truly_cm8352_groupon_settings,
+	.group_hold_on_conf_size = ARRAY_SIZE(ov5648_truly_cm8352_groupon_settings),
+	.group_hold_off_conf = ov5648_truly_cm8352_groupoff_settings,
 	.group_hold_off_conf_size =
-		ARRAY_SIZE(ov5648_groupoff_settings),
-	.init_settings = NULL,//&ov5648_init_conf[0],
-	.init_size = 0,//ARRAY_SIZE(ov5648_init_conf),
-	.mode_settings = NULL,//&ov5648_confs[0],
-	.output_settings = NULL,//&ov5648_dimensions[0],
-	.num_conf = 0,//ARRAY_SIZE(ov5648_confs),
+		ARRAY_SIZE(ov5648_truly_cm8352_groupoff_settings),
+	.init_settings = NULL,//&ov5648_truly_cm8352_init_conf[0],
+	.init_size = 0,//ARRAY_SIZE(ov5648_truly_cm8352_init_conf),
+	.mode_settings = NULL,//&ov5648_truly_cm8352_confs[0],
+	.output_settings = NULL,//&ov5648_truly_cm8352_dimensions[0],
+	.num_conf = 0,//ARRAY_SIZE(ov5648_truly_cm8352_confs),
 };
 
-static struct msm_sensor_ctrl_t ov5648_s_ctrl = {
-	.msm_sensor_reg = &ov5648_regs,
-	.sensor_i2c_client = &ov5648_sensor_i2c_client,
+static struct msm_sensor_ctrl_t ov5648_truly_cm8352_s_ctrl = {
+	.msm_sensor_reg = &ov5648_truly_cm8352_regs,
+	.sensor_i2c_client = &ov5648_truly_cm8352_sensor_i2c_client,
 	.sensor_i2c_addr =  0x36 << 1 ,
-	.sensor_output_reg_addr = &ov5648_reg_addr,
-	.sensor_id_info = &ov5648_id_info,
-	.sensor_exp_gain_info = &ov5648_exp_gain_info,
+	.sensor_output_reg_addr = &ov5648_truly_cm8352_reg_addr,
+	.sensor_id_info = &ov5648_truly_cm8352_id_info,
+	.sensor_exp_gain_info = &ov5648_truly_cm8352_exp_gain_info,
 	.cam_mode = MSM_SENSOR_MODE_INVALID,
-	.csic_params = &ov5648_csi_params_array[0],
-	.msm_sensor_mutex = &ov5648_mut,
-	.sensor_i2c_driver = &ov5648_i2c_driver,
-	.sensor_v4l2_subdev_info = ov5648_subdev_info,
-	.sensor_v4l2_subdev_info_size = ARRAY_SIZE(ov5648_subdev_info),
-	.sensor_v4l2_subdev_ops = &ov5648_subdev_ops,
-	.func_tbl = &ov5648_func_tbl,
+	.csic_params = &ov5648_truly_cm8352_csi_params_array[0],
+	.msm_sensor_mutex = &ov5648_truly_cm8352_mut,
+	.sensor_i2c_driver = &ov5648_truly_cm8352_i2c_driver,
+	.sensor_v4l2_subdev_info = ov5648_truly_cm8352_subdev_info,
+	.sensor_v4l2_subdev_info_size = ARRAY_SIZE(ov5648_truly_cm8352_subdev_info),
+	.sensor_v4l2_subdev_ops = &ov5648_truly_cm8352_subdev_ops,
+	.func_tbl = &ov5648_truly_cm8352_func_tbl,
 	.clk_rate = MSM_SENSOR_MCLK_24HZ,
 };
 
 /* PIP switch */
-int32_t ov5648_sensor_get_output_info(struct msm_sensor_ctrl_t *s_ctrl,
+int32_t ov5648_turly_cm8352_sensor_get_output_info(struct msm_sensor_ctrl_t *s_ctrl,
 		struct sensor_output_info_t *sensor_output_info)
 {
 	/* Normal process */
 	ov5648_working_mode = ov5648_new_mode;
 	if(CAM_MODE_NORMAL == ov5648_working_mode)
 	{
-		ov5648_regs.init_settings = &ov5648_init_conf[0];
-		ov5648_regs.init_size = ARRAY_SIZE(ov5648_init_conf);
-		ov5648_regs.mode_settings = &ov5648_confs[0];
-		ov5648_regs.output_settings = &ov5648_dimensions[0];
-		ov5648_regs.num_conf = ARRAY_SIZE(ov5648_confs);
+		ov5648_truly_cm8352_regs.init_settings = &ov5648_truly_cm8352_init_conf[0];
+		ov5648_truly_cm8352_regs.init_size = ARRAY_SIZE(ov5648_truly_cm8352_init_conf);
+		ov5648_truly_cm8352_regs.mode_settings = &ov5648_truly_cm8352_confs[0];
+		ov5648_truly_cm8352_regs.output_settings = &ov5648_truly_cm8352_dimensions[0];
+		ov5648_truly_cm8352_regs.num_conf = ARRAY_SIZE(ov5648_truly_cm8352_confs);
 	}
 	else if(CAM_MODE_PIP == ov5648_working_mode)
 	{
-		ov5648_regs.init_settings = &ov5648_pip_init_conf_master[0];
-		ov5648_regs.init_size = ARRAY_SIZE(ov5648_pip_init_conf_master);
-		ov5648_regs.mode_settings = &ov5648_pip_confs_master[0];
-		ov5648_regs.output_settings = &ov5648_pip_dimensions[0];
-		ov5648_regs.num_conf = ARRAY_SIZE(ov5648_pip_confs_master);
+		ov5648_truly_cm8352_regs.init_settings = &ov5648_truly_cm8352_pip_init_conf_master[0];
+		ov5648_truly_cm8352_regs.init_size = ARRAY_SIZE(ov5648_truly_cm8352_pip_init_conf_master);
+		ov5648_truly_cm8352_regs.mode_settings = &ov5648_truly_cm8352_pip_confs_master[0];
+		ov5648_truly_cm8352_regs.output_settings = &ov5648_truly_cm8352_pip_dimensions[0];
+		ov5648_truly_cm8352_regs.num_conf = ARRAY_SIZE(ov5648_truly_cm8352_pip_confs_master);
 	}
 	return msm_sensor_get_output_info(s_ctrl, sensor_output_info);
 }
 
-int32_t ov5648_pip_set_mode(struct msm_sensor_ctrl_t *s_ctrl,
+int32_t ov5648_turly_cm8352_pip_set_mode(struct msm_sensor_ctrl_t *s_ctrl,
 		int32_t pip_mode)
 {
 	CDBG("%s, E\n, new pip_mode: %d \n",__func__,pip_mode);
@@ -2243,7 +2278,7 @@ int32_t ov5648_pip_set_mode(struct msm_sensor_ctrl_t *s_ctrl,
 	return 0;
 }
 
-int32_t ov5648_pip_get_mode(struct msm_sensor_ctrl_t *s_ctrl,
+int32_t ov5648_turly_cm8352_pip_get_mode(struct msm_sensor_ctrl_t *s_ctrl,
 	int32_t * mode)
 {
 	CDBG("%s IN, mode is %d\r\n", __func__, ov5648_working_mode);

@@ -151,7 +151,6 @@ struct usb_phy {
 
 };
 
-
 /* for board-specific init logic */
 extern int usb_set_transceiver(struct usb_phy *);
 

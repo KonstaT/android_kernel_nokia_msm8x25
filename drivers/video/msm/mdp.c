@@ -45,8 +45,10 @@
 
 uint32 mdp4_extn_disp;
 
-static struct clk *mdp_clk;
-static struct clk *mdp_pclk;
+//static struct clk *mdp_clk;
+//static struct clk *mdp_pclk;
+struct clk *mdp_clk;
+struct clk *mdp_pclk;
 static struct clk *mdp_lut_clk;
 int mdp_rev;
 int mdp_iommu_split_domain;

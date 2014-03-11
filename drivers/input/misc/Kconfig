@@ -647,4 +647,53 @@ config BOSCH_BMA150
           If you say yes here you get support for Bosch Sensortec's
           acceleration sensors SMB380/BMA150.
 
+config INPUT_LTR502
+	tristate "LTR502 light/proximity sensor support"
+	depends on I2C
+	default n
+	help
+	  Driver for LTR502 light/proximity sensor.
+
+config INPUT_LTR558
+	tristate "LTR558 light/proximity sensor support"
+	depends on I2C
+	default n
+	help
+	  Driver for LTR558 light/proximity sensor.
+
+config BOSCH_BMA250
+	tristate "BMA250 acceleration sensor support"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for Bosch Sensortec's
+	  acceleration sensors BMA250.
+
+config AVAGO_APDS990X
+        tristate "Avago apds990x light/proximity sensor support"
+        depends on I2C=y
+        help
+          If you say yes here you get support for Avago
+          light/proximity sensors apds990x.
+
+config INPUT_ISL29028
+        tristate "Intersil ISL29028 light/proximity sensor support"
+        depends on I2C=y
+        help
+          If you say yes here you get support for Intersil
+          light/proximity sensors ISL29028.
+
+config INPUT_LIS3DH
+        tristate "LIS3DH acceleration sensor support"
+        depends on I2C=y
+        help
+          If you say yes here you get support for ST
+          acceleration sensor LIS3DH.
+
+config SENSORS_TMD2771X
+	tristate "TAOS TMD2771X proximity and ambient light sensor"
+    depends on I2C=y
+	help
+	 If you say yes here you get support for TAOS TMD27711, TMD27713
+	 proximity and ambient light sensor.
+
 endif

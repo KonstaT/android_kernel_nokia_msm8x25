@@ -2,7 +2,7 @@
  *
  *  Bluetooth HCI UART driver
  *
- *  Copyright (C) 2000-2001  Qualcomm Incorporated
+ *  Copyright (C) 2000-2001  Qualcomm Technologies, Inc.
  *  Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
  *  Copyright (C) 2004-2005  Marcel Holtmann <marcel@holtmann.org>
  *

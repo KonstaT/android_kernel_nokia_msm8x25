@@ -344,6 +344,13 @@ config SMB349_CHARGER
 	  SMB349 be operated as a slave device via the power supply
 	  framework.
 
+config BATTERY_EARLYSUSPEND
+	bool "Battery early suspend support"
+	depends on HAS_EARLYSUSPEND
+	default n
+	help
+	  Say Y to enable support for battery monitor early suspend.
+
 config BATTERY_MSM_FAKE
 	tristate "Fake MSM battery"
 	depends on ARCH_MSM && BATTERY_MSM

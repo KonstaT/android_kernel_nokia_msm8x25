@@ -75,6 +75,14 @@ static struct msm_isp_color_fmt msm_isp_formats[] = {
 	.colorspace = V4L2_COLORSPACE_JPEG,
 	},
 	{
+	.name	   = "NV12BAYER",
+	.depth	  = 8,
+	.bitsperpxl = 8,
+	.fourcc	 = V4L2_PIX_FMT_NV12,
+	.pxlcode	= V4L2_MBUS_FMT_SGRBG10_1X10, /* Bayer sensor */
+	.colorspace = V4L2_COLORSPACE_JPEG,
+	},
+	{
 	.name	   = "NV21BAYER",
 	.depth	  = 8,
 	.bitsperpxl = 8,
@@ -848,8 +856,10 @@ int msm_mctl_init(struct msm_cam_v4l2_device *pcam)
 	pmctl->sdata = pcam->sdata;
 
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	pmctl->client = msm_ion_client_create(-1, "camera");
-	kref_init(&pmctl->refcount);
+	if (!pmctl->client) {
+		pmctl->client = msm_ion_client_create(-1, "camera");
+		kref_init(&pmctl->refcount);
+	}
 #endif
 
 	return 0;

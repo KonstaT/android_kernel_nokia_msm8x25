@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2013, The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -147,7 +147,7 @@ static struct sdcc_gpio sdcc_cfg_data[] = {
 	},
 };
 
-static int gpio_sdc1_hw_det = 85;
+static int gpio_sdc1_hw_det = 42;
 static void gpio_sdc1_config(void)
 {
 	if (machine_is_msm7627a_qrd1() || machine_is_msm7627a_evb()
@@ -155,6 +155,8 @@ static void gpio_sdc1_config(void)
 					|| machine_is_msm7627a_qrd3()
 					|| machine_is_msm8625_qrd7())
 		gpio_sdc1_hw_det = 42;
+	else if (machine_is_msm8625q_skue())
+		gpio_sdc1_hw_det = 112;
 }
 
 static struct regulator *sdcc_vreg_data[MAX_SDCC_CONTROLLER];
@@ -224,6 +226,9 @@ static uint32_t msm_sdcc_setup_power(struct device *dv, unsigned int vdd)
 
 	pdev = container_of(dv, struct platform_device, dev);
 
+	if (machine_is_msm8625q_skue() && (pdev->id == 1) && (!vdd))
+		return 0;
+
 	rc = msm_sdcc_setup_gpio(pdev->id, !!vdd);
 	if (rc)
 		goto out;
@@ -256,7 +261,8 @@ static unsigned int msm7627a_sdcc_slot_status(struct device *dev)
 					machine_is_msm7627a_evb() ||
 					machine_is_msm8625_evb()  ||
 					machine_is_msm7627a_qrd3() ||
-					machine_is_msm8625_qrd7())
+					machine_is_msm8625_qrd7() ||
+					machine_is_msm8625q_skue())
 				status = !gpio_get_value(gpio_sdc1_hw_det);
 			else
 				status = gpio_get_value(gpio_sdc1_hw_det);
@@ -275,6 +281,7 @@ static struct mmc_platform_data sdc1_plat_data = {
 	.msmsdcc_fmax   = 49152000,
 	.status      = msm7627a_sdcc_slot_status,
 	.irq_flags   = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+	.hw_resetable	= 1,
 };
 #endif
 
@@ -364,21 +371,20 @@ void __init msm7627a_init_mmc(void)
 {
 	/* eMMC slot */
 #ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
-
+#if 1 // #suwg
+	if (mmc_regulator_init(3, "emmc", 3000000))
+			return;
+	msm_add_sdcc(3, &sdc3_plat_data);
+	msm_sdcc_setup_gpio(3, 1);
+	msm_sdcc_setup_vreg(3, 1);
+#else
 	/* There is no eMMC on SDC3 for QRD3 based devices */
 	if (!(machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7())) {
 		if (mmc_regulator_init(3, "emmc", 3000000))
 			return;
-		/*
-		 * On 7x25A FFA data CRC errors are seen, which are
-		 * probably due to the proximity of SIM card and eMMC.
-		 * Hence, reducing the clock to 24.7Mhz from 49Mhz.
-		 */
-		if (machine_is_msm7625a_ffa())
-			sdc3_plat_data.msmsdcc_fmax =
-				sdc3_plat_data.msmsdcc_fmid;
 		msm_add_sdcc(3, &sdc3_plat_data);
 	}
+#endif
 #endif
 	/* Micro-SD slot */
 #ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
@@ -386,11 +392,10 @@ void __init msm7627a_init_mmc(void)
 	if (mmc_regulator_init(1, "mmc", 2850000))
 		return;
 	/* 8x25 EVT do not use hw detector */
-	if (!((machine_is_msm8625_evt() || machine_is_qrd_skud_prime() ||
-				machine_is_msm8625q_evbd() || machine_is_msm8625q_skud())))
+	if (!(machine_is_msm8625_qrd5()) && !(machine_is_msm7x27a_qrd5a()) && !(machine_is_msm8625q_skud())
+				&& !(machine_is_msm8625q_evbd()) && !(machine_is_msm8625_surf())) 
 		sdc1_plat_data.status_irq = MSM_GPIO_TO_INT(gpio_sdc1_hw_det);
-	if (machine_is_msm8625_evt() || machine_is_qrd_skud_prime() ||
-				machine_is_msm8625q_evbd() || machine_is_msm8625q_skud())
+	else
 		sdc1_plat_data.status = NULL;
 
 	msm_add_sdcc(1, &sdc1_plat_data);

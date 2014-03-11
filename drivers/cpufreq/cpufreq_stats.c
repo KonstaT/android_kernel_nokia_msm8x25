@@ -22,6 +22,9 @@
 #include <linux/notifier.h>
 #include <asm/cputime.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/cpufreq.h>
+
 static spinlock_t cpufreq_stats_lock;
 
 #define CPUFREQ_STATDEVICE_ATTR(_name, _mode, _show) \
@@ -306,6 +309,7 @@ static int cpufreq_stat_notifier_trans(struct notifier_block *nb,
 	if (old_index == new_index)
 		return 0;
 
+	trace_cpufreq_chg(freq->cpu, freq->new);
 	spin_lock(&cpufreq_stats_lock);
 	stat->last_index = new_index;
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS

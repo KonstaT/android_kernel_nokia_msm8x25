@@ -29,6 +29,7 @@
 #include <linux/iopoll.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
+#include <linux/spinlock.h>
 
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
@@ -54,6 +55,10 @@
 
 /* Need platform device handle for suspend and resume APIs */
 static struct platform_device *cpr_pdev;
+#if defined(CONFIG_MSM_FUSE_INFO_DEBUG)
+#define FUSE_INFO_LEN 1024
+extern char msm_fuse_info[FUSE_INFO_LEN];
+#endif
 
 static bool enable = 1;
 static bool disable_cpr = true;
@@ -73,7 +78,7 @@ MODULE_PARM_DESC(max_quot, "Max Quot");
 
 extern struct regulator *ext_vreg_handle;
 
-static int msm_cpr_debug_mask;
+static int msm_cpr_debug_mask = 0; //disable cpr print info 7->0
 module_param_named(
 	debug_mask, msm_cpr_debug_mask, int, S_IRUGO | S_IWUSR
 );
@@ -104,7 +109,6 @@ struct msm_cpr {
 	uint32_t cur_Vmin;
 	uint32_t cur_Vmax;
 	uint32_t prev_volt_uV;
-	struct mutex cpr_mutex;
 	spinlock_t cpr_lock;
 	struct regulator *vreg_cx;
 	struct msm_cpr_config *config;
@@ -387,9 +391,12 @@ cpr_up_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 		cpr_irq_clr_and_nack(cpr);
 		return;
 	}
-
-	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
-		"(railway_voltage: %d uV)\n", set_volt_uV);
+	if(cpr->prev_volt_uV != set_volt_uV){
+		printk("Current cpr chip the floor_fuse=%d pvs_fuse=%d RBCPR_GCNT_TARGET(%d): = 0x%x \n",
+				cpr->config->floor, cpr->config->pvs_fuse,	cpr->curr_osc, readl_relaxed(cpr->base +
+					RBCPR_GCNT_TARGET(cpr->curr_osc)) & TARGET_M);
+		printk("cur_volt %d uV (railway_voltage: %d uV)\n",cpr->prev_volt_uV, set_volt_uV);
+	}
 	cpr->prev_volt_uV = set_volt_uV;
 
 	cpr->max_volt_set = (set_volt_uV == cpr->cur_Vmax) ? 1 : 0;
@@ -444,8 +451,13 @@ cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt, uint32_t err_step)
 		return;
 	}
 
-	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
-		"(railway_voltage: %d uV)\n", set_volt_uV);
+	if(cpr->prev_volt_uV != set_volt_uV){
+		printk("Current cpr chip the floor_fuse=%d pvs_fuse=%d RBCPR_GCNT_TARGET(%d): = 0x%x \n",
+				cpr->config->floor, cpr->config->pvs_fuse,	cpr->curr_osc, readl_relaxed(cpr->base +
+					RBCPR_GCNT_TARGET(cpr->curr_osc)) & TARGET_M);
+		printk("cur_volt %d uV (railway_voltage: %d uV)\n",cpr->prev_volt_uV, set_volt_uV);
+	}
+
 	cpr->prev_volt_uV = set_volt_uV;
 
 	cpr->max_volt_set = 0;
@@ -494,11 +506,13 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
 		"RBCPR_RESULT_0 Busy_b19=%d\n", (cpr_read_reg(cpr,
 				RBCPR_RESULT_0) >> 19) & 0x1);
+	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
+		"cpr chip the floor_fuse=%d pvs_fuse=%d\n", cpr->config->floor, cpr->config->pvs_fuse);
 
 	error_step &= 0xF;
 	curr_volt = regulator_get_voltage(cpr->vreg_cx);
 	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
-		"Current voltage=%d\n", curr_volt);
+			"Current voltage=%d\n", curr_volt);
 
 	if (action == UP) {
 		/* Clear IRQ, NACK and return if Vdd already at Vmax */
@@ -948,6 +962,11 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	void __iomem *base;
 	struct resource *mem;
 	struct msm_cpr_mode *chip_data;
+#if defined(CONFIG_MSM_FUSE_INFO_DEBUG)
+	char tmp_buf[100] = "";
+	uint32_t fuse_len = strlen(msm_fuse_info); 
+	char *s = msm_fuse_info + fuse_len;
+#endif
 	uint32_t curr_volt, new_volt;
 
 	if (!enable)
@@ -958,6 +977,12 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 		enable = false;
 		return -EIO;
 	}
+
+#if defined(CONFIG_MSM_FUSE_INFO_DEBUG)
+	fuse_len += sprintf(tmp_buf, "the initial C2: %d \n", regulator_get_voltage(regulator_get(&pdev->dev, "vddx_cx")));
+	if(fuse_len < FUSE_INFO_LEN)
+		strcat(s, tmp_buf);
+#endif
 
 	if (pdata->disable_cpr == true) {
 		pr_err("CPR disabled by modem\n");
@@ -1045,6 +1070,11 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 		goto err_reg_get;
 	}
 
+#if defined(CONFIG_MSM_FUSE_INFO_DEBUG)
+	fuse_len += sprintf(tmp_buf, "the initial C2: %d \n", regulator_get_voltage(cpr->vreg_cx));
+	if(fuse_len < FUSE_INFO_LEN)
+		strcat(s, tmp_buf);
+#endif
 	/*
 	 * Calculate the step size by adding 1mV to the current voltage.
 	 * This moves the voltage by one regulator step. Diff between original
@@ -1138,9 +1168,9 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	cpufreq_register_notifier(&cpr->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
-	disable_cpr = false;
 	pr_info("CPR: driver registered successfully\n");
 
+        disable_cpr = false;
 	return res;
 
 err_cpr_config:

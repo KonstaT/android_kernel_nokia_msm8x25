@@ -18,6 +18,10 @@
 #include <linux/genhd.h>
 #include <linux/blktrace_api.h>
 
+#ifdef  CONFIG_APANIC_MMC
+#include <linux/apanic_mmc.h>
+#endif /* CONFIG_APANIC_MMC */
+
 #include "partitions/check.h"
 
 #ifdef CONFIG_BLK_DEV_MD
@@ -220,6 +224,9 @@ static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct hd_struct *part = dev_to_part(dev);
 
+#ifdef	CONFIG_APANIC_MMC
+	apanic_mmc_parition_add(part); /*Added by wang.junxian2@byd.com for apanic mmc */
+#endif /* CONFIG_APANIC_MMC */
 	add_uevent_var(env, "PARTN=%u", part->partno);
 	if (part->info && part->info->volname[0])
 		add_uevent_var(env, "PARTNAME=%s", part->info->volname);

@@ -1016,7 +1016,7 @@ static void __devinit select_freq_plan(void)
 	 * is conflicting with the 7627AA 1GHz parts since 8625 chips
 	 * are using different clock plan based reprogramming method.
 	 */
-	if (cpu_is_msm8625() &&	pll_mhz[ACPU_PLL_4] == 1008) {
+	if ((cpu_is_msm8625()  || cpu_is_msm8625q()) &&	pll_mhz[ACPU_PLL_4] == 1008) {
 		if (pll_mhz[ACPU_PLL_1] == 245)
 			acpu_freq_tbl =
 				pll0_960_pll1_245_pll2_1200_pll4_1008_2p0;
@@ -1222,7 +1222,9 @@ static struct platform_driver acpuclk_7627_driver = {
 
 static int __init acpuclk_7627_init(void)
 {
-	return platform_driver_register(&acpuclk_7627_driver);
+	if(!cpu_is_msm8625q())
+		return platform_driver_register(&acpuclk_7627_driver);
+	return 0;
 }
 postcore_initcall(acpuclk_7627_init);
 

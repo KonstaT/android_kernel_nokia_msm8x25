@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2009-2011 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009,2012 The Linux Foundation. All rights reserved.
  * Author: San Mehat <san@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -27,11 +27,13 @@
 #include <linux/rtc-msm.h>
 #include <linux/msm_rpcrouter.h>
 #include <mach/msm_rpcrouter.h>
+#include <mach/oem_rapi_client.h>
 
 #define APP_TIMEREMOTE_PDEV_NAME "rs00000000"
 
 #define TIMEREMOTE_PROCEEDURE_SET_JULIAN	6
 #define TIMEREMOTE_PROCEEDURE_GET_JULIAN	7
+#define TIMEREMOTE_PROCEEDURE_SET_ALARM	    14
 #ifdef CONFIG_RTC_SECURE_TIME_SUPPORT
 #define TIMEREMOTE_PROCEEDURE_GET_SECURE_JULIAN	11
 #define TIMEREMOTE_PROCEEDURE_SET_SECURE_JULIAN	16
@@ -142,6 +144,14 @@ struct rtc_tod_args {
 	struct rtc_time *tm;
 };
 
+struct rtc_alarm_args {
+	int proc;
+	unsigned long expiration;
+};
+
+static int alarm_enable = 1;
+static unsigned long poweroffalarm_adjusttime = 120;
+
 #ifdef CONFIG_PM
 struct suspend_state_info {
 	atomic_t state;
@@ -213,6 +223,13 @@ static int msmrtc_tod_proc_args(struct msm_rpc_client *client, void *buff,
 		*(uint32_t *)buff = (uint32_t) cpu_to_be32(0x1);
 
 		return sizeof(uint32_t);
+	} else if (((struct rtc_alarm_args *)data)->proc ==
+		   TIMEREMOTE_PROCEEDURE_SET_ALARM) {
+		unsigned long *expiration;
+		expiration = buff;
+		*expiration =
+		    cpu_to_be32(((struct rtc_alarm_args *)data)->expiration);
+		return sizeof(*expiration);
 	} else
 		return 0;
 }
@@ -289,7 +306,25 @@ static int msmrtc_tod_proc_result(struct msm_rpc_client *client, void *buff,
 }
 
 static int
-msmrtc_timeremote_set_time(struct device *dev, struct rtc_time *tm)
+msmrtc_timeremote_set_alarm(struct msm_rtc *rtc_pdata, unsigned long expiration)
+{
+	int rc;
+	struct rtc_alarm_args rtc_args;
+	rtc_args.proc = TIMEREMOTE_PROCEEDURE_SET_ALARM;
+	rtc_args.expiration = expiration;
+
+	rc = msm_rpc_client_req(rtc_pdata->rpc_client,
+				TIMEREMOTE_PROCEEDURE_SET_ALARM,
+				msmrtc_tod_proc_args, &rtc_args,
+				NULL, NULL, -1);
+
+	if (rc)
+		printk(KERN_EMERG "set alarm in mp error %d \n", rc);
+
+	return rc;
+}
+
+static int msmrtc_timeremote_set_time(struct device *dev, struct rtc_time *tm)
 {
 	int rc;
 	struct rtc_tod_args rtc_args;
@@ -346,28 +381,62 @@ static int
 msmrtc_virtual_alarm_set(struct device *dev, struct rtc_wkalrm *a)
 {
 	struct msm_rtc *rtc_pdata = dev_get_drvdata(dev);
-	unsigned long now = get_seconds();
+	//unsigned long now = get_seconds();
 
 	if (!a->enabled) {
 		rtc_pdata->rtcalarm_time = 0;
 		return 0;
 	} else
 		rtc_tm_to_time(&a->time, &(rtc_pdata->rtcalarm_time));
-
+#if 0
 	if (now > rtc_pdata->rtcalarm_time) {
 		dev_err(dev, "%s: Attempt to set alarm in the past\n",
 		       __func__);
 		rtc_pdata->rtcalarm_time = 0;
 		return -EINVAL;
 	}
+#endif
+	return 0;
+}
 
+static int
+msmrtc_alarm_set_deviceup(struct device *dev, struct rtc_wkalrm *alarm)
+{
+	struct msm_rtc *rtc_pdata = dev_get_drvdata(dev);
+	unsigned long Expiration = 0;
+	unsigned long now = get_seconds();
+	unsigned long alarmtime = 0;
+
+	rtc_tm_to_time(&alarm->time, &alarmtime);
+	if (alarmtime <= now) {
+		Expiration = 0;
+	} else {
+		Expiration = alarmtime - now;
+	}
+
+	if (alarm_enable == 1) {
+		if (Expiration >= poweroffalarm_adjusttime) {
+			msmrtc_timeremote_set_alarm(rtc_pdata,
+						    Expiration -
+						    poweroffalarm_adjusttime);
+			printk(KERN_EMERG
+			       "poweroff alarm: set device up alarm Expiration = %lu\n",
+			       Expiration);
+		} else {
+			//Cancel device up alarm
+			msmrtc_timeremote_set_alarm(rtc_pdata, 0);
+			printk(KERN_EMERG
+			       "poweroff alarm: Cancel device up alarm\n");
+		}
+	}
 	return 0;
 }
 
 static struct rtc_class_ops msm_rtc_ops = {
-	.read_time	= msmrtc_timeremote_read_time,
-	.set_time	= msmrtc_timeremote_set_time,
-	.set_alarm	= msmrtc_virtual_alarm_set,
+	.read_time = msmrtc_timeremote_read_time,
+	.set_time = msmrtc_timeremote_set_time,
+	.set_alarm = msmrtc_virtual_alarm_set,
+	.set_alarm_deviceup = msmrtc_alarm_set_deviceup,
 };
 
 #ifdef CONFIG_RTC_SECURE_TIME_SUPPORT
@@ -783,6 +852,167 @@ static struct platform_driver msmrtc_driver = {
 	},
 };
 
+static ssize_t alarm_reason_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+
+	sprintf(buf, "%s\n", saved_command_line);
+	ret = strlen(buf) + 1;
+
+	return ret;
+}
+
+static ssize_t alarm_enable_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+
+	sprintf(buf, "%d\n", alarm_enable);
+	ret = strlen(buf) + 1;
+
+	return ret;
+}
+
+static ssize_t alarm_enable_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	int tmp;
+	tmp = simple_strtol(buf, NULL, 0);
+	if (tmp == 0 || tmp == 1) {
+		alarm_enable = tmp;
+		return count;
+	} else {
+		return -EINVAL;
+	}
+}
+
+static ssize_t alarm_adjust_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+
+	sprintf(buf, "%d\n", (int)poweroffalarm_adjusttime);
+	ret = strlen(buf) + 1;
+
+	return ret;
+}
+
+static ssize_t alarm_adjust_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	long tmp;
+	tmp = simple_strtol(buf, NULL, 0);
+	if (tmp > 0) {
+		poweroffalarm_adjusttime = (unsigned long)tmp;
+	}
+	return count;
+}
+
+static void get_alarmtime_inpmic(unsigned int *pmic_alarm_time,
+				 unsigned int *pmic_time)
+{
+	unsigned char retvalue[8];
+	uint32_t len = sizeof(retvalue);
+	uint32_t input = 0;
+
+	struct oem_rapi_client_streaming_func_arg client_arg = {
+		OEM_RAPI_STREAMING_SILENT_PROFILE_GET,
+		NULL,
+		(void *)NULL,
+		sizeof(input),
+		(void *)&input,
+		1,
+		1,
+		len
+	};
+	struct oem_rapi_client_streaming_func_ret client_ret = {
+		(uint32_t *) & len,
+		(char *)&retvalue
+	};
+
+	struct msm_rpc_client *client = oem_rapi_client_init();
+	int ret = oem_rapi_client_streaming_function(client, &client_arg,
+						     &client_ret);
+	if (ret) {
+		printk(KERN_ERR
+		       "oem_rapi_client_streaming_function() error=%d\n", ret);
+		*pmic_alarm_time = 0;
+		*pmic_time = 0;
+	} else {
+		*pmic_alarm_time = *(unsigned int *)(client_ret.output + 0);
+		*pmic_time = *(unsigned int *)(client_ret.output + 4);
+        kfree(client_ret.out_len);
+        kfree(client_ret.output);
+	}
+
+	return;
+}
+
+static ssize_t alarm_time_inpmic_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+	unsigned int pmic_time = 0, pmic_alarm_time = 0;
+	get_alarmtime_inpmic(&pmic_alarm_time, &pmic_time);
+
+	sprintf(buf, "0x%x,0x%x\n", pmic_alarm_time, pmic_time);
+	ret = strlen(buf) + 1;
+	return ret;
+}
+
+static DEVICE_ATTR(alarmcmd, 0444, alarm_reason_show, NULL);
+static DEVICE_ATTR(alarmtimeinpmic, 0440, alarm_time_inpmic_show, NULL);
+static DEVICE_ATTR(alarmenable, 0660, alarm_enable_show, alarm_enable_store);
+static DEVICE_ATTR(alarmadjusttime, 0660, alarm_adjust_show,
+		   alarm_adjust_store);
+
+static struct kobject *android_alarm_kobj;
+
+static int alarm_sysfs_add(void)
+{
+	int ret;
+	android_alarm_kobj = kobject_create_and_add("android_alarm", NULL);
+	if (android_alarm_kobj == NULL) {
+		printk(KERN_ERR "Alarm register failed\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+	ret = sysfs_create_file(android_alarm_kobj, &dev_attr_alarmcmd.attr);
+	if (ret) {
+		printk(KERN_ERR "Alarm sysfs create file failed\n");
+		goto err4;
+	}
+	ret = sysfs_create_file(android_alarm_kobj, &dev_attr_alarmenable.attr);
+	if (ret) {
+		printk(KERN_ERR "Alarm enable sysfs create file failed\n");
+		goto err4;
+	}
+	ret =
+	    sysfs_create_file(android_alarm_kobj,
+			      &dev_attr_alarmadjusttime.attr);
+	if (ret) {
+		printk(KERN_ERR "Alarm adjusttime sysfs create file failed\n");
+		goto err4;
+	}
+	ret =
+	    sysfs_create_file(android_alarm_kobj,
+			      &dev_attr_alarmtimeinpmic.attr);
+	if (ret) {
+		printk(KERN_ERR
+		       "Alarm alarmtimeinpmic sysfs create file failed\n");
+		goto err4;
+	}
+
+	return 0;
+err4:
+	kobject_del(android_alarm_kobj);
+err:
+	return ret;
+}
+
 static int __init msmrtc_init(void)
 {
 	int rc;
@@ -802,7 +1032,7 @@ static int __init msmrtc_init(void)
 	rc = platform_driver_register(&msmrtc_driver);
 	if (rc)
 		pr_err("%s: platfrom_driver_register failed\n", __func__);
-
+	alarm_sysfs_add();
 	return rc;
 }
 

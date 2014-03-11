@@ -798,6 +798,12 @@ int mmc_sd_get_csd(struct mmc_host *host, struct mmc_card *card)
 	err = mmc_decode_csd(card);
 	if (err)
 		return err;
+	/* Fix for some None SDHC buggy card with CSD tacc == 0*/
+	if(!card->csd.tacc_ns && !mmc_card_blockaddr(card))
+	{
+		printk(KERN_INFO "This None SDHC SDCARD CSD tacc is zero! Fix it for 100ms\n");
+		card->csd.tacc_ns = 100000 * 1000;
+	}
 
 	return 0;
 }

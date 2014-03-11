@@ -640,9 +640,7 @@ void mdp_hw_init(int cont_splash)
 	 */
 	if (!cont_splash) {
 		MDP_OUTP(MDP_BASE + 0xE0000, 0);
-		msleep(20);
 		MDP_OUTP(MDP_BASE + 0xF0000, 0);
-		msleep(20);
 	}
 	MDP_OUTP(MDP_BASE + 0x100, 0xffffffff);
 	MDP_OUTP(MDP_BASE + 0x90070, 0);

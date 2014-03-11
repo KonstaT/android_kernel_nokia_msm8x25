@@ -3,6 +3,16 @@
  *
  * Copyright (C) 1992, 1998-2006 Linus Torvalds, Ingo Molnar
  * Copyright (C) 2005-2006, Thomas Gleixner, Russell King
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  * This file contains the core interrupt handling code.
  *
@@ -19,6 +29,26 @@
 #include <trace/events/irq.h>
 
 #include "internals.h"
+
+#ifdef CONFIG_MSM_SM_EVENT
+#include <linux/sm_event_log.h>
+#include <linux/sm_event.h>
+#include <linux/module.h>
+/*
+struct traceirq_entry track_irq_buf[TRACK_BUF_SIZE] ____cacheline_aligned;
+int g_track_index __cacheline_aligned = 0;
+*/
+__section(.log.data) struct traceirq_entry track_irq_buf[TRACK_BUF_SIZE];
+#ifdef CONFIG_SMP
+__section(.log.data) atomic_t g_track_index = ATOMIC_INIT(0);
+#else
+__section(.log.data) int g_track_index = 0;
+#endif
+
+struct traceirq_entry *g_track_irq_buf = track_irq_buf;
+EXPORT_SYMBOL(g_track_irq_buf);
+EXPORT_SYMBOL(g_track_index);
+#endif
 
 /**
  * handle_bad_irq - handle spurious and unhandled irqs
@@ -134,14 +164,29 @@ handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action)
 {
 	irqreturn_t retval = IRQ_NONE;
 	unsigned int random = 0, irq = desc->irq_data.irq;
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_msm_irq_data_t sm_irq;
+#endif
 
 	do {
 		irqreturn_t res;
 
 		trace_irq_handler_entry(irq, action);
+#ifdef CONFIG_MSM_SM_EVENT
+		sm_irq.func_addr = (unsigned int)action->handler;
+		sm_irq.irq_num = irq;
+		sm_add_event(SM_IRQ_EVENT | IRQ_EVENT_ENTER,
+			SM_EVENT_START, 0, &sm_irq, sizeof(sm_msm_irq_data_t));
+#endif
 		res = action->handler(irq, action->dev_id);
 		trace_irq_handler_exit(irq, action, res);
 
+/*
+#ifdef CONFIG_MSM_SM_EVENT
+		sm_add_event(SM_IRQ_EVENT | IRQ_EVENT_LEAVE,
+			SM_EVENT_END, 0, &sm_irq, sizeof(sm_msm_irq_data_t));
+#endif
+*/
 		if (WARN_ONCE(!irqs_disabled(),"irq %u handler %pF enabled interrupts\n",
 			      irq, action->handler))
 			local_irq_disable();

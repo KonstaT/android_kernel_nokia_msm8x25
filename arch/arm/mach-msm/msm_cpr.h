@@ -155,6 +155,7 @@ struct msm_cpr_config {
 	int min_down_step;
 	uint32_t tgt_count_div_N; /* Target Cnt(Nom) = Target Cnt(Turbo) / N */
 	uint32_t floor;
+	uint32_t pvs_fuse;
 	uint32_t ceiling;
 	uint32_t sw_vlevel;
 	uint32_t up_threshold;
@@ -166,7 +167,6 @@ struct msm_cpr_config {
 	uint32_t max_quot;
 	bool disable_cpr;
 	uint32_t step_size;
-	uint8_t pvs_fuse;
 	uint32_t (*get_quot)(uint32_t max_quot, uint32_t max_freq,
 				uint32_t new_freq);
 	void (*clk_enable)(void);

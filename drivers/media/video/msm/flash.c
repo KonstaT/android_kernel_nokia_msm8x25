@@ -297,14 +297,14 @@ int msm_camera_flash_led(
 
 	case MSM_CAMERA_LED_LOW:
 		CDBG("MSM_CAMERA_LED_LOW\n");
-		gpio_set_value_cansleep(external->led_en, 1);
-		gpio_set_value_cansleep(external->led_flash_en, 1);
+		gpio_set_value_cansleep(external->led_flash_en, 0);
+        gpio_set_value_cansleep(external->led_en, 1);
 		break;
 
 	case MSM_CAMERA_LED_HIGH:
 		CDBG("MSM_CAMERA_LED_HIGH\n");
-		gpio_set_value_cansleep(external->led_en, 1);
 		gpio_set_value_cansleep(external->led_flash_en, 1);
+		gpio_set_value_cansleep(external->led_en, 1);
 		break;
 
 	default:

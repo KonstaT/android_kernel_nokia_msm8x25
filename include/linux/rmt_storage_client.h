@@ -70,6 +70,21 @@ struct rmt_shrd_mem_param {
 	void *base;		/* Virtual user-space memory address */
 };
 
+struct rmt_storage_revive_info {
+    uint32_t type;
+    uint32_t event_status;
+    uint32_t handle;
+    uint32_t sid;
+    uint32_t usr_data;
+    struct rmt_storage_event *event;
+    char path[MAX_PATH_NAME];
+};
+
+enum {
+    RMT_REVIVE_CLIENT = 0,
+    RMT_REVIVE_EVENT,
+} rmt_revive_type;
+
 #define RMT_STORAGE_IOCTL_MAGIC (0xC2)
 
 #define RMT_STORAGE_SHRD_MEM_PARAM \
@@ -80,4 +95,12 @@ struct rmt_shrd_mem_param {
 
 #define RMT_STORAGE_SEND_STATUS \
 	_IOW(RMT_STORAGE_IOCTL_MAGIC, 2, struct rmt_storage_send_sts)
+
+#define RMT_STORAGE_REVIVE \
+    _IOWR(RMT_STORAGE_IOCTL_MAGIC, 3, struct rmt_storage_revive_info) 
+
+#define RMT_STORAGE_EVENT_ACK \
+    _IOW(RMT_STORAGE_IOCTL_MAGIC, 4 , struct rmt_storage_ack_info)
 #endif
+
+

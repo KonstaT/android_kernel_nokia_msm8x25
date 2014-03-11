@@ -96,26 +96,29 @@ static unsigned fm_i2s_config_power_off[] = {
 	GPIO_CFG(71, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
 };
 
-int gpio_bt_sys_rest_en = 133;
+//int gpio_bt_sys_rest_en = 133;
+int gpio_bt_sys_rest_en = 16;
 static void gpio_bt_config(void)
 {
+#if 0
 	u32 socinfo = socinfo_get_platform_version();
 	if (machine_is_msm7627a_qrd1())
 		gpio_bt_sys_rest_en = 114;
 	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
-				|| machine_is_msm8625_evt())
+				|| machine_is_msm8625_qrd5() || machine_is_msm7x27a_qrd5a())
 		gpio_bt_sys_rest_en = 16;
+	if(machine_is_msm8625q_skud() || machine_is_msm8625q_skue() || machine_is_msm8625q_evbd())
+		gpio_bt_sys_rest_en = 35;
 	if (machine_is_msm8625_qrd7())
 		gpio_bt_sys_rest_en = 88;
-	if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
-				|| machine_is_msm8625q_skud())
-		gpio_bt_sys_rest_en = 35;
 	if (machine_is_msm7627a_qrd3()) {
 		if (socinfo == 0x70002)
 			gpio_bt_sys_rest_en = 88;
 		 else
 			gpio_bt_sys_rest_en = 85;
 	}
+#endif
+		gpio_bt_sys_rest_en = 16;
 }
 
 static int bt_set_gpio(int on)
@@ -660,6 +663,10 @@ static int bluetooth_switch_regulators(int on)
 			goto reg_disable;
 		}
 
+		dev_info(&msm_bt_power_device.dev,
+				"%s: regulator_get_voltage of %s is %d\n",
+				__func__, bt_vregs[i].name, regulator_get_voltage(bt_vregs[i].reg));
+
 		if (bt_vregs[i].is_pin_controlled) {
 			rc = pmapp_vreg_lpm_pincntrl_vote(id,
 				bt_vregs[i].pmapp_id,
@@ -988,6 +995,7 @@ void __init msm7627a_bt_power_init(void)
 	int i, rc = 0;
 	struct device *dev;
 
+
 	gpio_bt_config();
 
 	rc = i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
@@ -1013,6 +1021,17 @@ void __init msm7627a_bt_power_init(void)
 			dev_err(dev, "%s: could not get regulator %s: %d\n",
 					__func__, bt_vregs[i].name, rc);
 			goto reg_get_fail;
+		}
+		if(!strcmp(bt_vregs[i].name, "bt")
+			&& ( machine_is_msm7627a_evb()
+				|| machine_is_msm8625_evb()
+				|| machine_is_msm8625_qrd5()
+				|| machine_is_msm8625q_skud()
+				|| machine_is_msm8625q_skue()
+				|| machine_is_msm8625_qrd7())) {
+			bt_vregs[i].min_level = 3300000;
+			dev_info(dev, "%s: set regulator %s min level to %d\n",
+					__func__, bt_vregs[i].name, bt_vregs[i].min_level);
 		}
 	}
 

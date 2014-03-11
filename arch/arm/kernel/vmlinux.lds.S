@@ -254,7 +254,15 @@ SECTIONS
 		_edata = .;
 	}
 	_edata_loc = __data_loc + SIZEOF(.data);
-
+#ifdef CONFIG_UNCACHED_BUF
+	. = ALIGN(1<<20);
+	.log.data : {
+		__uncached_track_buf = .;
+		*(.log.data)
+		. = ALIGN(1<<20);
+		__end_uncached_track_buf = .;
+	}
+#endif
 #ifdef CONFIG_HAVE_TCM
         /*
 	 * We align everything to a page boundary so we can

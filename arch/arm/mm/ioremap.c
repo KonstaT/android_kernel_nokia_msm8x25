@@ -234,7 +234,12 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 			continue;
 		if ((area->flags & VM_ARM_MTYPE_MASK) != VM_ARM_MTYPE(mtype))
 			continue;
-		if (__phys_to_pfn(area->phys_addr) > pfn ||
+		/*
+		 * Some platform such as msm7x27a need to map the physical address 0 before entering 
+		 * sleep mode. But the original the logic will provide a wrong virtual address which can't 
+		 * be accessed(The area may not have enough pages). 
+		 */
+		if (((area->nr_pages << PAGE_SHIFT) < size) || __phys_to_pfn(area->phys_addr) > pfn ||
 		    __pfn_to_phys(pfn) + size-1 > area->phys_addr + area->size-1)
 			continue;
 		/* we can drop the lock here as we know *area is static */

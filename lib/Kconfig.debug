@@ -10,6 +10,22 @@ config PRINTK_TIME
 	  in kernel startup.  Or add printk.time=1 at boot-time.
 	  See Documentation/kernel-parameters.txt
 
+config PRINTK_RTC_TIME
+	bool "Show the real wall time on printks"
+	depends on PRINTK
+	help
+	  Selecting this will print the real wall time before the
+	  printk output. This helps you to align the kernel message
+	  and the userspace print infos.
+
+config PRINTK_CPU_ID
+	bool "Show the current cpu id on printks"
+	depends on PRINTK && SMP
+	help
+	  Selecting this will print the current cpu id before the
+	  printk output. This helps you to know what happens on each
+	  cpu.
+
 config DEFAULT_MESSAGE_LOGLEVEL
 	int "Default message log level (1-7)"
 	range 1 7

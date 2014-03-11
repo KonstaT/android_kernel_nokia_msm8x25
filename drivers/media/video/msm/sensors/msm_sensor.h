@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -144,6 +144,9 @@ struct msm_sensor_fn_t {
 		int32_t *);
 	int32_t (*sensor_pip_set_mode)(struct msm_sensor_ctrl_t *,
 		int32_t);
+// [ start ] lwl add for cit
+	int (*odmm_sensor_config) (struct msm_sensor_ctrl_t *, struct sensor_cfg_data );
+// [ end ] 
 };
 
 struct msm_sensor_csi_info {
@@ -266,6 +269,9 @@ int32_t msm_sensor_get_csi_params(struct msm_sensor_ctrl_t *s_ctrl,
 
 struct msm_sensor_ctrl_t *get_sctrl(struct v4l2_subdev *sd);
 
+#ifdef CONFIG_S5K3H2_SUNNY_Q8S02E
+extern int lcd_camera_power_l5_onoff(int on);
+#endif
 #define VIDIOC_MSM_SENSOR_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 10, void __user *)
 

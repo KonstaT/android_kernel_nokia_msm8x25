@@ -352,7 +352,7 @@ static void dma_test_exit(void)
 }
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("David Brown, Qualcomm, Incorporated");
+MODULE_AUTHOR("David Brown, Qualcomm Technologies, Inc.");
 MODULE_DESCRIPTION("Test for MSM DMA driver");
 MODULE_VERSION("1.01");
 

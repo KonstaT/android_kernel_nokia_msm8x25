@@ -1,6 +1,7 @@
 /* kernel/power/wakelock.c
  *
  * Copyright (C) 2005-2008 Google, Inc.
+ * Copyright (c) 2012-2013 The Linux Foundation. All Rights Reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -24,6 +25,12 @@
 #endif
 #include "power.h"
 
+#ifdef CONFIG_MSM_SM_EVENT
+#include <linux/sm_event_log.h>
+#include <linux/sm_event.h>
+#endif
+
+
 enum {
 	DEBUG_EXIT_SUSPEND = 1U << 0,
 	DEBUG_WAKEUP = 1U << 1,
@@ -31,7 +38,8 @@ enum {
 	DEBUG_EXPIRE = 1U << 3,
 	DEBUG_WAKE_LOCK = 1U << 4,
 };
-static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
+/*open suspend debug*/
+static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP | DEBUG_SUSPEND; 
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define WAKE_LOCK_TYPE_MASK              (0x0f)
@@ -198,6 +206,23 @@ static void update_sleep_wait_stats_locked(int done)
 }
 #endif
 
+#ifdef CONFIG_MSM_SM_EVENT
+void add_active_wakelock_event(void)
+{
+	struct wake_lock *lock, *n;
+	unsigned long irqflags;
+	int type;
+
+	spin_lock_irqsave(&list_lock, irqflags);
+	for (type = 0; type < WAKE_LOCK_TYPE_COUNT; type++) {
+		list_for_each_entry_safe(lock, n, &active_wake_locks[type], link) {
+			sm_add_event(SM_WAKELOCK_EVENT | WAKELOCK_EVENT_ON, (uint32_t)(lock->expires - jiffies), 0, (void *)lock->name, strlen(lock->name)+1);
+		}
+	}
+	spin_unlock_irqrestore(&list_lock, irqflags);
+}
+EXPORT_SYMBOL(add_active_wakelock_event);
+#endif
 
 static void expire_wake_lock(struct wake_lock *lock)
 {
@@ -558,12 +583,18 @@ static void wake_lock_internal(
 void wake_lock(struct wake_lock *lock)
 {
 	wake_lock_internal(lock, 0, 0);
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_add_event(SM_WAKELOCK_EVENT | WAKELOCK_EVENT_ON, (uint32_t)(lock->expires - jiffies), 0, (void *)lock->name, strlen(lock->name)+1);
+#endif
 }
 EXPORT_SYMBOL(wake_lock);
 
 void wake_lock_timeout(struct wake_lock *lock, long timeout)
 {
 	wake_lock_internal(lock, timeout, 1);
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_add_event(SM_WAKELOCK_EVENT | WAKELOCK_EVENT_ON, (uint32_t)(lock->expires - jiffies), 0, (void *)lock->name, strlen(lock->name)+1);
+#endif
 }
 EXPORT_SYMBOL(wake_lock_timeout);
 
@@ -580,6 +611,9 @@ void wake_unlock(struct wake_lock *lock)
 		pr_info("wake_unlock: %s\n", lock->name);
 	lock->flags &= ~(WAKE_LOCK_ACTIVE | WAKE_LOCK_AUTO_EXPIRE);
 	list_del(&lock->link);
+#ifdef CONFIG_MSM_SM_EVENT
+	sm_add_event(SM_WAKELOCK_EVENT | WAKELOCK_EVENT_OFF, (uint32_t)(lock->expires - jiffies), 0, (void *)lock->name, strlen(lock->name)+1);
+#endif
 	list_add(&lock->link, &inactive_locks);
 	if (type == WAKE_LOCK_SUSPEND) {
 		long has_lock = has_wake_lock_locked(type);

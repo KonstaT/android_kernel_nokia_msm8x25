@@ -25,7 +25,7 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
-
+#include <mach/socinfo.h>
 /*
  * dbs is used in this file as a shortform for demandbased switching
  * It helps to keep variable names smaller, simpler
@@ -41,7 +41,6 @@
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 #define MIN_FREQUENCY_DOWN_DIFFERENTIAL		(1)
-
 /*
  * The polling frequency of this governor depends on the capability of
  * the processor. Default polling frequency is 1000 times the transition
@@ -130,6 +129,7 @@ static struct dbs_tuners {
 	unsigned int sampling_down_factor;
 	int          powersave_bias;
 	unsigned int io_is_busy;
+	u64	     hispeed_freq;
 } dbs_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
@@ -297,6 +297,12 @@ show_one(down_differential, down_differential);
 show_one(sampling_down_factor, sampling_down_factor);
 show_one(ignore_nice_load, ignore_nice);
 
+static ssize_t show_hispeed_freq
+(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%llu\n", dbs_tuners_ins.hispeed_freq);
+}
+
 static ssize_t show_powersave_bias
 (struct kobject *kobj, struct attribute *attr, char *buf)
 {
@@ -381,6 +387,19 @@ static ssize_t store_io_is_busy(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 	dbs_tuners_ins.io_is_busy = !!input;
+	return count;
+}
+
+static ssize_t store_hispeed_freq(struct kobject *a, struct attribute *b,
+				   const char *buf, size_t count)
+{
+	u64 input;
+	int ret;
+
+	ret = sscanf(buf, "%llu", &input);
+	if (ret != 1)
+		return -EINVAL;
+	dbs_tuners_ins.hispeed_freq = input;
 	return count;
 }
 
@@ -577,6 +596,7 @@ skip_this_cpu_bypass:
 define_one_global_rw(sampling_rate);
 define_one_global_rw(io_is_busy);
 define_one_global_rw(up_threshold);
+define_one_global_rw(hispeed_freq);
 define_one_global_rw(down_differential);
 define_one_global_rw(sampling_down_factor);
 define_one_global_rw(ignore_nice_load);
@@ -591,6 +611,7 @@ static struct attribute *dbs_attributes[] = {
 	&ignore_nice_load.attr,
 	&powersave_bias.attr,
 	&io_is_busy.attr,
+	&hispeed_freq.attr,
 	NULL
 };
 
@@ -858,14 +879,14 @@ static void dbs_refresh_callback(struct work_struct *work)
 		goto bail_incorrect_governor;
 	}
 
-	if (policy->cur < policy->max) {
+	if (policy->cur < dbs_tuners_ins.hispeed_freq) {
 		/*
 		 * Arch specific cpufreq driver may fail.
 		 * Don't update governor frequency upon failure.
 		 */
-		if (__cpufreq_driver_target(policy, policy->max,
+		if (__cpufreq_driver_target(policy, dbs_tuners_ins.hispeed_freq,
 					CPUFREQ_RELATION_L) >= 0)
-			policy->cur = policy->max;
+			policy->cur = dbs_tuners_ins.hispeed_freq;
 
 		this_dbs_info->prev_cpu_idle = get_cpu_idle_time(cpu,
 				&this_dbs_info->prev_cpu_wall);
@@ -932,7 +953,21 @@ static void dbs_input_disconnect(struct input_handle *handle)
 }
 
 static const struct input_device_id dbs_ids[] = {
-	{ .driver_info = 1 },
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+			 INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+			    BIT_MASK(ABS_MT_POSITION_X) |
+			    BIT_MASK(ABS_MT_POSITION_Y) },
+	}, /* multi-touch touchscreen */
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
+			 INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { [BIT_WORD(ABS_X)] =
+			    BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
+	}, /* touchpad */
 	{ },
 };
 
@@ -1001,6 +1036,12 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				max(min_sampling_rate,
 				    latency * LATENCY_MULTIPLIER);
 			dbs_tuners_ins.io_is_busy = should_io_be_busy();
+			if ((cpu_is_msm8625()) || (cpu_is_msm8625q())) {
+				/* Set hispeed to 1GHz based on performance tuning result here */
+				dbs_tuners_ins.hispeed_freq = 1008000;
+			} else {
+				dbs_tuners_ins.hispeed_freq = policy->max;
+			}
 		}
 		if (!cpu)
 			rc = input_register_handler(&dbs_input_handler);

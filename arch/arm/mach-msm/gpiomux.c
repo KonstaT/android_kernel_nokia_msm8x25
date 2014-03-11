@@ -31,12 +31,18 @@ int msm_gpiomux_write(unsigned gpio, enum msm_gpiomux_setting which,
 	unsigned long irq_flags;
 	struct gpiomux_setting *new_set;
 	int status = 0;
-
+        /*add QC pathc for MTBF test I2C time */
 	if (!msm_gpiomux_recs)
+        {
+		pr_err("%s: msm_gpiomux_recs\n", __func__);
 		return -EFAULT;
+	}
 
 	if (gpio >= msm_gpiomux_ngpio)
+        {
+		pr_err("%s: msm_gpiomux_ngpio: %d\n", __func__, msm_gpiomux_ngpio);
 		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&gpiomux_lock, irq_flags);
 
@@ -56,8 +62,17 @@ int msm_gpiomux_write(unsigned gpio, enum msm_gpiomux_setting which,
 
 	new_set = rec->ref ? rec->sets[GPIOMUX_ACTIVE] :
 		rec->sets[GPIOMUX_SUSPENDED];
+        /*ad QC pathc for MTBF test I2C time */
 	if (new_set)
+         {
 		__msm_gpiomux_write(gpio, *new_set);
+		pr_err("%s: __msm_gpiomux_write line64 gpio=%d, rec->ref=%d, func=%d, drv=%d, pull=%d, dir=%d\n", __func__, gpio, rec->ref, new_set->func, new_set->drv, new_set->pull, new_set->dir);
+	}
+	else
+	{
+		
+		pr_err("%s:  new_set= NULL \n", __func__);
+	}
 
 	spin_unlock_irqrestore(&gpiomux_lock, irq_flags);
 	return status;
@@ -70,11 +85,15 @@ int msm_gpiomux_get(unsigned gpio)
 	unsigned long irq_flags;
 
 	if (!msm_gpiomux_recs)
+        {
+		pr_err("%s:   line=%d\n", __func__,__LINE__);
 		return -EFAULT;
-
+	}
 	if (gpio >= msm_gpiomux_ngpio)
+        {
+		pr_err("%s:   line=%d\n", __func__,__LINE__);
 		return -EINVAL;
-
+	}
 	spin_lock_irqsave(&gpiomux_lock, irq_flags);
 	if (rec->ref++ == 0 && rec->sets[GPIOMUX_ACTIVE])
 		__msm_gpiomux_write(gpio, *rec->sets[GPIOMUX_ACTIVE]);
@@ -89,11 +108,16 @@ int msm_gpiomux_put(unsigned gpio)
 	unsigned long irq_flags;
 
 	if (!msm_gpiomux_recs)
+        {
+		pr_err("%s:   line=%d\n", __func__,__LINE__);
 		return -EFAULT;
+         }
 
 	if (gpio >= msm_gpiomux_ngpio)
+        {
+		pr_err("%s:   line=%d\n", __func__,__LINE__);
 		return -EINVAL;
-
+	}
 	spin_lock_irqsave(&gpiomux_lock, irq_flags);
 	BUG_ON(rec->ref == 0);
 	if (--rec->ref == 0 && rec->sets[GPIOMUX_SUSPENDED])
@@ -107,15 +131,19 @@ int msm_gpiomux_init(size_t ngpio)
 {
 	if (!ngpio)
 		return -EINVAL;
-
+        /*ad QC pathc for MTBF test I2C time */
 	if (msm_gpiomux_recs)
+        {
+		pr_err("%s:   line=%d\n", __func__,__LINE__);		
 		return -EPERM;
-
+	}
 	msm_gpiomux_recs = kzalloc(sizeof(struct msm_gpiomux_rec) * ngpio,
 				   GFP_KERNEL);
 	if (!msm_gpiomux_recs)
+        {
+		pr_err("%s:   line=%d\n", __func__,__LINE__);
 		return -ENOMEM;
-
+	}
 	/* There is no need to zero this memory, as clients will be blindly
 	 * installing settings on top of it.
 	 */

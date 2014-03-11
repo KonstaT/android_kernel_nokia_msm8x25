@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -188,6 +188,7 @@ PCOM_VREG_CONSUMERS(ldo16) = {
 PCOM_VREG_CONSUMERS(ldo17) = {
 	REGULATOR_SUPPLY("ldo17",	NULL),
 	REGULATOR_SUPPLY("bt",		NULL),
+	REGULATOR_SUPPLY("wlan3v3",          NULL),
 };
 
 PCOM_VREG_CONSUMERS(ldo18) = {
@@ -197,7 +198,7 @@ PCOM_VREG_CONSUMERS(ldo18) = {
 
 PCOM_VREG_CONSUMERS(ldo19) = {
 	REGULATOR_SUPPLY("ldo19",	NULL),
-	REGULATOR_SUPPLY("wlan4",	NULL),
+	REGULATOR_SUPPLY("wlan1v8",	NULL),
 };
 
 PCOM_VREG_CONSUMERS(ncp)   = {
@@ -222,8 +223,12 @@ static struct proccomm_regulator_info msm7x27a_pcom_vreg_info[] = {
 	PCOM_VREG_LDO(ldo02, 13, NULL, 2850000, 2850000, 0, -1, 0, 0, 0, 0, p),
 	PCOM_VREG_LDO(ldo03, 49, NULL, 1200000, 1200000, 0, -1, 0, 0, 0, 0, n),
 	PCOM_VREG_LDO(ldo04, 50, NULL, 1100000, 1100000, 0, -1, 0, 0, 0, 0, n),
+#ifdef CONFIG_S5K3H2_SUNNY_Q8S02E
+	PCOM_VREG_LDO(ldo05, 45, NULL, 1200000, 1200000, 0, -1, 0, 0, 0, 0, n),
+#else
 	PCOM_VREG_LDO(ldo05, 45, NULL, 1300000, 1350000, 0, -1, 0, 0, 0, 0, n),
-	PCOM_VREG_LDO(ldo06, 51, NULL, 1200000, 1200000, 0, -1, 0, 0, 0, 0, n),
+#endif
+	PCOM_VREG_LDO(ldo06, 51, NULL, 1200000, 1525000, 0, -1, 0, 0, 0, 0, n),
 	PCOM_VREG_LDO(ldo07,  0, NULL, 2600000, 2600000, 0, -1, 0, 0, 0, 0, p),
 	PCOM_VREG_LDO(ldo08,  9, NULL, 2850000, 2850000, 0, -1, 0, 0, 0, 0, p),
 	PCOM_VREG_LDO(ldo09, 44, NULL, 1800000, 1800000, 0, -1, 0, 0, 0, 0, p),

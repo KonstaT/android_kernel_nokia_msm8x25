@@ -370,6 +370,14 @@ config LEDS_MSM_PMIC
           (Power Management IC) chip on Qualcomm reference boards,
           for example SURF and FFAs.
 
+config LEDS_TRICOLOR_FLAHSLIGHT
+    tristate "LED Support for Qualcomm 7X27A/8x25 tri-color leds and flash light"
+    default y
+    depends on ARCH_MSM
+    help
+        This option enables support for TRI-COLOR LEDs and flash light
+        on 7X27A/8x25 QRD board
+
 config LEDS_PMIC8058
 	tristate "LED Support for Qualcomm PMIC8058"
 	default n
@@ -378,6 +386,13 @@ config LEDS_PMIC8058
 	  This option enables support for LEDs connected over PMIC8058
 	  (Power Management IC) chip on Qualcomm reference boards,
 	  for example SURF and FFAs.
+
+config LEDS_PMIC8029
+	tristate "LED Support for Qualcomm PMIC8029"
+	default n
+	help
+	  This option enables support for LEDs connected over PMIC8029
+	  (Power Management IC) chip on QRD` boards.
 
 config LEDS_INTEL_SS4200
 	tristate "LED driver for Intel NAS SS4200 series"

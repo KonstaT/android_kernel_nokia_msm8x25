@@ -24,6 +24,10 @@
 
 #include "clock.h"
 
+#ifdef CONFIG_MSM_SM_EVENT
+#include <linux/sm_event.h>
+#include <linux/sm_event_log.h>
+#endif
 static int clock_debug_rate_set(void *data, u64 val)
 {
 	struct clk *clock = data;
@@ -193,6 +197,20 @@ void clock_debug_print_enabled(void)
 {
 	unsigned i;
 	int cnt = 0;
+
+#ifdef CONFIG_MSM_SM_EVENT
+	struct clk *clk;
+	for (i = 0; i < num_msm_clocks; i++) {
+		clk = msm_clocks[i].clk;
+
+		if (clk && clk->ops->is_enabled(clk)) {
+		//	pr_info("\t%s\n", clk->dbg_name);
+			sm_add_event(SM_CLOCK_EVENT | SM_CLK_EVENT_SET_ENABLE, 0, 0, (void *)clk->dbg_name, strlen(clk->dbg_name)+1);
+			cnt++;
+		}
+	}
+
+#endif
 
 	if (likely(!debug_suspend))
 		return;

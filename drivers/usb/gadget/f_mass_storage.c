@@ -310,10 +310,7 @@ static const char fsg_string_interface[] = "Mass Storage";
 
 #include "storage_common.c"
 
-#ifdef CONFIG_USB_CSW_HACK
-static int write_error_after_csw_sent;
-static int csw_hack_sent;
-#endif
+
 /*-------------------------------------------------------------------------*/
 
 struct fsg_dev;
@@ -895,10 +892,6 @@ static int do_write(struct fsg_common *common)
 	ssize_t			nwritten;
 	int			rc;
 
-#ifdef CONFIG_USB_CSW_HACK
-	int			i;
-#endif
-
 #ifdef CONFIG_USB_MSC_PROFILING
 	ktime_t			start, diff;
 #endif
@@ -928,11 +921,6 @@ static int do_write(struct fsg_common *common)
 		if (common->cmnd[1] & ~0x18) {
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return -EINVAL;
-		}
-		if (!curlun->nofua && (common->cmnd[1] & 0x08)) { /* FUA */
-			spin_lock(&curlun->filp->f_lock);
-			curlun->filp->f_flags |= O_SYNC;
-			spin_unlock(&curlun->filp->f_lock);
 		}
 	}
 	if (lba >= curlun->num_sectors) {
@@ -994,17 +982,7 @@ static int do_write(struct fsg_common *common)
 		bh = common->next_buffhd_to_drain;
 		if (bh->state == BUF_STATE_EMPTY && !get_some_more)
 			break;			/* We stopped early */
-#ifdef CONFIG_USB_CSW_HACK
-		/*
-		 * If the csw packet is already submmitted to the hardware,
-		 * by marking the state of buffer as full, then by checking
-		 * the residue, we make sure that this csw packet is not
-		 * written on to the storage media.
-		 */
-		if (bh->state == BUF_STATE_FULL && common->residue) {
-#else
 		if (bh->state == BUF_STATE_FULL) {
-#endif
 			smp_rmb();
 			common->next_buffhd_to_drain = bh->next;
 			bh->state = BUF_STATE_EMPTY;
@@ -1075,36 +1053,8 @@ static int do_write(struct fsg_common *common)
 				curlun->sense_data_info =
 					file_offset >> curlun->blkbits;
 				curlun->info_valid = 1;
-#ifdef CONFIG_USB_CSW_HACK
-				write_error_after_csw_sent = 1;
-				goto write_error;
-#endif
 				break;
 			}
-
-#ifdef CONFIG_USB_CSW_HACK
-write_error:
-			if ((nwritten == amount) && !csw_hack_sent) {
-				if (write_error_after_csw_sent)
-					break;
-				/*
-				 * Check if any of the buffer is in the
-				 * busy state, if any buffer is in busy state,
-				 * means the complete data is not received
-				 * yet from the host. So there is no point in
-				 * csw right away without the complete data.
-				 */
-				for (i = 0; i < fsg_num_buffers; i++) {
-					if (common->buffhds[i].state ==
-							BUF_STATE_BUSY)
-						break;
-				}
-				if (!amount_left_to_req && i == fsg_num_buffers) {
-					csw_hack_sent = 1;
-					send_status(common);
-				}
-			}
-#endif
 
  empty_write:
 			/* Did the host decide to stop early? */
@@ -1567,7 +1517,8 @@ static int do_prevent_allow(struct fsg_common *common)
 		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return -EINVAL;
 	}
-	if (!curlun->nofua && curlun->prevent_medium_removal && !prevent)
+
+	if (curlun->prevent_medium_removal && !prevent)
 		fsg_lun_fsync_sub(curlun);
 	curlun->prevent_medium_removal = prevent;
 	return 0;
@@ -1847,19 +1798,6 @@ static int send_status(struct fsg_common *common)
 	csw->Signature = cpu_to_le32(US_BULK_CS_SIGN);
 	csw->Tag = common->tag;
 	csw->Residue = cpu_to_le32(common->residue);
-#ifdef CONFIG_USB_CSW_HACK
-	/* Since csw is being sent early, before
-	 * writing on to storage media, need to set
-	 * residue to zero,assuming that write will succeed.
-	 */
-	if (write_error_after_csw_sent) {
-		write_error_after_csw_sent = 0;
-		csw->Residue = cpu_to_le32(common->residue);
-	} else
-		csw->Residue = 0;
-#else
-	csw->Residue = cpu_to_le32(common->residue);
-#endif
 	csw->Status = status;
 
 	bh->inreq->length = US_BULK_CS_WRAP_LEN;
@@ -2537,6 +2475,7 @@ static void fsg_disable(struct usb_function *f)
 		fsg->bulk_out_enabled = 0;
 		fsg->bulk_out->driver_data = NULL;
 	}
+
 	fsg->common->new_fsg = NULL;
 	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
 }
@@ -2743,16 +2682,6 @@ static int fsg_main_thread(void *common_)
 			common->state = FSG_STATE_STATUS_PHASE;
 		spin_unlock_irq(&common->lock);
 
-#ifdef CONFIG_USB_CSW_HACK
-		/* Since status is already sent for write scsi command,
-		 * need to skip sending status once again if it is a
-		 * write scsi command.
-		 */
-		if (csw_hack_sent) {
-			csw_hack_sent = 0;
-			continue;
-		}
-#endif
 		if (send_status(common))
 			continue;
 
@@ -2864,7 +2793,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	common->ep0 = gadget->ep0;
 	common->ep0req = cdev->req;
 	common->cdev = cdev;
-
+#if 0
 	/* Maybe allocate device-global string IDs, and patch descriptors */
 	if (fsg_strings[FSG_STRING_INTERFACE].id == 0) {
 		rc = usb_string_id(cdev);
@@ -2873,7 +2802,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		fsg_strings[FSG_STRING_INTERFACE].id = rc;
 		fsg_intf_desc.iInterface = rc;
 	}
-
+#endif 
 	/*
 	 * Create the LUNs, open their backing files, and register the
 	 * LUN devices in sysfs.
@@ -2892,7 +2821,6 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		curlun->ro = lcfg->cdrom || lcfg->ro;
 		curlun->initially_ro = curlun->ro;
 		curlun->removable = lcfg->removable;
-		curlun->nofua = lcfg->nofua;
 		curlun->dev.release = fsg_lun_release;
 		curlun->dev.parent = &gadget->dev;
 		/* curlun->dev.driver = &fsg_driver.driver; XXX */
@@ -2930,7 +2858,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 			rc = fsg_lun_open(curlun, lcfg->filename);
 			if (rc)
 				goto error_luns;
-		} else if (!curlun->removable && !curlun->cdrom) {
+		} else if (!curlun->removable) {
 			ERROR(common, "no file given for LUN%d\n", i);
 			rc = -EINVAL;
 			goto error_luns;
@@ -3109,6 +3037,15 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	int			i;
 	struct usb_ep		*ep;
+	int rc;
+	/* Maybe allocate device-global string IDs, and patch descriptors */
+	if (fsg_strings[FSG_STRING_INTERFACE].id == 0) {
+		rc = usb_string_id(c->cdev);
+		if (unlikely(rc < 0))
+			return -rc; //goto error_release;
+		fsg_strings[FSG_STRING_INTERFACE].id = rc;
+		fsg_intf_desc.iInterface = rc;
+	}
 
 	fsg->gadget = gadget;
 

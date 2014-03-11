@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  * Copyright 2005, Red Hat, Inc., Ingo Molnar
  * Released under the General Public License (GPL).
  *
@@ -58,9 +59,9 @@ static void spin_dump(raw_spinlock_t *lock, const char *msg)
 	printk(KERN_EMERG "BUG: spinlock %s on CPU#%d, %s/%d\n",
 		msg, raw_smp_processor_id(),
 		current->comm, task_pid_nr(current));
-	printk(KERN_EMERG " lock: %ps, .magic: %08x, .owner: %s/%d, "
+	printk(KERN_EMERG " lock: %ps, rawlock 0x%x, .magic: %08x, .owner: %s/%d, "
 			".owner_cpu: %d\n",
-		lock, lock->magic,
+		lock, (unsigned int)lock->raw_lock.lock, lock->magic,
 		owner ? owner->comm : "<none>",
 		owner ? task_pid_nr(owner) : -1,
 		lock->owner_cpu);

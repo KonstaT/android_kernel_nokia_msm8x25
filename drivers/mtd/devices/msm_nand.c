@@ -220,6 +220,19 @@ static struct nand_ecclayout msm_onenand_oob_64 = {
 	}
 };
 
+static uint8_t  device_name[20];
+
+static ssize_t
+msm_nand_show_device_name(struct device *dev,
+                      struct device_attribute *attr,
+                      char *buf)
+{
+        return sprintf(buf, "%s\n", device_name);
+}
+
+static DEVICE_ATTR(name, S_IRUGO, msm_nand_show_device_name, NULL);
+
+
 static void *msm_nand_get_dma_buffer(struct msm_nand_chip *chip, size_t size)
 {
 	unsigned int bitmask, free_bitmask, old_bitmask;
@@ -746,10 +759,13 @@ uint32_t flash_onfi_probe(struct msm_nand_chip *chip)
 				supported_flash.density  =
 					onfi_param_page_ptr->
 					number_of_blocks_per_logical_unit
-					* supported_flash.blksize;
+					* supported_flash.blksize
+					* onfi_param_page_ptr-> number_of_logical_units;
 				supported_flash.ecc_correctability =
 					onfi_param_page_ptr->
 					number_of_bits_ecc_correctability;
+
+                                strncpy(device_name, onfi_param_page_ptr->device_model, 20);
 
 				pr_info("ONFI probe : Found an ONFI "
 					"compliant device %s\n",
@@ -7171,6 +7187,13 @@ no_dual_nand_ctlr_support:
 
 	dev_set_drvdata(&pdev->dev, info);
 
+        err = device_create_file(&pdev->dev, &dev_attr_name);
+        if (err) {
+                pr_err("%s: device_create_file(%s)=%d\n",
+                                __func__, dev_attr_name.attr.name, err);
+		goto out_free_dma_buffer;
+        }
+
 	return 0;
 
 out_free_dma_buffer:
@@ -7196,6 +7219,8 @@ static int __devexit msm_nand_remove(struct platform_device *pdev)
 				  info->msm_nand.dma_addr);
 		kfree(info);
 	}
+
+        device_remove_file(&pdev->dev, &dev_attr_name);
 
 	return 0;
 }

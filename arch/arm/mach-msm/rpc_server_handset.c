@@ -1,6 +1,6 @@
 /* arch/arm/mach-msm/rpc_server_handset.c
  *
- * Copyright (c) 2008-2010,2012 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2010,2012 The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -187,8 +187,13 @@ static const uint32_t hs_key_map[] = {
 	KEY(HS_HEADSET_HEADPHONE_K, SW_HEADPHONE_INSERT),
 	KEY(HS_HEADSET_MICROPHONE_K, SW_MICROPHONE_INSERT),
 	KEY(HS_HEADSET_SWITCH_K, KEY_MEDIA),
+#if 0	
 	KEY(HS_HEADSET_SWITCH_2_K, KEY_VOLUMEUP),
 	KEY(HS_HEADSET_SWITCH_3_K, KEY_VOLUMEDOWN),
+#else
+	KEY(HS_HEADSET_SWITCH_2_K, KEY_NEXTSONG),
+	KEY(HS_HEADSET_SWITCH_3_K, KEY_PREVIOUSSONG),
+#endif	
 	0
 };
 
@@ -276,20 +281,22 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 
 	if (key_parm == HS_REL_K)
 		key_code = key_parm;
-
+	printk("%s %d key = %d \n",__func__,__LINE__,key);
 	switch (key) {
 	case KEY_POWER:
 	case KEY_END:
 		if (hs->hs_pdata->ignore_end_key)
 			input_report_key(hs->ipdev, KEY_POWER,
 						(key_code != HS_REL_K));
-		else
+		else  
 			input_report_key(hs->ipdev, key,
 						(key_code != HS_REL_K));
 		break;
 	case KEY_MEDIA:
 	case KEY_VOLUMEUP:
 	case KEY_VOLUMEDOWN:
+	case KEY_PREVIOUSSONG:
+	case KEY_NEXTSONG:
 		input_report_key(hs->ipdev, key, (key_code != HS_REL_K));
 		break;
 	case SW_HEADPHONE_INSERT_W_MIC:
@@ -648,6 +655,9 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	input_set_capability(ipdev, EV_SW, SW_MICROPHONE_INSERT);
 	input_set_capability(ipdev, EV_KEY, KEY_POWER);
 	input_set_capability(ipdev, EV_KEY, KEY_END);
+	input_set_capability(ipdev, EV_KEY, KEY_NEXTSONG);
+	input_set_capability(ipdev, EV_KEY, KEY_PREVIOUSSONG);
+	set_bit(INPUT_PROP_NO_FAKE_RELEASE, ipdev->propbit);
 
 	rc = input_register_device(ipdev);
 	if (rc) {

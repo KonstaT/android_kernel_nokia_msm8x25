@@ -37,6 +37,9 @@ static struct snd_endpoint snd_endpoints_list[] = {
 	SND(CURRENT, 0x7FFFFFFE),
 	SND(FM_ANALOG_STEREO_HEADSET, 35),
 	SND(FM_ANALOG_STEREO_HEADSET_CODEC, 36),
+	//start by fjz
+	SND(NO_MIC_HEADSET, 40),
+	//end
 };
 #undef SND
 
@@ -189,6 +192,9 @@ static struct cad_endpoint cad_endpoints_list[] = {
 				SNDDEV_CAP_VOICE)),
 	CAD(LP_FM_HEADSET_SPKR_STEREO_RX, 25, (SNDDEV_CAP_TX | SNDDEV_CAP_FM)),
 	CAD(I2S_RX, 26, (SNDDEV_CAP_RX)),
+	//start by fjz
+	CAD(NO_MIC_HEADSET, 40, (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE)),
+	//end byf fjz 
 	CAD(SPEAKER_PHONE_MIC_ENDFIRE, 45, (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE)),
 	CAD(HANDSET_MIC_ENDFIRE, 46, (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE)),
 	CAD(I2S_TX, 48, (SNDDEV_CAP_TX)),

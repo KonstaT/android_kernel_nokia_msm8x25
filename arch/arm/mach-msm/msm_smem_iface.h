@@ -41,6 +41,19 @@ struct cpr_info_type {
 	bool    disable_cpr;
 };
 
+//usb_device_info used only in save serialnum to SMEM:24bytes
+#define MAX_FASTBOOT_SERIALNUM_LEN  8
+typedef struct
+{
+  uint32_t magicNum;
+  uint16_t idVendor;
+  uint16_t idProduct;
+  uint32_t serialNumberLen;
+  char   serialNumber[MAX_FASTBOOT_SERIALNUM_LEN];
+  uint16_t enableVerify;
+  char reserved[2];
+} usb_device_info;
+
 struct boot_info_for_apps {
 	uint32_t apps_image_start_addr; /* apps image start address */
 	uint32_t boot_flags; /* bit mask of upto 32 flags */
@@ -48,8 +61,9 @@ struct boot_info_for_apps {
 	struct boot_symmetric_key_info key_info;
 	uint16_t boot_keys_pressed[MAX_KEY_EVENTS]; /* Log of key presses */
 	uint32_t timetick; /* Modem tick timer value before apps out of reset */
+	usb_device_info usb_info;
 	struct cpr_info_type cpr_info;
-	uint8_t PAD[23];
+	uint8_t PAD[1];
 };
 
 void msm_smem_get_cpr_info(struct cpr_info_type *cpr_info);

@@ -45,6 +45,11 @@ static void msm_otg_set_id_state(int id)
 }
 #endif
 
+#ifdef CONFIG_MSM_FAST_BOOT
+extern int fastboot_enabled(void);
+extern void fastboot_usb_callback(void);
+#endif
+
 struct msm_otg *the_msm_otg;
 
 static int is_host(void)
@@ -525,6 +530,10 @@ static int msm_otg_set_power(struct usb_phy *xceiv, unsigned mA)
 	enum chg_type 		new_chg = atomic_read(&dev->chg_type);
 	unsigned 		charge = mA;
 
+#ifdef CONFIG_MSM_FAST_BOOT
+	if (mA && fastboot_enabled())
+		return 0;
+#endif
 	/* Call chg_connected only if the charger has changed */
 	if (new_chg != curr_chg && pdata->chg_connected) {
 		curr_chg = new_chg;
@@ -580,6 +589,11 @@ static void msm_otg_start_peripheral(struct usb_otg *otg, int on)
 
 	if (!otg->gadget)
 		return;
+
+#ifdef CONFIG_MSM_FAST_BOOT
+	if (on && fastboot_enabled())
+		return;
+#endif
 
 	if (on) {
 		if (pdata->setup_gpio)
@@ -1679,6 +1693,12 @@ static void msm_otg_sm_work(struct work_struct *w)
 	spin_lock_irqsave(&dev->lock, flags);
 	state = dev->phy.state;
 	spin_unlock_irqrestore(&dev->lock, flags);
+
+#ifdef CONFIG_MSM_FAST_BOOT
+	if (fastboot_enabled()) {
+		fastboot_usb_callback();
+	}
+#endif
 
 	switch (state) {
 	case OTG_STATE_UNDEFINED:

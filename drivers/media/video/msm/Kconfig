@@ -36,6 +36,24 @@ config IMX074
 	depends on MSM_CAMERA
 	---help---
 	SONY 13.5 MP Bayer Sensor
+config S5K5CA
+	bool "Sensor S5K5CA (YUV 3M)"
+	depends on MSM_CAMERA
+	default y
+	---help---
+	Omni 3M YUV Sensor
+config S5K5CA_DARLING
+	bool "Sensor S5K5CA (YUV 3M)"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	Omni 3M YUV Sensor
+config HI351_SUNNY_Q3H01B
+	bool "Sensor hi351(SKHynix SUNNY_Q3H01B) (YUV 3M)"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  SKHynix 3M YUV MIPI sensor
 config OV5640
 	bool "Sensor OV5640 (YUV 5M)"
 	depends on MSM_CAMERA && !MSM_CAMERA_V4L2
@@ -47,8 +65,13 @@ config OV5647
 	depends on MSM_CAMERA
 	---help---
 	  OV 5M Bayer Sensor with AutoFocus
-config OV5648
-	bool "Sensor ov5648 (BAYER 5M)"
+config OV5647_TRULY_CM6868
+	bool "Sensor ov5647(TRULY_CM6868) (BAYER 5M)"
+	depends on MSM_CAMERA
+	---help---
+	  OV 5M Bayer Sensor with AutoFocus
+config OV5648_TRULY_CM8352
+	bool "Sensor ov5648(TRULY_CM8352) (BAYER 5M)"
 	depends on MSM_CAMERA
 	---help---
 	  OV 5M Bayer Sensor with AutoFocus
@@ -162,6 +185,29 @@ config S5K4E1
 	  It is a Bayer 5MP sensor with auto focus and it supports
 	  two mipi lanes, required for msm7x2xA platform.
 	  Say Y here if this is msm7x2xA variant platform.
+
+config AR0543
+	bool "Sensor ar0543 (BAYER 5M)"
+	default n
+	---help---
+	  Aptina Bayer Sensor with FixFocus
+config A8140
+	bool "Sensor a8140 (BAYER 8M)"
+	default n
+	---help---
+	  Aptina Bayer Sensor with AutoFocus
+
+config S5K3H2_SUNNY_Q8S02E
+	bool "Sensor Sensor s5k3h2 (Samsung 8M)"
+	default n
+	---help---
+	  Samsung 8M with Autofocus
+config AR0542
+	bool "Sensor ar0542 (BAYER 5M)"
+	depends on MSM_CAMERA && MSM_CAMERA_V4L2
+	default y
+	---help---
+	  Aptina Bayer 5M RAW Sensor
 
 config DW9712_ACT
 	bool "Lens actuator dw9721"
@@ -310,3 +356,25 @@ config OV7695_RAW
 	default n
 	---help---
 	  Omni Vision BAYER Sensor for QRD Devices
+config MT9V115
+	bool "Sensor mt9v115 (BAYER 3M)"
+	depends on MSM_CAMERA && MSM_CAMERA_V4L2
+	default n
+	---help---
+	  MICRON 3M YUV Sensor for QRD Devices
+config OV5647_DALING_OVBD631AC
+	bool "Sensor ov5647(DALING DA-OVBD631AC DL500AFMP-EG806T) (BAYER 5M)"
+	depends on MSM_CAMERA
+	---help---
+	  OV 5M Bayer Sensor with AutoFocus
+config OV5647_PARTRON_CM500
+	bool "Sensor ov5647(PARTRON CM500RF04CEG806T EG806T-D1235-G-REV-00) (BAYER 5M)"
+	depends on MSM_CAMERA
+	---help---
+	  OV 5M Bayer Sensor with AutoFocus
+
+config OV5647_HQ_O9B5_DG806T
+	bool "Sensor ov5647(HUAQUAN CO9B5-DG806THQ VCM:DW9710 ) (BAYER 5M)"
+	depends on MSM_CAMERA
+	---help---
+	  OV 5M Bayer Sensor with AutoFocus

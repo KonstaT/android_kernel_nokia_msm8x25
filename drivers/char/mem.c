@@ -855,8 +855,21 @@ out:
 	return ret;
 }
 
+extern int dev_read_kmsg(char __user *buf, int len);
+static ssize_t kmsg_read(struct file * file, char __user * buf,
+				size_t count, loff_t *ppos)
+{
+	int ret;
+
+	ret = dev_read_kmsg(buf, count);
+	if (ret > 0)
+		*ppos += ret;
+	return ret;
+}
+
 static const struct file_operations kmsg_fops = {
 	.aio_write = kmsg_writev,
+	.read = kmsg_read,
 	.llseek = noop_llseek,
 };
 

@@ -5,7 +5,7 @@
  * Copyright (C) 2003-2004 Robert Schwebel, Benedikt Spranger
  * Copyright (C) 2003 Al Borchers (alborchers@steinerpoint.com)
  * Copyright (C) 2008 Nokia Corporation
- * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,8 +116,6 @@ struct rmnet_smd_dev {
 	atomic_t		online;
 	atomic_t		notify_count;
 
-	struct platform_driver		pdrv;
-	u8				is_pdrv_used;
 	struct rmnet_smd_ch_info	smd_ctl;
 	struct rmnet_smd_ch_info	smd_data;
 
@@ -135,8 +133,6 @@ struct rmnet_smd_dev {
 	unsigned long	cpkts_from_host;
 	unsigned long	cpkts_to_modem;
 };
-
-static struct rmnet_smd_dev *rmnet_smd;
 
 static struct usb_interface_descriptor rmnet_smd_interface_desc = {
 	.bLength =		USB_DT_INTERFACE_SIZE,
@@ -860,10 +856,6 @@ static void rmnet_smd_disconnect_work(struct work_struct *w)
 		list_add_tail(&qmi->list, &dev->qmi_resp_pool);
 	}
 
-	if (dev->is_pdrv_used) {
-		platform_driver_unregister(&dev->pdrv);
-		dev->is_pdrv_used = 0;
-	}
 }
 
 /* SMD close may sleep
@@ -899,19 +891,7 @@ static void rmnet_smd_connect_work(struct work_struct *w)
 	ret = smd_open(rmnet_ctl_ch, &dev->smd_ctl.ch,
 			&dev->smd_ctl, rmnet_smd_event_notify);
 	if (ret) {
-		ERROR(cdev, "Unable to open control smd channel: %d\n", ret);
-		/*
-		 * Register platform driver to be notified in case SMD channels
-		 * later becomes ready to be opened.
-		 */
-		if (!dev->is_pdrv_used) {
-			ret = platform_driver_register(&dev->pdrv);
-			if (ret)
-				ERROR(cdev, "pdrv %s register failed %d\n",
-						dev->pdrv.driver.name, ret);
-			else
-				dev->is_pdrv_used = 1;
-		}
+		ERROR(cdev, "Unable to open control smd channel\n");
 		return;
 	}
 	wait_event(dev->smd_ctl.wait, test_bit(CH_OPENED,
@@ -931,15 +911,6 @@ static void rmnet_smd_connect_work(struct work_struct *w)
 	atomic_set(&dev->online, 1);
 	/* Queue Rx data requests */
 	rmnet_smd_start_rx(dev);
-}
-
-static int rmnet_smd_ch_probe(struct platform_device *pdev)
-{
-	DBG(rmnet_smd->cdev, "Probe called for device: %s\n", pdev->name);
-
-	queue_work(rmnet_smd->wq, &rmnet_smd->connect_work);
-
-	return 0;
 }
 
 /* SMD open may sleep.
@@ -1321,8 +1292,6 @@ int rmnet_smd_bind_config(struct usb_configuration *c)
 	if (!dev)
 		return -ENOMEM;
 
-	rmnet_smd = dev;
-
 	dev->wq = create_singlethread_workqueue("k_rmnet_work");
 	if (!dev->wq) {
 		ret = -ENOMEM;
@@ -1349,10 +1318,6 @@ int rmnet_smd_bind_config(struct usb_configuration *c)
 
 	init_waitqueue_head(&dev->smd_ctl.wait);
 	init_waitqueue_head(&dev->smd_data.wait);
-
-	dev->pdrv.probe = rmnet_smd_ch_probe;
-	dev->pdrv.driver.name = CONFIG_RMNET_SMD_CTL_CHANNEL;
-	dev->pdrv.driver.owner = THIS_MODULE;
 
 	INIT_LIST_HEAD(&dev->qmi_req_pool);
 	INIT_LIST_HEAD(&dev->qmi_req_q);

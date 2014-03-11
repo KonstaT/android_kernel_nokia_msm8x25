@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  * include/linux/irqflags.h
  *
  * IRQ flags tracing: follow the state of the hardirq and softirq flags and
@@ -13,6 +14,54 @@
 
 #include <linux/typecheck.h>
 #include <asm/irqflags.h>
+
+typedef enum {
+	TRACK_FLAG_IRQOFF	= 0,
+	TRACK_FLAG_IRQON	= 1,
+	TRACK_FLAG_IRQSAVE	= 2,
+	TRACK_FLAG_IRQRESTORE	= 3,
+} irq_ops;
+
+#define TRACK_IRQSTATUS_ON      (1 << 8)
+#define TRACK_IRQSTATUS_OFF     0
+
+#ifdef CONFIG_MSM_SM_EVENT
+
+#include <linux/sm_event.h>
+#define track_hardirqs_on(ops)				\
+	do {						\
+		unsigned long ip;			\
+		unsigned long caller[2];			\
+		__asm__ __volatile__ (			\
+			"mov %0, pc\n"			\
+			"mov %1, lr\n"			\
+			"mov %2, r0\n"			\
+			: "=r" (ip), "=r" (caller[0]), "=r"(caller[1])	\
+			: : "cc" );			\
+		sm_add_event(SM_IRQ_ONOFF_EVENT,	\
+			ip, (ops) |TRACK_IRQSTATUS_ON,	\
+			&caller, sizeof(caller));	\
+	} while (0)
+
+#define track_hardirqs_off(ops)				\
+	do {						\
+		unsigned long ip;			\
+		unsigned long caller[2];			\
+		__asm__ __volatile__ (			\
+			"mov %0, pc\n"			\
+			"mov %1, lr\n"			\
+			"mov %2, r0\n"			\
+			: "=r" (ip), "=r" (caller[0]), "=r"(caller[1])	\
+			: : "cc" );			\
+		sm_add_event(SM_IRQ_ONOFF_EVENT,	\
+			ip, (ops) |TRACK_IRQSTATUS_OFF,	\
+			&caller, sizeof(caller));	\
+	} while (0)
+#else
+# define track_hardirqs_on(ops)            do { } while (0)
+# define track_hardirqs_off(ops)           do { } while (0)
+#endif
+
 
 #ifdef CONFIG_TRACE_IRQFLAGS
   extern void trace_softirqs_on(unsigned long ip);
@@ -87,25 +136,29 @@
  */
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 #define local_irq_enable() \
-	do { trace_hardirqs_on(); raw_local_irq_enable(); } while (0)
+	do { trace_hardirqs_on(); raw_local_irq_disable(); track_hardirqs_on(TRACK_FLAG_IRQON); raw_local_irq_enable(); } while (0)
 #define local_irq_disable() \
-	do { raw_local_irq_disable(); trace_hardirqs_off(); } while (0)
+	do { raw_local_irq_disable(); trace_hardirqs_off(); track_hardirqs_off(TRACK_FLAG_IRQOFF);} while (0)
 #define local_irq_save(flags)				\
 	do {						\
 		raw_local_irq_save(flags);		\
 		trace_hardirqs_off();			\
+		track_hardirqs_off(TRACK_FLAG_IRQSAVE);	\
 	} while (0)
 
 
-#define local_irq_restore(flags)			\
-	do {						\
-		if (raw_irqs_disabled_flags(flags)) {	\
-			raw_local_irq_restore(flags);	\
-			trace_hardirqs_off();		\
-		} else {				\
-			trace_hardirqs_on();		\
-			raw_local_irq_restore(flags);	\
-		}					\
+#define local_irq_restore(flags)					\
+	do {								\
+		if (raw_irqs_disabled_flags(flags)) {			\
+			raw_local_irq_restore(flags);			\
+			trace_hardirqs_off();				\
+			track_hardirqs_off(TRACK_FLAG_IRQRESTORE);	\
+		} else {						\
+			trace_hardirqs_on();				\
+			raw_local_irq_disable();			\
+			track_hardirqs_on(TRACK_FLAG_IRQRESTORE);	\
+			raw_local_irq_restore(flags);			\
+		}							\
 	} while (0)
 #define local_save_flags(flags)				\
 	do {						\
@@ -133,13 +186,26 @@
 
 #else /* !CONFIG_TRACE_IRQFLAGS_SUPPORT */
 
-#define local_irq_enable()	do { raw_local_irq_enable(); } while (0)
-#define local_irq_disable()	do { raw_local_irq_disable(); } while (0)
+#define local_irq_enable()	do { raw_local_irq_disable(); track_hardirqs_on(TRACK_FLAG_IRQON); raw_local_irq_enable(); } while (0)
+#define local_irq_disable()	do { raw_local_irq_disable(); track_hardirqs_off(TRACK_FLAG_IRQOFF); } while (0)
 #define local_irq_save(flags)					\
 	do {							\
 		raw_local_irq_save(flags);			\
+		track_hardirqs_off(TRACK_FLAG_IRQSAVE);		\
 	} while (0)
-#define local_irq_restore(flags) do { raw_local_irq_restore(flags); } while (0)
+
+#define local_irq_restore(flags)					\
+	do {								\
+		if (raw_irqs_disabled_flags(flags)) {			\
+			raw_local_irq_restore(flags);			\
+			track_hardirqs_off(TRACK_FLAG_IRQRESTORE);	\
+		} else {						\
+			raw_local_irq_disable();			\
+			track_hardirqs_on(TRACK_FLAG_IRQRESTORE);	\
+			raw_local_irq_restore(flags);			\
+		}							\
+	} while (0)
+
 #define local_save_flags(flags)	do { raw_local_save_flags(flags); } while (0)
 #define irqs_disabled()		(raw_irqs_disabled())
 #define irqs_disabled_flags(flags) (raw_irqs_disabled_flags(flags))

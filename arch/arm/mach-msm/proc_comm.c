@@ -156,3 +156,70 @@ end:
 	return ret;
 }
 EXPORT_SYMBOL(msm_proc_comm);
+
+
+/*
+        Read NV item
+        App ARM calls this API to read NV item from Modem ARM
+*/
+int msm_read_nv(unsigned int nv_item, void *buf)
+{
+        int ret = -1;
+        uint32_t data1 = nv_item;
+        uint32_t data2 ;
+        unsigned char *dest = buf;
+        unsigned int i;
+        if (NULL == buf)
+                return ret;
+        ret = msm_proc_comm(PCOM_NV_READ, &data1, &data2);
+        if (ret)
+                return ret;
+        switch (nv_item)
+        {
+        case 4678:
+                for(i = 0; i < 6; i++ )
+                {
+                        if(i < 4)
+                        {
+                                *dest++ = (unsigned char)(data2 >> (i*8));
+                        }
+                        else
+                        {
+                                *dest++ = (unsigned char)(data1 >> ((i-4)*8));
+                        }
+                }
+                break;
+        default:
+                printk(KERN_ERR "%s:nv item %d is not supported now\n",__func__,nv_item);
+                ret = -EIO;
+                break;
+        }
+        return ret;
+}
+#define NV_ITEM_WLAN_MAC_ADDR   4678
+extern unsigned char wlan_mac_addr[6];
+int read_nv(unsigned int nv_item, void *buf)
+{
+        int ret = -EIO;
+        switch (nv_item)
+        {
+                case 4678:
+                        if(memcmp(wlan_mac_addr,"\0\0\0\0\0\0",sizeof(wlan_mac_addr))!=0){
+                                memcpy(buf,wlan_mac_addr,sizeof(wlan_mac_addr));
+                                ret = 0;
+                        } else {
+                            msm_read_nv(NV_ITEM_WLAN_MAC_ADDR,wlan_mac_addr);
+                            printk(KERN_ERR "%s: read mac addr from nv\n",__func__);
+                            if(memcmp(wlan_mac_addr,"\0\0\0\0\0\0",sizeof(wlan_mac_addr))!=0){
+                                memcpy(buf,wlan_mac_addr,sizeof(wlan_mac_addr));
+                                ret = 0;
+                            }
+                        }
+                        break;
+                default:
+                        printk(KERN_ERR "%s:nv item %d is not supported now\n",__func__,nv_item);
+                        break;
+        }
+        return ret;
+}
+EXPORT_SYMBOL(read_nv);

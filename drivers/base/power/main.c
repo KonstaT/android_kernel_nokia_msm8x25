@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * This file is released under the GPLv2
  *
@@ -35,6 +36,10 @@
 
 typedef int (*pm_callback_t)(struct device *);
 
+#ifdef CONFIG_MSM_SM_EVENT
+#include <linux/sm_event_log.h>
+#include <linux/sm_event.h>
+#endif
 /*
  * The entries in the dpm_list list are in a depth first order, simply
  * because children are guaranteed to be discovered after parents, and

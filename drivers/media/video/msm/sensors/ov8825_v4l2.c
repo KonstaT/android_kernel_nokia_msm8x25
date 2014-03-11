@@ -18,6 +18,24 @@
 #define PLATFORM_DRIVER_NAME "msm_camera_ov8825"
 #define ov8825_obj ov8825_##obj
 
+#ifdef CDBG
+#undef CDBG
+#endif
+#ifdef CDBG_HIGH
+#undef CDBG_HIGH
+#endif
+
+#define OV8825_DGB
+
+#ifdef OV8825_DGB
+#define CDBG(fmt, args...) printk(fmt, ##args)
+#define CDBG_HIGH(fmt, args...) printk(fmt, ##args)
+#else
+#define CDBG(fmt, args...) do { } while (0)
+#define CDBG_HIGH(fmt, args...) printk(fmt, ##args)
+#endif
+
+
 /* TO DO - Currently ov5647 typical values are used
  * Need to get the exact values */
 #define OV8825_RG_RATIO_TYPICAL_VALUE 64 /* R/G of typical camera module */
@@ -237,6 +255,7 @@ static struct msm_camera_i2c_reg_conf ov8825_recommend_settings[] = {
 	{0x3619, 0x00},
 	{0x361a, 0xB0},
 	{0x361b, 0x04},
+	{0x361c, 0x07},
 	{0x3701, 0x44},
 	{0x370b, 0x01},
 	{0x370c, 0x50},
@@ -775,7 +794,10 @@ uint16_t ov8825_update_otp(struct msm_sensor_ctrl_t *s_ctrl)
 	return 0;
 }
 
-static int32_t ov8825_write_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
+
+static int is_first_preview = 1;
+
+static int32_t ov8825_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 		uint16_t gain, uint32_t line)
 {
 	uint32_t fl_lines, offset;
@@ -804,20 +826,80 @@ static int32_t ov8825_write_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 	return 0;
 }
 
+static int32_t ov8825_write_priv_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
+		uint16_t gain, uint32_t line)
+{
+	uint32_t fl_lines, offset;
+	uint8_t int_time[3];
+
+	fl_lines =
+		(s_ctrl->curr_frame_length_lines * s_ctrl->fps_divider) / Q10;
+	offset = s_ctrl->sensor_exp_gain_info->vert_offset;
+	if (line > (fl_lines - offset))
+		fl_lines = line + offset;
+	CDBG("ov8825_write_exp_gain: %d %d %d\n", fl_lines, gain, line);
+	s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
+	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
+		s_ctrl->sensor_output_reg_addr->frame_length_lines, fl_lines,
+		MSM_CAMERA_I2C_WORD_DATA);
+	int_time[0] = line >> 12;
+	int_time[1] = line >> 4;
+	int_time[2] = line << 4;
+	msm_camera_i2c_write_seq(s_ctrl->sensor_i2c_client,
+		s_ctrl->sensor_exp_gain_info->coarse_int_time_addr-1,
+		&int_time[0], 3);
+	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
+		s_ctrl->sensor_exp_gain_info->global_gain_addr, gain,
+		MSM_CAMERA_I2C_WORD_DATA);
+	s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
+	if(!is_first_preview)
+	{
+		msleep(200);
+		is_first_preview = 1;
+	}
+	return 0;
+}
+
 static const struct i2c_device_id ov8825_i2c_id[] = {
 	{SENSOR_NAME, (kernel_ulong_t)&ov8825_s_ctrl},
 	{ }
 };
 
+int32_t ov8825_sensor_i2c_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	int32_t rc = 0;
+	//struct msm_sensor_ctrl_t *s_ctrl;
+
+	CDBG("\n in ov8825_sensor_i2c_probe\n");
+	rc = msm_sensor_i2c_probe(client, id);
+	if (client->dev.platform_data == NULL) {
+		pr_err("%s: NULL sensor data\n", __func__);
+		return -EFAULT;
+	}
+	//move the powerdown operation to sensor_power_down function
+	//s_ctrl = client->dev.platform_data;
+	//if (s_ctrl->sensordata->pmic_gpio_enable)
+	//	lcd_camera_power_onoff(0);
+	return rc;
+}
+
 int32_t ov8825_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
-	struct msm_camera_sensor_info *info = NULL;
+	struct msm_camera_sensor_info *info = s_ctrl->sensordata;
+	CDBG("%s IN\r\n", __func__);
 
-	info = s_ctrl->sensordata;
+	CDBG("%s, sensor_pwd:%d, sensor_reset:%d\r\n",__func__, info->sensor_pwd, info->sensor_reset);
+
 	gpio_direction_output(info->sensor_pwd, 0);
 	gpio_direction_output(info->sensor_reset, 0);
-	usleep_range(10000, 11000);
+	usleep_range(5000, 6000);
+
+//	if (info->pmic_gpio_enable) {
+//		lcd_camera_power_onoff(1);
+//	}
+
 	rc = msm_sensor_power_up(s_ctrl);
 	if (rc < 0) {
 		CDBG("%s: msm_sensor_power_up failed\n", __func__);
@@ -831,9 +913,29 @@ int32_t ov8825_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	return rc;
 }
 
+int32_t ov8825_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
+{
+	struct msm_camera_sensor_info *info = s_ctrl->sensordata;
+	int rc = 0;
+	CDBG("%s IN\r\n", __func__);
+
+	//Stop stream first
+	s_ctrl->func_tbl->sensor_stop_stream(s_ctrl);
+	msleep(40);
+
+	gpio_direction_output(info->sensor_pwd, 0);
+	usleep_range(5000, 5100);
+	msm_sensor_power_down(s_ctrl);
+	msleep(40);
+//	if (info->pmic_gpio_enable){
+//		lcd_camera_power_onoff(0);
+//	}
+	return rc;
+}
+
 static struct i2c_driver ov8825_i2c_driver = {
 	.id_table = ov8825_i2c_id,
-	.probe  = msm_sensor_i2c_probe,
+	.probe  = ov8825_sensor_i2c_probe,
 	.driver = {
 		.name = SENSOR_NAME,
 	},
@@ -869,8 +971,32 @@ int32_t ov8825_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 {
 	int32_t rc = 0;
 	static int csi_config;
+	static unsigned short af_reg_l;
+	static unsigned short af_reg_h;
+	int af_step_pos;
+	CDBG("8825 sensor setting in, update_type:0x%x, res:0x%x\r\n",update_type, res);
+
+	if(update_type == MSM_SENSOR_UPDATE_PERIODIC)
+	{
+		msm_camera_i2c_read(s_ctrl->sensor_i2c_client, 0x3618, &af_reg_l,
+			MSM_CAMERA_I2C_BYTE_DATA);
+		msm_camera_i2c_read(s_ctrl->sensor_i2c_client, 0x3619, &af_reg_h,
+			MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG("AF_tuning data 3618 is 0x%x, 3619 is 0x%x\r\n", af_reg_l, af_reg_h);
+		//set to zero to avoid lens crash sound
+
+		for(af_step_pos = af_reg_h&0x3f; af_step_pos > 0; af_step_pos-=8)
+		{
+		msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x3618, 0x9,
+			MSM_CAMERA_I2C_BYTE_DATA);
+		msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x3619, af_step_pos&0xff,
+			MSM_CAMERA_I2C_BYTE_DATA);
+		msleep(2);
+		}
+	}
 
 	s_ctrl->func_tbl->sensor_stop_stream(s_ctrl);
+
 	msleep(30);
 	if (update_type == MSM_SENSOR_REG_INIT) {
 		CDBG("Register INIT\n");
@@ -886,6 +1012,7 @@ int32_t ov8825_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x100, 0x0,
 		  MSM_CAMERA_I2C_BYTE_DATA);
 		csi_config = 0;
+		is_first_preview = 1;
 	} else if (update_type == MSM_SENSOR_UPDATE_PERIODIC) {
 		CDBG("PERIODIC : %d\n", res);
 		msm_sensor_write_conf_array(
@@ -908,6 +1035,21 @@ int32_t ov8825_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 			&s_ctrl->sensordata->pdata->ioclk.vfe_clk_rate);
 
 		s_ctrl->func_tbl->sensor_start_stream(s_ctrl);
+
+		af_reg_l = af_reg_l & 0xf0;
+		af_reg_l = af_reg_l | 0x0e;
+		msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x3618, af_reg_l,
+			MSM_CAMERA_I2C_BYTE_DATA);
+		msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x3619, af_reg_h,
+			MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG("AF_tuning write data 3618 is 0x%x, 3619 is 0x%x\r\n", af_reg_l, af_reg_h);
+			//msleep(10);
+		if(res == 1)
+		{
+			//msleep(10);
+			is_first_preview = 0;
+		}
+
 		msleep(50);
 	}
 	return rc;
@@ -919,15 +1061,15 @@ static struct msm_sensor_fn_t ov8825_func_tbl = {
 	.sensor_group_hold_on = msm_sensor_group_hold_on,
 	.sensor_group_hold_off = msm_sensor_group_hold_off,
 	.sensor_set_fps = msm_sensor_set_fps,
-	.sensor_write_exp_gain = ov8825_write_exp_gain,
-	.sensor_write_snapshot_exp_gain = ov8825_write_exp_gain,
+	.sensor_write_exp_gain = ov8825_write_priv_exp_gain,
+	.sensor_write_snapshot_exp_gain = ov8825_write_pict_exp_gain,
 	.sensor_csi_setting = ov8825_sensor_setting,
 	.sensor_set_sensor_mode = msm_sensor_set_sensor_mode,
 	.sensor_mode_init = msm_sensor_mode_init,
 	.sensor_get_output_info = msm_sensor_get_output_info,
 	.sensor_config = msm_sensor_config,
 	.sensor_power_up = ov8825_sensor_power_up,
-	.sensor_power_down = msm_sensor_power_down,
+	.sensor_power_down = ov8825_sensor_power_down,
 };
 
 static struct msm_sensor_reg_t ov8825_regs = {

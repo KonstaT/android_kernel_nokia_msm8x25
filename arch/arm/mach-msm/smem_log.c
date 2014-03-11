@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2013, The Linux Foundation. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2002,7 +2002,7 @@ static int smem_log_initialize(void)
 		return ret;
 	}
 
-	smem_log_enable = 1;
+	smem_log_enable = 0;
 	smem_log_initialized = 1;
 	smem_log_debugfs_init();
 	return ret;
