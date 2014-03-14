@@ -786,13 +786,19 @@ void diag_send_data(struct diag_master_table entry, unsigned char *buf,
 					if ((int)(*(char *)(buf+1)) ==
 						RESET_ID)
 						return;
+				mutex_lock(&driver->diag_data_modem_mutex);
 				smd_write(driver->ch, buf, len);
+				mutex_unlock(&driver->diag_data_modem_mutex);
 			} else if (entry.client_id == QDSP_PROC &&
 							 driver->chqdsp) {
+				mutex_lock(&driver->diag_data_lpass_mutex);
 				smd_write(driver->chqdsp, buf, len);
+				mutex_unlock(&driver->diag_data_lpass_mutex);
 			} else if (entry.client_id == WCNSS_PROC &&
 							 driver->ch_wcnss) {
+				mutex_lock(&driver->diag_data_wcnss_mutex);
 				smd_write(driver->ch_wcnss, buf, len);
+				mutex_unlock(&driver->diag_data_wcnss_mutex);
 			} else {
 				pr_alert("diag: incorrect channel");
 			}
@@ -1526,6 +1532,9 @@ void diag_process_hdlc(void *data, unsigned len)
 {
 	struct diag_hdlc_decode_type hdlc;
 	int ret, type = 0;
+
+	mutex_lock(&driver->diag_hdlc_mutex);
+
 	pr_debug("diag: HDLC decode fn, len of data  %d\n", len);
 	hdlc.dest_ptr = driver->hdlc_buf;
 	hdlc.dest_size = USB_MAX_OUT_BUF;
@@ -1558,9 +1567,12 @@ void diag_process_hdlc(void *data, unsigned len)
 		if (chk_apps_only()) {
 			diag_send_error_rsp(hdlc.dest_idx);
 		} else { /* APQ 8060, Let Q6 respond */
-			if (driver->chqdsp)
+			if (driver->chqdsp) {
+				mutex_lock(&driver->diag_data_lpass_mutex);
 				smd_write(driver->chqdsp, driver->hdlc_buf,
 						  hdlc.dest_idx - 3);
+				mutex_unlock(&driver->diag_data_lpass_mutex);
+			}
 		}
 		type = 0;
 	}
@@ -1574,7 +1586,9 @@ void diag_process_hdlc(void *data, unsigned len)
 	/* ignore 2 bytes for CRC, one for 7E and send */
 	if ((driver->ch) && (ret) && (type) && (hdlc.dest_idx > 3)) {
 		APPEND_DEBUG('g');
+		mutex_lock(&driver->diag_data_modem_mutex);
 		smd_write(driver->ch, driver->hdlc_buf, hdlc.dest_idx - 3);
+		mutex_unlock(&driver->diag_data_modem_mutex);
 		APPEND_DEBUG('h');
 #ifdef DIAG_DEBUG
 		printk(KERN_INFO "writing data to SMD, pkt length %d\n", len);
@@ -1582,6 +1596,8 @@ void diag_process_hdlc(void *data, unsigned len)
 			       1, DUMP_PREFIX_ADDRESS, data, len, 1);
 #endif /* DIAG DEBUG */
 	}
+
+	mutex_unlock(&driver->diag_hdlc_mutex);
 }
 
 #ifdef CONFIG_DIAG_OVER_USB
@@ -1896,6 +1912,10 @@ void diagfwd_init(void)
 	driver->read_len_legacy = 0;
 	driver->use_device_tree = has_device_tree();
 	mutex_init(&driver->diag_cntl_mutex);
+	mutex_init(&driver->diag_hdlc_mutex);
+	mutex_init(&driver->diag_data_modem_mutex);
+	mutex_init(&driver->diag_data_lpass_mutex);
+	mutex_init(&driver->diag_data_wcnss_mutex);
 
 	if (driver->event_mask == NULL) {
 		driver->event_mask = kzalloc(sizeof(

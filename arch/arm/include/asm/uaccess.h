@@ -117,6 +117,7 @@ extern int __get_user_4(void *);
 		: "=&r" (__e), "=r" (__r2)				\
 		: "0" (__p), "r" (__l)					\
 		: __GUP_CLOBBER_##__s)
+
 #define get_user(x,p)							\
 	({								\
 		unsigned long __limit = current_thread_info()->addr_limit - 1; \
@@ -127,7 +128,7 @@ extern int __get_user_4(void *);
 		switch (sizeof(*(__p))) {				\
 		case 1:							\
 			__get_user_x(__r2, __p, __e, __l, 1);		\
-			break;                                          \
+			break;						\
 		case 2:							\
 			__get_user_x(__r2, __p, __e, __l, 2);		\
 			break;						\

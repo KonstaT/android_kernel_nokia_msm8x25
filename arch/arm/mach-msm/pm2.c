@@ -923,6 +923,9 @@ static int msm_pm_power_collapse
 	 */
 	*(uint32_t *)(virt_start_ptr + 0x38) = (1 << from_idle);
 
+	/* Clear "reserved1" variable in msm_pm_smem_data */
+	msm_pm_smem_data->reserved1 = 0x0;
+
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND|MSM_PM_DEBUG_POWER_COLLAPSE,
 		KERN_INFO, "%s(): idle %d, delay %u, limit %u\n", __func__,
 		(int)from_idle, sleep_delay, sleep_limit);
@@ -2009,9 +2012,9 @@ static int __init msm_pm_init(void)
 		spm1_base_addr = MSM_SAW1_BASE;
 		spm2_base_addr = MSM_SAW2_BASE;
 		spm3_base_addr = MSM_SAW3_BASE;
-		apps_pwr_dwn   = APPS_PWRDOWN;
 	}
 
+	apps_pwr_dwn   = APPS_PWRDOWN;
 	idle_v7_start_ptr = virt_start_ptr;
 	pm_write_smem_data = (void *)msm_pm_smem_data;
 

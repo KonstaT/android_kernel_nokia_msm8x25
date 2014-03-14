@@ -2,7 +2,7 @@
  *
  * amrnb encoder device
  *
- * Copyright (c) 2009, 2011-2012 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009, 2011-2013 The Linux Foundation. All rights reserved.
  *
  * This code is based in part on arch/arm/mach-msm/qdsp5/audio_in.c, which is
  * Copyright (C) 2008 Google, Inc.
@@ -896,6 +896,7 @@ static ssize_t audamrnb_in_read(struct file *file,
 	struct amrnb_encoded_meta_out meta_field;
 	struct audio_frame_nt *nt_frame;
 	MM_DBG("count = %d\n", count);
+	memset(&meta_field, 0, sizeof(meta_field));
 	mutex_lock(&audio->read_lock);
 	while (count > 0) {
 		rc = wait_event_interruptible(

@@ -343,6 +343,7 @@ static struct msm_hsusb_gadget_platform_data msm_gadget_pdata = {
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 	.inject_rx_on_wakeup	= 1,
 	.rx_to_inject		= 0xFD,
+	.uartdm_rx_buf_size	= 1024,
 };
 #endif
 static struct msm_pm_platform_data msm7627a_pm_data[MSM_PM_SLEEP_MODE_NR] = {
@@ -886,7 +887,9 @@ static void fix_sizes(void)
 #ifdef CONFIG_ION_MSM
 	msm_ion_audio_size = MSM_PMEM_AUDIO_SIZE;
 #ifdef CONFIG_CMA
-	msm_ion_camera_size = CAMERA_ZSL_SIZE;
+        if (get_ddr_size() > SZ_256M)
+                pmem_adsp_size = CAMERA_ZSL_SIZE;
+	msm_ion_camera_size = pmem_adsp_size;
 	msm_ion_camera_size_carving = 0;
 #else
 	msm_ion_camera_size = pmem_adsp_size;

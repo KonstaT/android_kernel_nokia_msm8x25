@@ -133,7 +133,7 @@ void msm7k_fiq_handler(void)
 			pr_info("SPM3_SAW2_CTL = 0x%x\n",
 					__raw_readl(MSM_SAW3_BASE + 0x20));
 		}
-		cpumask_copy(&fiq_cpu_mask, cpu_online_mask);
+		cpumask_copy(&fiq_cpu_mask, cpu_possible_mask);
 		cpu_clear(this_cpu, fiq_cpu_mask);
 		gic_raise_secure_softirq(&fiq_cpu_mask, GIC_SECURE_SOFT_IRQ);
 	}

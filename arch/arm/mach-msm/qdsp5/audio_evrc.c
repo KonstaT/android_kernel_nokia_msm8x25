@@ -1,6 +1,6 @@
 /* arch/arm/mach-msm/audio_evrc.c
  *
- * Copyright (c) 2008-2009, 2011-2012 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2009, 2011-2013 The Linux Foundation. All rights reserved.
  *
  * This code also borrows from audio_aac.c, which is
  * Copyright (C) 2008 Google, Inc.
@@ -788,6 +788,7 @@ static long audevrc_ioctl(struct file *file, unsigned int cmd,
 
 	if (cmd == AUDIO_GET_STATS) {
 		struct msm_audio_stats stats;
+		memset(&stats, 0, sizeof(stats));
 		stats.byte_count = audpp_avsync_byte_count(audio->dec_id);
 		stats.sample_count = audpp_avsync_sample_count(audio->dec_id);
 		if (copy_to_user((void *)arg, &stats, sizeof(stats)))
@@ -1199,7 +1200,10 @@ static int audevrc_process_eos(struct audio *audio,
 		rc = -EBUSY;
 		goto done;
 	}
-
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1256,6 +1260,10 @@ static ssize_t audevrc_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("mf offset_val %x\n", mfield_size);
 				if (copy_from_user(cpy_ptr, buf,
 							mfield_size)) {
@@ -1286,7 +1294,10 @@ static ssize_t audevrc_write(struct file *file, const char __user *buf,
 			 }
 			 frame->mfield_sz = mfield_size;
 		}
-
+		if (mfield_size > frame->size) {
+			rc = -EINVAL;
+			break;
+		}
 		xfer = (count > (frame->size - mfield_size)) ?
 			(frame->size - mfield_size) : count;
 		if (copy_from_user(cpy_ptr, buf, xfer)) {

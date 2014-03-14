@@ -169,7 +169,6 @@ static unsigned int wlan_switch_regulators(int on)
 					pr_err("%s:%s pincntrl failed %d\n",
 						__func__,
 						vreg_info[index].vreg_id, rc);
-					goto pin_cnt_fail;
 				}
 			}
 
@@ -178,24 +177,22 @@ static unsigned int wlan_switch_regulators(int on)
 				pr_err("%s:%s vreg disable failed %d\n",
 					__func__,
 					vreg_info[index].vreg_id, rc);
-				goto reg_disable;
 			}
 		}
 	}
-	return 0;
+	return rc;
+
 pin_cnt_fail:
-	if (on)
-		regulator_disable(vreg_info[index].reg);
+	regulator_disable(vreg_info[index].reg);
 reg_disable:
-	if (!machine_is_msm7627a_qrd1()) {
-		while (index) {
-			if (on) {
-				index--;
-				regulator_disable(vreg_info[index].reg);
-				regulator_put(vreg_info[index].reg);
-			}
-		}
+	if (machine_is_msm7627a_qrd1())
+		return rc;
+
+	while (index) {
+		index--;
+		regulator_disable(vreg_info[index].reg);
 	}
+
 	return rc;
 }
 
@@ -330,7 +327,7 @@ static unsigned int msm_AR600X_shutdown_power(bool on)
 	rc = setup_wlan_clock(on);
 	if (rc) {
 		pr_err("%s: setup_wlan_clock = %d\n", __func__, rc);
-		goto set_clock_fail;
+		goto set_gpio_fail;
 	}
 
 	/*
@@ -386,8 +383,6 @@ static unsigned int msm_AR600X_shutdown_power(bool on)
 	wlan_powered_up = false;
 	pr_info("WLAN power-down success\n");
 	return 0;
-set_clock_fail:
-	setup_wlan_clock(0);
 set_gpio_fail:
 	setup_wlan_gpio(0);
 gpio_fail:
@@ -402,7 +397,10 @@ qrd_gpio_fail:
 		gpio_free(GPIO_WLAN_3V3_EN);
 reg_disable:
 	wlan_switch_regulators(0);
+
+	wlan_powered_up = false;
 	pr_info("WLAN power-down failed\n");
+
 	return rc;
 }
 

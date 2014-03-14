@@ -2,7 +2,7 @@
  *
  * evrc audio input device
  *
- * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This code is based in part on arch/arm/mach-msm/qdsp5v2/audio_evrc_in.c,
  * Copyright (C) 2008 Google, Inc.
@@ -732,6 +732,7 @@ static long audevrc_in_ioctl(struct file *file,
 	MM_DBG("\n");
 	if (cmd == AUDIO_GET_STATS) {
 		struct msm_audio_stats stats;
+		memset(&stats, 0, sizeof(stats));
 		stats.byte_count = atomic_read(&audio->in_bytes);
 		stats.sample_count = atomic_read(&audio->in_samples);
 		if (copy_to_user((void *) arg, &stats, sizeof(stats)))
@@ -884,6 +885,7 @@ static ssize_t audevrc_in_read(struct file *file,
 	int rc = 0;
 	struct evrc_encoded_meta_out meta_field;
 	struct audio_frame_nt *nt_frame;
+	memset(&meta_field, 0, sizeof(meta_field));
 	MM_DBG("count = %d\n", count);
 	mutex_lock(&audio->read_lock);
 	while (count > 0) {
@@ -1073,6 +1075,10 @@ int audrec_evrc_process_eos(struct audio_evrc_in *audio,
 		rc = -EBUSY;
 		goto done;
 	}
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1138,6 +1144,10 @@ static ssize_t audevrc_in_write(struct file *file,
 				rc = -EINVAL;
 				goto error;
 			}
+			if (mfield_size > audio->out[0].size) {
+				rc = -EINVAL;
+				goto error;
+			}
 			MM_DBG("mf offset_val %x\n", mfield_size);
 			if (copy_from_user(cpy_ptr, buf, mfield_size)) {
 				rc = -EFAULT;
@@ -1167,6 +1177,7 @@ static ssize_t audevrc_in_write(struct file *file,
 		}
 		frame->mfield_sz = mfield_size;
 	}
+	count = count > frame->size ? frame->size : count;
 	MM_DBG("copying the stream count = %d\n", count);
 	if (copy_from_user(cpy_ptr, buf, count)) {
 		rc = -EFAULT;
